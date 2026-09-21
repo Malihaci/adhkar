@@ -253,3 +253,138 @@ export function verseAudioUrl(reciterId: string, verseKey: string): string {
   }
   return `${QURAN_CDN_BASE[r.ref]}/${file}`;
 }
+
+/* ------------------------------------------------------ Recherche (V1 arabe) */
+/**
+ * Recherche plein texte fournie par api.quran.com (tolérante aux harakat :
+ * une requête sans voyelles retrouve les mots du texte Uthmani vocalisé).
+ * V1 volontairement simple — texte arabe uniquement. Prévu pour être étendu
+ * plus tard (traduction, phonétique, thématique) sans changer cette forme.
+ */
+export interface SearchWord {
+  text: string;
+  /** mot correspondant à la requête, fourni par l'API (mise en évidence) */
+  highlight: boolean;
+}
+
+export interface SearchResult {
+  key: string; // "2:255"
+  surah: number;
+  ayah: number;
+  /** texte complet du verset (affichage résultat uniquement, jamais le Mushaf) */
+  text: string;
+  words: SearchWord[];
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  totalResults: number;
+}
+
+export async function searchQuranArabic(
+  query: string,
+  size = 20,
+): Promise<SearchResponse> {
+  const res = await fetch(
+    `${API}/search?q=${encodeURIComponent(query)}&size=${size}`,
+  );
+  if (!res.ok) throw new Error("Recherche indisponible");
+  const json = await res.json();
+  const s = json.search ?? {};
+  const results: SearchResult[] = ((s.results as any[]) ?? []).map((r) => {
+    const [surah, ayah] = String(r.verse_key).split(":").map(Number);
+    return {
+      key: r.verse_key as string,
+      surah,
+      ayah,
+      text: (r.text as string) ?? "",
+      words: ((r.words as any[]) ?? [])
+        .filter((w) => w.char_type === "word")
+        .map((w) => ({ text: w.text as string, highlight: !!w.highlight })),
+    };
+  });
+  return { results, totalResults: Number(s.total_results) || results.length };
+}
+
+/** Page Mushaf (1-604) contenant un verset donné, pour ouvrir directement le Mushaf. */
+export async function fetchVersePage(verseKey: string): Promise<number> {
+  const res = await fetch(`${API}/verses/by_key/${verseKey}?fields=page_number`);
+  if (!res.ok) throw new Error("Verset introuvable");
+  const json = await res.json();
+  return clampPage(Number(json.verse?.page_number) || 1);
+}
+
+/* ------------------------------------------------- Fallback recherche (fragments) */
+/**
+ * L'API /search d'api.quran.com fait un matching par mot entier (après
+ * dévocalisation), pas par sous-chaîne : un fragment comme "كرسي" (présent
+ * uniquement dans "كُرْسِيُّهُ") ne remonte aucun résultat alors que le mot
+ * existe bien dans le Coran. Ce fallback ne s'active QUE si la recherche
+ * principale ne renvoie rien : il compare une version normalisée (harakat et
+ * tatweel retirés, variantes d'alif unifiées) du texte Uthmani complet à une
+ * version normalisée de la requête. Le texte affiché reste toujours
+ * `text_uthmani` original, jamais la version normalisée.
+ */
+const SEARCH_DIACRITICS =
+  /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED\u0640]/g;
+const ALIF_VARIANTS = /[\u0622\u0623\u0625\u0671]/g;
+
+/** Normalisation réservée à la comparaison de recherche — jamais à l'affichage. */
+export function normalizeArabicForSearch(text: string): string {
+  return text
+    .replace(SEARCH_DIACRITICS, "")
+    .replace(ALIF_VARIANTS, "ا")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Sous 3 caractères normalisés, un fallback par sous-chaîne noierait les résultats. */
+export const MIN_FALLBACK_QUERY_LENGTH = 3;
+
+export interface FullVerseText {
+  key: string;
+  /** text_uthmani original — jamais modifié, utilisé tel quel à l'affichage */
+  text: string;
+}
+
+/**
+ * Texte complet du Coran en un seul appel (endpoint dédié d'api.quran.com,
+ * même API que le reste du Mushaf) — pas de boucle sur les 604 pages.
+ * À appeler seulement en cas de besoin (recherche principale vide) et à
+ * mettre en cache côté appelant (staleTime: Infinity) : un seul
+ * téléchargement par session, jamais un par recherche.
+ */
+export async function fetchFullQuranText(): Promise<FullVerseText[]> {
+  const res = await fetch(`${API}/quran/verses/uthmani`);
+  if (!res.ok) throw new Error("Texte complet indisponible");
+  const json = await res.json();
+  return ((json.verses as any[]) ?? []).map((v) => ({
+    key: v.verse_key as string,
+    text: (v.text_uthmani as string) ?? "",
+  }));
+}
+
+/** Recherche locale par sous-chaîne sur texte déjà en cache (aucun réseau). */
+export function searchQuranFallback(
+  rawQuery: string,
+  verses: FullVerseText[],
+  limit = 20,
+): SearchResponse {
+  const q = normalizeArabicForSearch(rawQuery);
+  if (q.length < MIN_FALLBACK_QUERY_LENGTH) return { results: [], totalResults: 0 };
+
+  const results: SearchResult[] = [];
+  let totalResults = 0;
+  for (const v of verses) {
+    if (!normalizeArabicForSearch(v.text).includes(q)) continue;
+    totalResults++;
+    if (results.length >= limit) continue;
+    const [surah, ayah] = v.key.split(":").map(Number);
+    const words: SearchWord[] = v.text
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w) => ({ text: w, highlight: normalizeArabicForSearch(w).includes(q) }));
+    results.push({ key: v.key, surah, ayah, text: v.text, words });
+  }
+  return { results, totalResults };
+}

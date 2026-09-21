@@ -23,17 +23,24 @@ import {
   X,
 } from "lucide-react";
 import {
+  MIN_FALLBACK_QUERY_LENGTH,
   RECITERS,
   TOTAL_PAGES,
   clampPage,
   fetchChapters,
+  fetchFullQuranText,
   fetchJuzVerseKeys,
   fetchPageLayout,
   fetchSurahVerseKeys,
+  fetchVersePage,
   getReciter,
   keysToEndOfQuran,
+  normalizeArabicForSearch,
+  searchQuranArabic,
+  searchQuranFallback,
   verseAudioUrl,
   type PageVerse,
+  type SearchResult,
 } from "@/lib/mushaf";
 import { Basmala } from "@/components/AyahText";
 import { cn } from "@/lib/utils";
@@ -65,6 +72,23 @@ export const Route = createFileRoute("/quran/page/$page")({
   },
   component: MushafPage,
 });
+
+/**
+ * Mode de lecture choisi dans Options — détermine où le bouton ▶ s'arrête.
+ * "continuous" (par défaut) et "toEnd" génèrent la même file (utile pour
+ * réutiliser exactement keysToEndOfQuran) mais restent deux entrées de menu
+ * séparées, comme demandé.
+ */
+type ReadMode = "continuous" | "ayah" | "page" | "surah" | "juz" | "toEnd";
+
+const READ_MODES: { id: ReadMode; label: string }[] = [
+  { id: "continuous", label: "Lecture continue" },
+  { id: "ayah", label: "Cette ayah" },
+  { id: "page", label: "Cette page" },
+  { id: "surah", label: "Cette sourate" },
+  { id: "juz", label: "Ce juz'" },
+  { id: "toEnd", label: "Depuis cette ayah jusqu'à la fin du Coran" },
+];
 
 const ARABIC_DIGITS = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
 const toArabic = (n: number) =>
@@ -111,6 +135,8 @@ function MushafPage() {
   const [showNav, setShowNav] = useState(false);
   const [copied, setCopied] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchNavigating, setSearchNavigating] = useState<string | null>(null);
 
   // Sélection venant du lien partagé
   useEffect(() => {
@@ -138,6 +164,7 @@ function MushafPage() {
   const [speed, setSpeed] = useState(1); // 1 ou 1.25
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [autoTurn, setAutoTurn] = useState(false);
+  const [readMode, setReadMode] = useState<ReadMode>("continuous");
   const current = playing || queue.length ? queue[qIndex] : undefined;
 
   const load = useCallback(
@@ -157,15 +184,25 @@ function MushafPage() {
     if (audioRef.current) audioRef.current.playbackRate = speed;
   }, [speed]);
 
-  /** Construit la file en appliquant la répétition par ayah puis par sélection. */
-  const start = (keys: string[], opts?: { turnPages?: boolean }) => {
+  /**
+   * Construit la file en appliquant la répétition par ayah puis par
+   * sélection. `skipSelRepeat` ignore la répétition de sélection pour une
+   * lecture continue/jusqu'à la fin du Coran (répéter une liste qui va
+   * jusqu'à la fin du Coran n'a pas de sens) — la répétition par ayah,
+   * elle, reste active dans tous les modes.
+   */
+  const start = (
+    keys: string[],
+    opts?: { turnPages?: boolean; skipSelRepeat?: boolean },
+  ) => {
     if (!keys.length) return;
     const perAyah = ayahRepeat > 1 ? ayahRepeat : 1;
     let full = keys.flatMap((k) => Array.from({ length: perAyah }, () => k));
-    if (selRepeat > 1) {
+    const applySelRepeat = !opts?.skipSelRepeat;
+    if (applySelRepeat && selRepeat > 1) {
       full = Array.from({ length: selRepeat }, () => full).flat();
     }
-    setLoop(selRepeat === 0);
+    setLoop(applySelRepeat && selRepeat === 0);
     setAutoTurn(!!opts?.turnPages);
     setQueue(full);
     setQIndex(0);
@@ -235,6 +272,10 @@ function MushafPage() {
     else {
       setPlaying(false);
       setProgress(0);
+      // Vide la file terminée : un futur ▶ doit démarrer une nouvelle
+      // lecture (mode courant) plutôt que "reprendre" une file épuisée.
+      setQueue([]);
+      setQIndex(0);
     }
   };
 
@@ -268,6 +309,28 @@ function MushafPage() {
       search: (prev) => ({ ...prev, ...patch }),
       replace: true,
     });
+
+  /**
+   * Résultat de recherche → vraie page Mushaf, ayah sélectionnée via le
+   * mécanisme `sel` déjà utilisé pour les liens partagés (aucune nouvelle
+   * logique de sélection).
+   */
+  const goToSearchResult = async (key: string) => {
+    setSearchNavigating(key);
+    try {
+      const targetPage = await fetchVersePage(key);
+      setSearchOpen(false);
+      navigate({
+        to: "/quran/page/$page",
+        params: { page: String(targetPage) },
+        search: { r: reciterId, sel: key },
+      });
+    } catch {
+      /* le panneau reste ouvert, l'utilisateur peut réessayer */
+    } finally {
+      setSearchNavigating(null);
+    }
+  };
 
   /* ------------------------------------------------------------ partage */
   const buildLink = (sel?: string) => {
@@ -315,23 +378,63 @@ function MushafPage() {
   };
 
 
-  const playSurah = async () => {
-    const keys = await fetchSurahVerseKeys(anchor.surah);
+  /*
+   * Chaque mode part de `anchor.key` (1re ayah sélectionnée, sinon 1re ayah
+   * de la page — cf. §1/§6 : la sélection n'est plus qu'un point de départ)
+   * et ne diffère que par où la lecture s'arrête.
+   */
+  const playAyah = () => start(anchor.key ? [anchor.key] : []);
+
+  const playPageFromAnchor = () => {
+    const list = verses ?? [];
+    const idx = list.findIndex((v) => v.key === anchor.key);
+    const keys = list.slice(idx < 0 ? 0 : idx).map((v) => v.key);
     start(keys, { turnPages: true });
   };
 
-  /* -------------------------------------------------- sélection rapide */
-  const playPage = () => start((verses ?? []).map((v) => v.key), { turnPages: true });
-  const playSelection = () =>
-    start(selected.length ? selected : anchor.key ? [anchor.key] : []);
-  const playAyah = () => start(anchor.key ? [anchor.key] : []);
-  const playJuz = async () => {
-    const keys = await fetchJuzVerseKeys(anchor.juz);
-    start(keys, { turnPages: true });
+  const playSurahFromAnchor = async () => {
+    const all = await fetchSurahVerseKeys(anchor.surah);
+    const idx = all.indexOf(anchor.key);
+    start(all.slice(idx < 0 ? 0 : idx), { turnPages: true });
   };
-  const playToEnd = () => {
+
+  const playJuzFromAnchor = async () => {
+    const all = await fetchJuzVerseKeys(anchor.juz);
+    const idx = all.indexOf(anchor.key);
+    start(all.slice(idx < 0 ? 0 : idx), { turnPages: true });
+  };
+
+  /** "Lecture continue" et "toEnd" : identique, jusqu'à la fin du Coran. */
+  const playContinuousFromAnchor = () => {
     if (!chapters || !anchor.key) return;
-    start(keysToEndOfQuran(anchor.key, chapters), { turnPages: true });
+    start(keysToEndOfQuran(anchor.key, chapters), {
+      turnPages: true,
+      skipSelRepeat: true,
+    });
+  };
+
+  /** Point d'entrée unique du bouton ▶ — démarre selon le mode choisi. */
+  const playFromAnchor = () => {
+    if (!anchor.key) return;
+    switch (readMode) {
+      case "ayah":
+        playAyah();
+        return;
+      case "page":
+        playPageFromAnchor();
+        return;
+      case "surah":
+        void playSurahFromAnchor();
+        return;
+      case "juz":
+        void playJuzFromAnchor();
+        return;
+      case "continuous":
+      case "toEnd":
+      default:
+        playContinuousFromAnchor();
+        return;
+    }
   };
 
   /** Ligne (index) où débute une nouvelle sourate → en-tête + basmala. */
@@ -532,7 +635,7 @@ function MushafPage() {
             <span className="text-muted-foreground"> / {TOTAL_PAGES}</span>
           </button>
           <button
-            onClick={() => setShowNav(true)}
+            onClick={() => setSearchOpen(true)}
             aria-label="Recherche"
             className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
@@ -557,7 +660,7 @@ function MushafPage() {
         <div
           ref={sheetRef}
           style={{ fontSize: fontPx }}
-          className="mx-auto flex h-full max-w-2xl flex-col justify-center gap-[0.35em]"
+          className="mx-auto flex h-full max-w-2xl flex-col justify-start gap-[0.35em]"
         >
           {(lines ?? []).map((line, li) => {
             const startSurah = surahStartAtLine.get(li);
@@ -623,46 +726,46 @@ function MushafPage() {
       )}
 
       {/* Barre basse unique : Accueil · navigation · lecture · options */}
-      <nav className="shrink-0 border-t border-border/40 bg-card/90 px-2 py-1.5 backdrop-blur-xl">
+      <nav className="shrink-0 border-t border-border/40 bg-card/90 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-1">
           <Link
             to="/"
             aria-label="Accueil"
-            className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition active:scale-95 hover:bg-muted hover:text-foreground"
+            className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
           >
-            <Home className="size-5" />
+            <Home className="size-[18px]" strokeWidth={1.75} />
           </Link>
           <button
             onClick={() => goPage(1)}
             aria-label="Page suivante"
-            className="grid size-11 shrink-0 place-items-center rounded-full text-foreground transition active:scale-95 hover:bg-muted"
+            className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
           >
-            <ChevronLeft className="size-5" />
+            <ChevronLeft className="size-[18px]" strokeWidth={1.75} />
           </button>
           <button
-            onClick={() => (queue.length ? toggle() : playSelection())}
+            onClick={() => (queue.length ? toggle() : playFromAnchor())}
             aria-label={playing ? "Pause" : "Lecture"}
-            className="grid size-14 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-soft)] transition active:scale-95"
+            className="grid size-14 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elevated)] transition active:scale-95"
           >
             {playing ? (
-              <Pause className="size-6" />
+              <Pause className="size-6" strokeWidth={1.75} />
             ) : (
-              <Play className="size-6" />
+              <Play className="size-6" strokeWidth={1.75} />
             )}
           </button>
           <button
             onClick={() => setOptionsOpen(true)}
             aria-label="Options de récitation"
-            className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground transition active:scale-95 hover:bg-muted hover:text-foreground"
+            className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
           >
-            <Settings2 className="size-5" />
+            <Settings2 className="size-[18px]" strokeWidth={1.75} />
           </button>
           <button
             onClick={() => goPage(-1)}
             aria-label="Page précédente"
-            className="grid size-11 shrink-0 place-items-center rounded-full text-foreground transition active:scale-95 hover:bg-muted"
+            className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
           >
-            <ChevronRight className="size-5" />
+            <ChevronRight className="size-[18px]" strokeWidth={1.75} />
           </button>
         </div>
       </nav>
@@ -726,6 +829,15 @@ function MushafPage() {
           chapters={chapters ?? []}
           reciterId={reciterId}
           onClose={() => setShowNav(false)}
+        />
+      )}
+
+      {searchOpen && (
+        <SearchPanel
+          chapters={chapters ?? []}
+          navigatingKey={searchNavigating}
+          onSelectVerse={goToSearchResult}
+          onClose={() => setSearchOpen(false)}
         />
       )}
 
@@ -794,41 +906,30 @@ function MushafPage() {
             </div>
 
             <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Sélection rapide
+              Mode de lecture
             </p>
-            <div className="grid grid-cols-2 gap-2 pb-4">
-              <QuickButton label="Cette ayah" onClick={playAyah} />
-              <QuickButton label="Cette page" onClick={playPage} />
-              <QuickButton label="Cette sourate" onClick={playSurah} />
-              <QuickButton label="Ce juz'" onClick={playJuz} />
-              <button
-                onClick={playToEnd}
-                className="col-span-2 rounded-2xl border border-border bg-background px-3 py-3 text-sm font-semibold transition hover:border-primary/50 hover:text-primary"
-              >
-                Depuis ici jusqu'à la fin du Coran
-              </button>
+            <div className="space-y-1.5 pb-4">
+              {READ_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setReadMode(m.id)}
+                  aria-pressed={readMode === m.id}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition",
+                    readMode === m.id
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background hover:border-primary/40",
+                  )}
+                >
+                  {m.label}
+                  {readMode === m.id && <Check className="size-4 shrink-0" />}
+                </button>
+              ))}
             </div>
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-function QuickButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="rounded-2xl border border-border bg-background px-3 py-3 text-sm font-semibold transition hover:border-primary/50 hover:text-primary"
-    >
-      {label}
-    </button>
   );
 }
 
@@ -959,6 +1060,199 @@ function GoToPanel({
             </li>
           ))}
         </ul>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Recherche V1 — texte arabe uniquement (tolérante aux harakat côté API).
+ * Prévu pour accueillir plus tard traduction/phonétique/thématique sans
+ * changer ce contrat : SearchResult reste la seule forme consommée ici.
+ */
+function SearchPanel({
+  chapters,
+  navigatingKey,
+  onSelectVerse,
+  onClose,
+}: {
+  chapters: { id: number; nameFrench: string }[];
+  navigatingKey: string | null;
+  onSelectVerse: (key: string) => void;
+  onClose: () => void;
+}) {
+  const [raw, setRaw] = useState("");
+  const [query, setQuery] = useState("");
+
+  // Debounce : un seul appel réseau après une pause de saisie.
+  useEffect(() => {
+    const t = window.setTimeout(() => setQuery(raw.trim()), 350);
+    return () => window.clearTimeout(t);
+  }, [raw]);
+
+  const {
+    data,
+    isFetching,
+    isError,
+  } = useQuery({
+    queryKey: ["quran-search", query],
+    queryFn: () => searchQuranArabic(query, 20),
+    enabled: query.length >= 2,
+  });
+
+  /**
+   * Fallback fragment : l'API principale matche par mot entier et rate donc
+   * certains fragments (ex. "كرسي" absent tel quel, seulement dans
+   * "كُرْسِيُّهُ"). On ne le déclenche QUE si la recherche principale est
+   * établie et vide — jamais en plus d'un résultat déjà pertinent — et
+   * jamais pour un fragment normalisé de moins de 3 caractères (sinon
+   * inondation de faux résultats). Le texte complet du Coran (un seul appel,
+   * `staleTime: Infinity`) n'est donc téléchargé qu'une fois par session, et
+   * seulement si ce cas se présente réellement.
+   */
+  const canFallback =
+    normalizeArabicForSearch(query).length >= MIN_FALLBACK_QUERY_LENGTH;
+  const primaryEmpty = !isFetching && (data?.results.length ?? 0) === 0;
+  const tryFallback = primaryEmpty && canFallback;
+
+  const {
+    data: fullQuranText,
+    isFetching: isFetchingFullText,
+  } = useQuery({
+    queryKey: ["quran-full-text"],
+    queryFn: fetchFullQuranText,
+    staleTime: Infinity,
+    enabled: tryFallback,
+  });
+
+  const fallback = useMemo(
+    () => (fullQuranText ? searchQuranFallback(query, fullQuranText, 20) : null),
+    [fullQuranText, query],
+  );
+
+  const usingFallback = tryFallback && !!fallback && fallback.results.length > 0;
+  const results = usingFallback ? fallback!.results : (data?.results ?? []);
+  const totalResults = usingFallback ? fallback!.totalResults : data?.totalResults;
+  const loading = isFetching || (tryFallback && isFetchingFullText);
+  const showNetworkError = isError && !tryFallback;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm">
+      <div className="flex max-h-[85dvh] w-full flex-col overflow-hidden rounded-t-3xl border-t border-border bg-card">
+        <div className="flex shrink-0 items-center justify-between px-4 pt-4">
+          <h2 className="font-display text-lg font-semibold">Recherche</h2>
+          <button
+            onClick={onClose}
+            aria-label="Fermer"
+            className="grid size-9 place-items-center rounded-full border border-border"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="shrink-0 px-4 pb-3 pt-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              autoFocus
+              dir="rtl"
+              lang="ar"
+              value={raw}
+              onChange={(e) => setRaw(e.target.value)}
+              placeholder="Rechercher dans le Coran…"
+              aria-label="Rechercher dans le Coran"
+              className="h-12 w-full rounded-full border border-border bg-background px-4 text-right font-arabic text-[17px] outline-none transition placeholder:text-right placeholder:font-sans placeholder:text-[14px] placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            {raw && (
+              <button
+                onClick={() => setRaw("")}
+                aria-label="Effacer"
+                className="absolute left-3 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition hover:bg-muted"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          {query.length < 2 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Tapez au moins deux lettres — un mot ou un fragment d'ayah.
+            </p>
+          ) : loading ? (
+            <p className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              {tryFallback ? "Recherche élargie…" : "Recherche…"}
+            </p>
+          ) : showNetworkError ? (
+            <p className="py-10 text-center text-sm text-destructive">
+              Recherche indisponible pour le moment. Réessayez.
+            </p>
+          ) : results.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Aucun résultat pour « {query} ».
+            </p>
+          ) : (
+            <>
+              {usingFallback && (
+                <p className="mb-1 px-1 text-[11px] text-muted-foreground/80">
+                  Résultats de fragment (recherche élargie)
+                </p>
+              )}
+              {typeof totalResults === "number" && (
+                <p className="mb-2 px-1 text-xs text-muted-foreground">
+                  {totalResults > results.length
+                    ? `${results.length} premiers résultats sur ${totalResults}`
+                    : `${totalResults} résultat${totalResults > 1 ? "s" : ""}`}
+                </p>
+              )}
+              <ul className="space-y-1.5">
+                {results.map((r: SearchResult) => {
+                  const meta = chapters.find((c) => c.id === r.surah);
+                  const isNavigating = navigatingKey === r.key;
+                  return (
+                    <li key={r.key}>
+                      <button
+                        onClick={() => onSelectVerse(r.key)}
+                        disabled={!!navigatingKey}
+                        className="flex w-full flex-col gap-1.5 rounded-2xl border border-border/60 bg-background px-4 py-3 text-left transition hover:border-primary/40 hover:bg-muted disabled:opacity-60"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm font-semibold text-foreground">
+                            {meta?.nameFrench ?? `Sourate ${r.surah}`}
+                          </span>
+                          <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                            {r.key}
+                          </span>
+                        </div>
+                        <p
+                          lang="ar"
+                          dir="rtl"
+                          className="truncate font-arabic text-[1.1rem] leading-relaxed text-foreground"
+                        >
+                          {r.words.map((w, i) => (
+                            <span
+                              key={i}
+                              className={w.highlight ? "text-primary" : undefined}
+                            >
+                              {w.text}{" "}
+                            </span>
+                          ))}
+                        </p>
+                        {isNavigating && (
+                          <span className="flex items-center gap-1.5 text-xs text-primary">
+                            <Loader2 className="size-3 animate-spin" /> Ouverture…
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

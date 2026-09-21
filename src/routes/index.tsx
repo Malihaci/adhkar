@@ -1,8 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sunrise, Moon, ArrowRight, Headphones, BookOpen } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import {
+  BookMarked,
+  BookOpen,
+  Headphones,
+  Heart,
+  Moon,
+  Sparkles,
+  Sunrise,
+  X,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
-import { useDailyProgress } from "@/lib/storage";
+import { useDailyProgress, useLocalState } from "@/lib/storage";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -11,18 +22,24 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Adhkâr du matin, du soir et écoute de la récitation authentique d'Al-‘Afâsy.",
+          "Adhkâr du matin, du soir, lecture du Coran et Tadabbur.",
       },
       { property: "og:title", content: "Adhkâr — Accueil" },
       {
         property: "og:description",
-        content: "Adhkâr du matin, du soir et récitation Al-‘Afâsy.",
+        content: "Adhkâr, Coran, Tadabbur et Favoris.",
       },
     ],
   }),
   component: Index,
 });
 
+/**
+ * Masqué temporairement (demande explicite) : le code et la route /ecoute
+ * restent intacts, seul ce point d'entrée est retiré. Remettre à `true`
+ * pour réafficher la carte sur l'accueil.
+ */
+const SHOW_ECOUTE_ENTRY = false;
 
 function computeProgress(list: { id: string; repetitions: number }[], counts: Record<string, number>) {
   const total = list.reduce((n, d) => n + d.repetitions, 0);
@@ -37,6 +54,8 @@ function Index() {
   const { progress } = useDailyProgress();
   const morning = computeProgress(morningAdhkar, progress.counts);
   const evening = computeProgress(eveningAdhkar, progress.counts);
+  const [lastPage] = useLocalState<number>("quran-last-page", 1);
+  const [adhkarChooserOpen, setAdhkarChooserOpen] = useState(false);
 
   return (
     <AppShell
@@ -44,132 +63,213 @@ function Index() {
       subtitle="Que votre journée soit remplie de dhikr."
     >
       <div className="space-y-5">
-        {/* Cards Matin / Soir */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <SessionCard
-            to="/matin"
-            label="Adhkâr du matin"
-            hint={`${morning.done}/${morning.total} · ${morning.pct}%`}
-            pct={morning.pct}
-            icon={<Sunrise className="size-5" />}
-            tone="gold"
+        {/* 4 portes principales, même taille, même famille visuelle */}
+        <div className="grid grid-cols-2 gap-4">
+          <GateButton
+            onClick={() => setAdhkarChooserOpen(true)}
+            label="Adhkar"
+            arabic="ذِكْر"
+            tone="primary"
+            icon={<Sparkles className="size-6" />}
           />
-          <SessionCard
-            to="/soir"
-            label="Adhkâr du soir"
-            hint={`${evening.done}/${evening.total} · ${evening.pct}%`}
-            pct={evening.pct}
-            icon={<Moon className="size-5" />}
-            tone="emerald"
+          <GateLink
+            to="/quran/page/$page"
+            params={{ page: String(lastPage) }}
+            label="Coran"
+            arabic="قُرْآن"
+            tone="gold"
+            icon={<BookOpen className="size-6" />}
+          />
+          <GateLink
+            to="/tadabbur"
+            label="Tadabbur"
+            arabic="تَدَبُّر"
+            tone="gold"
+            icon={<BookMarked className="size-6" />}
+          />
+          <GateLink
+            to="/favoris"
+            label="Favoris"
+            arabic="مُفَضَّلة"
+            tone="primary"
+            icon={<Heart className="size-6" />}
           />
         </div>
-        {/* Écoute Al-Afâsy */}
-        <Link
-          to="/ecoute"
-          className="surface-card group relative flex items-center gap-4 overflow-hidden px-5 py-4 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-elevated)]"
-        >
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
-            <Headphones className="size-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Récitation Al-‘Afâsy
-            </p>
-            <p className="truncate font-medium">
-              Écoutez et suivez le texte synchronisé
-            </p>
-          </div>
-          <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-primary" />
-        </Link>
-        {/* Lire le Coran */}
-        <Link
-          to="/quran/page/$page"
-          params={{ page: "1" }}
-          className="surface-card group relative flex items-center gap-4 overflow-hidden px-5 py-4 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-elevated)]"
-        >
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
-            <BookOpen className="size-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Lire le Coran — Mushaf de Médine
-            </p>
-            <p className="truncate font-medium">
-              604 pages · sélection et écoute des versets
-            </p>
-          </div>
-          <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-primary" />
-        </Link>
-        {/* Tadabbur */}
-        <Link
-          to="/tadabbur"
 
-          className="surface-card group relative flex items-center gap-4 overflow-hidden px-5 py-4 transition hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-[var(--shadow-elevated)]"
-        >
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-gold/15 text-gold">
-            <BookOpen className="size-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Tadabbur — Al-Baqara (Juz' 1)
-            </p>
-            <p className="truncate font-medium">
-              Méditation, action et mots récurrents
-            </p>
-          </div>
-          <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-gold" />
-        </Link>
+        {/* Écoute Al-Afâsy — masquée pour l'instant, code conservé */}
+        {SHOW_ECOUTE_ENTRY && (
+          <Link
+            to="/ecoute"
+            className="surface-card group relative flex items-center gap-4 overflow-hidden px-5 py-4 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-elevated)]"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
+              <Headphones className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Récitation Al-‘Afâsy
+              </p>
+              <p className="truncate font-medium">
+                Écoutez et suivez le texte synchronisé
+              </p>
+            </div>
+          </Link>
+        )}
       </div>
+
+      {adhkarChooserOpen && (
+        <AdhkarChooser
+          morningPct={morning.pct}
+          eveningPct={evening.pct}
+          onClose={() => setAdhkarChooserOpen(false)}
+        />
+      )}
     </AppShell>
   );
 }
 
-function SessionCard({
+/** Style commun aux 4 portes — même dimension, même famille visuelle. */
+const GATE_CLASS =
+  "surface-card group flex aspect-square flex-col items-center justify-center gap-2.5 rounded-3xl p-4 text-center transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-elevated)] active:scale-[0.98]";
+
+function GateIcon({
+  tone,
+  children,
+}: {
+  tone: "primary" | "gold";
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={cn(
+        "grid size-14 place-items-center rounded-2xl transition group-hover:scale-105",
+        tone === "gold" ? "bg-gold/15 text-gold" : "bg-primary/12 text-primary",
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function GateLabel({ label, arabic }: { label: string; arabic: string }) {
+  return (
+    <span className="flex flex-col items-center gap-0.5">
+      <span className="font-display text-base font-semibold text-foreground sm:text-lg">
+        {label}
+      </span>
+      <span lang="ar" dir="rtl" className="font-arabic text-sm text-muted-foreground">
+        {arabic}
+      </span>
+    </span>
+  );
+}
+
+function GateLink({
   to,
+  params,
   label,
-  hint,
-  pct,
+  arabic,
   icon,
   tone,
 }: {
-  to: "/matin" | "/soir";
+  to: "/quran/page/$page" | "/tadabbur" | "/favoris";
+  params?: Record<string, string>;
   label: string;
-  hint: string;
-  pct: number;
-  icon: React.ReactNode;
-  tone: "gold" | "emerald";
+  arabic: string;
+  icon: ReactNode;
+  tone: "primary" | "gold";
 }) {
   return (
-    <Link
-      to={to}
-      className="surface-card group relative flex flex-col gap-4 overflow-hidden p-5 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-elevated)]"
-    >
-      <div className="flex items-center justify-between">
-        <span
-          className={
-            tone === "gold"
-              ? "grid size-11 place-items-center rounded-full bg-gold/15 text-gold"
-              : "grid size-11 place-items-center rounded-full bg-primary/12 text-primary"
-          }
-        >
-          {icon}
-        </span>
-        <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-primary" />
-      </div>
-      <div>
-        <p className="font-display text-lg font-semibold">{label}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-border">
-        <div
-          className={
-            tone === "gold"
-              ? "h-full rounded-full bg-gold transition-all duration-500"
-              : "h-full rounded-full bg-primary transition-all duration-500"
-          }
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+    <Link to={to} params={params} className={GATE_CLASS}>
+      <GateIcon tone={tone}>{icon}</GateIcon>
+      <GateLabel label={label} arabic={arabic} />
     </Link>
+  );
+}
+
+function GateButton({
+  onClick,
+  label,
+  arabic,
+  icon,
+  tone,
+}: {
+  onClick: () => void;
+  label: string;
+  arabic: string;
+  icon: ReactNode;
+  tone: "primary" | "gold";
+}) {
+  return (
+    <button onClick={onClick} className={GATE_CLASS}>
+      <GateIcon tone={tone}>{icon}</GateIcon>
+      <GateLabel label={label} arabic={arabic} />
+    </button>
+  );
+}
+
+/** Choix léger Matin/Soir — routes et données de progression existantes. */
+function AdhkarChooser({
+  morningPct,
+  eveningPct,
+  onClose,
+}: {
+  morningPct: number;
+  eveningPct: number;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full rounded-t-3xl border-t border-border bg-card p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="font-display text-lg font-semibold">
+            Quel Adhkâr souhaitez-vous lire ?
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Fermer"
+            className="grid size-9 shrink-0 place-items-center rounded-full border border-border"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Link
+            to="/matin"
+            className="surface-card flex items-center gap-3 rounded-2xl px-4 py-4 text-left transition hover:-translate-y-0.5 hover:border-gold/40"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-gold/15 text-gold">
+              <Sunrise className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-foreground">Adhkâr du matin</p>
+              <p className="text-xs text-muted-foreground">
+                {morningPct}% complété aujourd'hui
+              </p>
+            </div>
+          </Link>
+          <Link
+            to="/soir"
+            className="surface-card flex items-center gap-3 rounded-2xl px-4 py-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
+              <Moon className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-foreground">Adhkâr du soir</p>
+              <p className="text-xs text-muted-foreground">
+                {eveningPct}% complété aujourd'hui
+              </p>
+            </div>
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
