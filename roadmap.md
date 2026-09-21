@@ -1,0 +1,4 @@
+- [ ] Réduire les commandes Adhkār et vérifier le parcours Favoris.
+- [ ] Corriger le texte coupé et unifier les commandes du Mushaf, sans changer son découpage.
+- [ ] Ajouter les gestes RTL et le menu contextuel, compléter les options existantes.
+- [ ] Vérifier les interactions demandées sur mobile 390 px.
