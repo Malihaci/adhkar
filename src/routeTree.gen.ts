@@ -17,6 +17,8 @@ import { Route as MatinRouteImport } from './routes/matin'
 import { Route as RechercheRouteImport } from './routes/recherche'
 import { Route as SoirRouteImport } from './routes/soir'
 import { Route as TadabburRouteImport } from './routes/tadabbur'
+import { Route as SourateSurahRouteImport } from './routes/sourate.$surah'
+import { Route as EtudeSurahAyahRouteImport } from './routes/etude.$surah.$ayah'
 import { Route as QuranPagePageRouteImport } from './routes/quran.page.$page'
 
 const IndexRoute = IndexRouteImport.update({
@@ -59,6 +61,16 @@ const TadabburRoute = TadabburRouteImport.update({
   path: '/tadabbur',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SourateSurahRoute = SourateSurahRouteImport.update({
+  id: '/sourate/$surah',
+  path: '/sourate/$surah',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EtudeSurahAyahRoute = EtudeSurahAyahRouteImport.update({
+  id: '/etude/$surah/$ayah',
+  path: '/etude/$surah/$ayah',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QuranPagePageRoute = QuranPagePageRouteImport.update({
   id: '/quran/page/$page',
   path: '/quran/page/$page',
@@ -74,6 +86,8 @@ export interface FileRoutesByFullPath {
   '/recherche': typeof RechercheRoute
   '/soir': typeof SoirRoute
   '/tadabbur': typeof TadabburRoute
+  '/sourate/$surah': typeof SourateSurahRoute
+  '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +99,8 @@ export interface FileRoutesByTo {
   '/recherche': typeof RechercheRoute
   '/soir': typeof SoirRoute
   '/tadabbur': typeof TadabburRoute
+  '/sourate/$surah': typeof SourateSurahRoute
+  '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
 }
 export interface FileRoutesById {
@@ -97,6 +113,8 @@ export interface FileRoutesById {
   '/recherche': typeof RechercheRoute
   '/soir': typeof SoirRoute
   '/tadabbur': typeof TadabburRoute
+  '/sourate/$surah': typeof SourateSurahRoute
+  '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +128,8 @@ export interface FileRouteTypes {
     | '/recherche'
     | '/soir'
     | '/tadabbur'
+    | '/sourate/$surah'
+    | '/etude/$surah/$ayah'
     | '/quran/page/$page'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +141,8 @@ export interface FileRouteTypes {
     | '/recherche'
     | '/soir'
     | '/tadabbur'
+    | '/sourate/$surah'
+    | '/etude/$surah/$ayah'
     | '/quran/page/$page'
   id:
     | '__root__'
@@ -132,6 +154,8 @@ export interface FileRouteTypes {
     | '/recherche'
     | '/soir'
     | '/tadabbur'
+    | '/sourate/$surah'
+    | '/etude/$surah/$ayah'
     | '/quran/page/$page'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +168,8 @@ export interface RootRouteChildren {
   RechercheRoute: typeof RechercheRoute
   SoirRoute: typeof SoirRoute
   TadabburRoute: typeof TadabburRoute
+  SourateSurahRoute: typeof SourateSurahRoute
+  EtudeSurahAyahRoute: typeof EtudeSurahAyahRoute
   QuranPagePageRoute: typeof QuranPagePageRoute
 }
 
@@ -205,6 +231,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TadabburRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sourate/$surah': {
+      id: '/sourate/$surah'
+      path: '/sourate/$surah'
+      fullPath: '/sourate/$surah'
+      preLoaderRoute: typeof SourateSurahRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/etude/$surah/$ayah': {
+      id: '/etude/$surah/$ayah'
+      path: '/etude/$surah/$ayah'
+      fullPath: '/etude/$surah/$ayah'
+      preLoaderRoute: typeof EtudeSurahAyahRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/quran/page/$page': {
       id: '/quran/page/$page'
       path: '/quran/page/$page'
@@ -224,6 +264,8 @@ const rootRouteChildren: RootRouteChildren = {
   RechercheRoute: RechercheRoute,
   SoirRoute: SoirRoute,
   TadabburRoute: TadabburRoute,
+  SourateSurahRoute: SourateSurahRoute,
+  EtudeSurahAyahRoute: EtudeSurahAyahRoute,
   QuranPagePageRoute: QuranPagePageRoute,
 }
 export const routeTree = rootRouteImport

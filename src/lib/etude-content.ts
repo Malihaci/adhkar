@@ -1,0 +1,106 @@
+/**
+ * Modèle des contenus d'étude d'une ayah (Tadabbur, Mise en pratique,
+ * Orientations, Asbab an-Nuzul).
+ *
+ * Les données réelles (par sourate) vivent dans des fichiers séparés
+ * (ex. `src/data/al-fatiha-content.ts`) et sont assemblées ci-dessous.
+ * Ce module ne définit que le modèle et les fonctions de sélection — il
+ * n'invente jamais de contenu religieux lui-même.
+ *
+ * `sourceStatus: "needs_review"` n'est pas caché : provenance/transcription
+ * du contenu, validation de la traduction française et droits de
+ * réutilisation sont trois sujets distincts, tous affichés honnêtement.
+ */
+
+import { AL_FATIHA_CONTENT } from "@/data/al-fatiha-content";
+
+export type SourceStatus = "verified_source" | "needs_review";
+export type ContentStatus = "draft" | "reviewed" | "validated";
+
+export type EtudeCategory = "tadabbur" | "amal" | "tawjihat" | "asbab_nuzul";
+
+/** Portée réelle d'un contenu — ne jamais forcer un contenu large sur "verse". */
+export type ScopeType = "verse" | "verse_range" | "passage" | "page" | "surah";
+
+export type ContentOrigin =
+  | "source_quote" // texte de la source, inchangé
+  | "source_translation" // traduction fidèle par l'application d'un texte source
+  | "editorial_explanation" // explication pédagogique séparée (Comprendre)
+  | "pedagogical_synthesis"; // application/méditation/orientation construite par l'app
+
+export interface EtudeContent {
+  id: string;
+  category: EtudeCategory;
+  scopeType: ScopeType;
+  /** Ayah de référence (ex. "1:5") — requis si scopeType === "verse". */
+  verseKey?: string;
+  /** Plage si le contenu concerne plusieurs ayat (ex. "1:2-1:4"). */
+  verseRange?: string;
+  /** Sourate concernée si scopeType === "surah". */
+  surahNumber?: number;
+
+  /** Texte source exact — jamais reformulé. */
+  textAr: string;
+  /** Traduction fidèle — jamais interprétative. */
+  translationFr?: string;
+  /** Explication pédagogique séparée — jamais présentée comme la source. */
+  explanationFr?: string;
+
+  /** Question de réflexion éditoriale (jamais attribuée au mufassir cité). */
+  reflectionQuestionAr?: string;
+  reflectionQuestionFr?: string;
+
+  contentOrigin: ContentOrigin;
+  sourceTitle: string;
+  /** Auteur/mufassir réellement cité (ex. "As-Sa'dî"), distinct de la source éditoriale. */
+  sourceAuthor?: string;
+  /** Source éditoriale qui a compilé/publié le contenu (ex. "القرآن تدبر وعمل"). */
+  editorialSource?: string;
+  sourceReference?: string;
+
+  sourceStatus: SourceStatus;
+  translationStatus?: ContentStatus;
+  explanationStatus?: ContentStatus;
+}
+
+const ALL_CONTENT: EtudeContent[] = [...AL_FATIHA_CONTENT];
+
+/**
+ * Contenus réellement rattachés à `verseKey` pour une catégorie donnée,
+ * quelle que soit leur portée (ayah unique, plage, sourate entière).
+ * N'exclut pas `needs_review` : le statut est affiché, jamais masqué.
+ */
+export function getEtudeContent(verseKey: string, category: EtudeCategory): EtudeContent[] {
+  return ALL_CONTENT.filter((c) => c.category === category && concernsVerse(c, verseKey));
+}
+
+function concernsVerse(content: EtudeContent, verseKey: string): boolean {
+  const [surahNum] = verseKey.split(":").map(Number);
+
+  if (content.scopeType === "surah") {
+    return content.surahNumber === surahNum;
+  }
+  if (content.scopeType === "verse") {
+    return content.verseKey === verseKey;
+  }
+  if (content.scopeType === "verse_range" && content.verseRange) {
+    const [start, end] = content.verseRange.split("-");
+    const [s0, a0] = verseKey.split(":").map(Number);
+    const [s1, a1] = start.split(":").map(Number);
+    const [s2, a2] = end.split(":").map(Number);
+    if (s0 !== s1 || s1 !== s2) return false; // jamais entre sourates différentes
+    return a0 >= a1 && a0 <= a2;
+  }
+  return false;
+}
+
+/** Libellé d'affichage honnête de la portée d'un contenu multi-ayah/sourate. */
+export function formatVerseScope(content: EtudeContent): string | null {
+  if (content.scopeType === "verse_range" && content.verseRange) {
+    return `Concerne les ayat ${content.verseRange.replace("-", "–")}`;
+  }
+  if (content.scopeType === "surah") {
+    return "Concerne l'ensemble de la sourate";
+  }
+  return null;
+}

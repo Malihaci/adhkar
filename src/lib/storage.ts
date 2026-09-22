@@ -44,8 +44,7 @@ export function useLocalState<T>(key: string, initial: T) {
   const update = useCallback(
     (next: T | ((prev: T) => T)) => {
       setValue((prev) => {
-        const nextVal =
-          typeof next === "function" ? (next as (p: T) => T)(prev) : next;
+        const nextVal = typeof next === "function" ? (next as (p: T) => T)(prev) : next;
         writeJSON(key, nextVal);
         return nextVal;
       });
@@ -66,10 +65,10 @@ export interface DailyProgress {
 }
 
 export function useDailyProgress() {
-  const [progress, setProgress, hydrated] = useLocalState<DailyProgress>(
-    "adhkar:progress",
-    { date: todayKey(), counts: {} },
-  );
+  const [progress, setProgress, hydrated] = useLocalState<DailyProgress>("adhkar:progress", {
+    date: todayKey(),
+    counts: {},
+  });
 
   // Reset when the day changes (after hydration, on focus, visibility, and every minute)
   useEffect(() => {
@@ -119,12 +118,9 @@ export function useDailyProgress() {
     [setProgress],
   );
 
-  const setLastRead = useCallback(
-    (id: string, category: "morning" | "evening", index?: number) => {
-      writeJSON("adhkar:last-read", { id, category, index, at: Date.now() });
-    },
-    [],
-  );
+  const setLastRead = useCallback((id: string, category: "morning" | "evening", index?: number) => {
+    writeJSON("adhkar:last-read", { id, category, index, at: Date.now() });
+  }, []);
 
   return { progress, increment, decrement, reset, setLastRead };
 }
@@ -146,9 +142,7 @@ export function useFavorites() {
   const [favorites, setFavorites, hydrated] = useLocalState<string[]>("adhkar:favorites", []);
   const toggle = useCallback(
     (id: string) => {
-      setFavorites((prev) =>
-        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-      );
+      setFavorites((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
     },
     [setFavorites],
   );
@@ -157,6 +151,41 @@ export function useFavorites() {
     toggle,
     hydrated,
     isFavorite: (id: string) => favorites.includes(id),
+  };
+}
+
+export interface ActionProgress {
+  completed: boolean;
+  completedAt: number;
+}
+
+/**
+ * Cases « Je l'ai mise en pratique » (Agir). Ne représente jamais un score
+ * ou un niveau — seulement le fait qu'une action a été réalisée.
+ */
+export function useActionsProgress() {
+  const [progress, setProgress, hydrated] = useLocalState<Record<string, ActionProgress>>(
+    "adhkar:actions",
+    {},
+  );
+  const toggle = useCallback(
+    (actionId: string) => {
+      setProgress((prev) => {
+        const isDone = !!prev[actionId]?.completed;
+        if (isDone) {
+          const next = { ...prev };
+          delete next[actionId];
+          return next;
+        }
+        return { ...prev, [actionId]: { completed: true, completedAt: Date.now() } };
+      });
+    },
+    [setProgress],
+  );
+  return {
+    isCompleted: (actionId: string) => !!progress[actionId]?.completed,
+    toggle,
+    hydrated,
   };
 }
 

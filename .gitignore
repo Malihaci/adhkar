@@ -26,6 +26,9 @@ dist-ssr
 # Sauvegarde locale de l'ancienne version (zips), pas du code source
 adhkari-daily-guide-main/
 
+# Sources de travail (PDF sous droits, non destinés au dépôt)
+/sources/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

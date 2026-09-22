@@ -19,6 +19,8 @@ export interface Chapter {
   id: number;
   nameArabic: string;
   nameFrench: string;
+  /** translittération (ex. "Al-Baqarah") — pour la recherche par référence */
+  nameSimple: string;
   versesCount: number;
   pages: [number, number];
   bismillahPre: boolean;
@@ -26,8 +28,7 @@ export interface Chapter {
 
 export const TOTAL_PAGES = 604;
 
-export const clampPage = (p: number) =>
-  Math.min(TOTAL_PAGES, Math.max(1, Math.round(p) || 1));
+export const clampPage = (p: number) => Math.min(TOTAL_PAGES, Math.max(1, Math.round(p) || 1));
 
 export async function fetchChapters(): Promise<Chapter[]> {
   const res = await fetch(`${API}/chapters?language=fr`);
@@ -37,6 +38,7 @@ export async function fetchChapters(): Promise<Chapter[]> {
     id: c.id,
     nameArabic: c.name_arabic,
     nameFrench: c.translated_name?.name ?? c.name_simple,
+    nameSimple: c.name_simple ?? "",
     versesCount: c.verses_count,
     pages: c.pages as [number, number],
     bismillahPre: !!c.bismillah_pre,
@@ -130,12 +132,9 @@ export async function fetchPageLayout(page: number): Promise<PageLayout> {
   return { verses, lines };
 }
 
-
 /** Versets d'une sourate (clés uniquement) pour la lecture continue. */
 export async function fetchSurahVerseKeys(surah: number): Promise<string[]> {
-  const res = await fetch(
-    `${API}/verses/by_chapter/${surah}?fields=text_uthmani&per_page=300`,
-  );
+  const res = await fetch(`${API}/verses/by_chapter/${surah}?fields=text_uthmani&per_page=300`);
   if (!res.ok) throw new Error("Sourate indisponible");
   const json = await res.json();
   return (json.verses as any[]).map((v) => v.verse_key as string);
@@ -146,9 +145,7 @@ export async function fetchJuzVerseKeys(juz: number): Promise<string[]> {
   const keys: string[] = [];
   let page = 1;
   for (;;) {
-    const res = await fetch(
-      `${API}/verses/by_juz/${juz}?per_page=300&page=${page}`,
-    );
+    const res = await fetch(`${API}/verses/by_juz/${juz}?per_page=300&page=${page}`);
     if (!res.ok) throw new Error("Juz' indisponible");
     const json = await res.json();
     keys.push(...(json.verses as any[]).map((v) => v.verse_key as string));
@@ -164,9 +161,7 @@ export async function fetchHizbVerseKeys(hizb: number): Promise<string[]> {
   const keys: string[] = [];
   let page = 1;
   for (;;) {
-    const res = await fetch(
-      `${API}/verses/by_hizb/${hizb}?per_page=300&page=${page}`,
-    );
+    const res = await fetch(`${API}/verses/by_hizb/${hizb}?per_page=300&page=${page}`);
     if (!res.ok) throw new Error("Hizb indisponible");
     const json = await res.json();
     keys.push(...(json.verses as any[]).map((v) => v.verse_key as string));
@@ -182,10 +177,7 @@ export async function fetchHizbVerseKeys(hizb: number): Promise<string[]> {
  * calculées localement à partir du nombre de versets de chaque sourate
  * (aucun préchargement audio).
  */
-export function keysToEndOfQuran(
-  fromKey: string,
-  chapters: Chapter[],
-): string[] {
+export function keysToEndOfQuran(fromKey: string, chapters: Chapter[]): string[] {
   const [s0, a0] = fromKey.split(":").map(Number);
   const out: string[] = [];
   for (const c of chapters) {
@@ -242,7 +234,6 @@ const QURAN_CDN_BASE: Record<string, string> = {
   "7": "https://verses.quran.com/Alafasy/mp3",
 };
 
-
 /** URL du mp3 d'un verset pour le récitateur choisi. */
 export function verseAudioUrl(reciterId: string, verseKey: string): string {
   const r = getReciter(reciterId);
@@ -281,13 +272,8 @@ export interface SearchResponse {
   totalResults: number;
 }
 
-export async function searchQuranArabic(
-  query: string,
-  size = 20,
-): Promise<SearchResponse> {
-  const res = await fetch(
-    `${API}/search?q=${encodeURIComponent(query)}&size=${size}`,
-  );
+export async function searchQuranArabic(query: string, size = 20): Promise<SearchResponse> {
+  const res = await fetch(`${API}/search?q=${encodeURIComponent(query)}&size=${size}`);
   if (!res.ok) throw new Error("Recherche indisponible");
   const json = await res.json();
   const s = json.search ?? {};
@@ -312,6 +298,30 @@ export async function fetchVersePage(verseKey: string): Promise<number> {
   if (!res.ok) throw new Error("Verset introuvable");
   const json = await res.json();
   return clampPage(Number(json.verse?.page_number) || 1);
+}
+
+export interface VerseDetail {
+  key: string;
+  surah: number;
+  ayah: number;
+  /** text_uthmani exact — jamais modifié, jamais utilisé pour de la recherche */
+  arabic: string;
+  page: number;
+}
+
+/** Ayah arabe (texte Uthmani officiel) + sa page Mushaf, pour l'écran d'étude. */
+export async function fetchVerseDetail(verseKey: string): Promise<VerseDetail> {
+  const res = await fetch(`${API}/verses/by_key/${verseKey}?fields=text_uthmani,page_number`);
+  if (!res.ok) throw new Error("Verset introuvable");
+  const json = await res.json();
+  const [s, a] = verseKey.split(":").map(Number);
+  return {
+    key: verseKey,
+    surah: s,
+    ayah: a,
+    arabic: (json.verse?.text_uthmani ?? "").trim(),
+    page: clampPage(Number(json.verse?.page_number) || 1),
+  };
 }
 
 /* ------------------------------------------------- Fallback recherche (fragments) */
@@ -387,4 +397,93 @@ export function searchQuranFallback(
     results.push({ key: v.key, surah, ayah, text: v.text, words });
   }
   return { results, totalResults };
+}
+
+/* --------------------------------------------------- Référence directe */
+/**
+ * Détection locale et instantanée (aucun réseau) d'une saisie qui vise en
+ * réalité une ayah ou une page précise, plutôt qu'une recherche plein
+ * texte. Volontairement conservatrice : au moindre doute, on retombe sur
+ * "text" et la recherche existante s'en charge normalement.
+ */
+export type QuranQueryMatch =
+  | { kind: "ayah"; surah: number; ayah: number }
+  | { kind: "page"; page: number }
+  | { kind: "page-suggestion"; page: number }
+  | { kind: "invalid-page" }
+  | { kind: "invalid-ayah"; surah: number; surahName: string; versesCount: number }
+  | { kind: "text" };
+
+const normalizeLatin = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+
+function findChapterByName(name: string, chapters: Chapter[]): Chapter | undefined {
+  const arQuery = normalizeArabicForSearch(name);
+  const latQuery = normalizeLatin(name);
+  return chapters.find((c) => {
+    if (arQuery && normalizeArabicForSearch(c.nameArabic) === arQuery) return true;
+    if (!latQuery) return false;
+    const simple = normalizeLatin(c.nameSimple);
+    const french = normalizeLatin(c.nameFrench);
+    return (
+      (!!simple && (simple.startsWith(latQuery) || latQuery.startsWith(simple))) ||
+      (!!french && (french.startsWith(latQuery) || latQuery.startsWith(french)))
+    );
+  });
+}
+
+function ayahMatch(surahNum: number, ayahNum: number, chapters: Chapter[]): QuranQueryMatch {
+  const chapter = chapters.find((c) => c.id === surahNum);
+  if (!chapter) return { kind: "text" };
+  if (ayahNum < 1 || ayahNum > chapter.versesCount) {
+    return {
+      kind: "invalid-ayah",
+      surah: chapter.id,
+      surahName: chapter.nameFrench,
+      versesCount: chapter.versesCount,
+    };
+  }
+  return { kind: "ayah", surah: chapter.id, ayah: ayahNum };
+}
+
+function pageMatch(page: number): QuranQueryMatch {
+  if (!Number.isFinite(page) || page < 1 || page > TOTAL_PAGES) return { kind: "invalid-page" };
+  return { kind: "page", page };
+}
+
+export function parseQuranQuery(raw: string, chapters: Chapter[] | undefined): QuranQueryMatch {
+  const q = raw.trim();
+  if (!q) return { kind: "text" };
+
+  // "2:255" (ou variantes de séparateur deux-points)
+  const colon = q.match(/^(\d{1,3})\s*[:٫]\s*(\d{1,3})$/);
+  if (colon && chapters) return ayahMatch(Number(colon[1]), Number(colon[2]), chapters);
+
+  // "2 255" — deux nombres séparés par un espace, valides comme sourate/ayah
+  const twoNums = q.match(/^(\d{1,3})\s+(\d{1,3})$/);
+  if (twoNums && chapters) {
+    const m = ayahMatch(Number(twoNums[1]), Number(twoNums[2]), chapters);
+    if (m.kind !== "text") return m;
+  }
+
+  // "Al-Baqara 255" / "البقرة 255" — nom de sourate + numéro d'ayah
+  const nameNum = q.match(/^(.+?)\s+(\d{1,3})$/u);
+  if (nameNum && chapters) {
+    const chapter = findChapterByName(nameNum[1].trim(), chapters);
+    if (chapter) return ayahMatch(chapter.id, Number(nameNum[2]), chapters);
+  }
+
+  // "page 42" / "p 42" / "p. 42"
+  const page = q.match(/^(?:page|p)\.?\s*(\d{1,3})$/i);
+  if (page) return pageMatch(Number(page[1]));
+
+  // nombre seul : proposer d'aller à cette page, sans jamais l'interpréter
+  // comme une ayah sans numéro de sourate.
+  if (/^\d{1,3}$/.test(q)) return { kind: "page-suggestion", page: Number(q) };
+
+  return { kind: "text" };
 }

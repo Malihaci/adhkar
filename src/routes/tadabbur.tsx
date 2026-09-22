@@ -23,18 +23,8 @@ import {
 } from "lucide-react";
 import { baqaraJuz1 } from "@/data/tadabbur";
 import { AyahText, Basmala, splitBasmala } from "@/components/AyahText";
-import {
-  fetchSurahList,
-  fetchSurahText,
-  fetchTafsir,
-  type TafsirSlug,
-} from "@/lib/quran";
-import {
-  diffWords,
-  findMutashabihat,
-  parseWaqafat,
-  summarize,
-} from "@/lib/waqafat";
+import { fetchSurahList, fetchSurahText, fetchTafsir, type TafsirSlug } from "@/lib/quran";
+import { diffWords, findMutashabihat, parseWaqafat, summarize } from "@/lib/waqafat";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/tadabbur")({
@@ -62,19 +52,18 @@ export const Route = createFileRoute("/tadabbur")({
 type Mode = "lecture" | "etude";
 type Tab = "tadabbur" | "tafsir" | "mots" | "similaires" | "favoris";
 
-const TABS: { key: Tab; label: string; icon: typeof Lightbulb; tone: string }[] =
-  [
-    { key: "tadabbur", label: "Tadabbur", icon: Lightbulb, tone: "text-gold" },
-    { key: "tafsir", label: "Tafsir", icon: BookOpen, tone: "text-primary" },
-    { key: "mots", label: "Linguistique", icon: Languages, tone: "text-sky-400" },
-    {
-      key: "similaires",
-      label: "Moutachabihât",
-      icon: Repeat2,
-      tone: "text-violet-400",
-    },
-    { key: "favoris", label: "Favoris", icon: Star, tone: "text-amber-400" },
-  ];
+const TABS: { key: Tab; label: string; icon: typeof Lightbulb; tone: string }[] = [
+  { key: "tadabbur", label: "Tadabbur", icon: Lightbulb, tone: "text-gold" },
+  { key: "tafsir", label: "Tafsir", icon: BookOpen, tone: "text-primary" },
+  { key: "mots", label: "Linguistique", icon: Languages, tone: "text-sky-400" },
+  {
+    key: "similaires",
+    label: "Moutachabihât",
+    icon: Repeat2,
+    tone: "text-violet-400",
+  },
+  { key: "favoris", label: "Favoris", icon: Star, tone: "text-amber-400" },
+];
 
 const pad = (n: number, l: number) => String(n).padStart(l, "0");
 const ls = {
@@ -145,8 +134,7 @@ function AyahStudyPage() {
     setMode(m);
     localStorage.setItem("q-mode", m);
   };
-  const go = (d: number) =>
-    setIdx((i) => Math.min(Math.max(total - 1, 0), Math.max(0, i + d)));
+  const go = (d: number) => setIdx((i) => Math.min(Math.max(total - 1, 0), Math.max(0, i + d)));
   const jump = (key: string) => {
     const [s, a] = key.split(":").map(Number);
     setSurah(s);
@@ -288,14 +276,8 @@ function AyahStudyPage() {
 
                 <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
                   <AyahAudio surah={surah} ayah={ayah.n} />
-                  <IconBtn
-                    label="Favori"
-                    active={favs.includes(ref)}
-                    onClick={toggleFav}
-                  >
-                    <Star
-                      className={cn("size-4", favs.includes(ref) && "fill-current")}
-                    />
+                  <IconBtn label="Favori" active={favs.includes(ref)} onClick={toggleFav}>
+                    <Star className={cn("size-4", favs.includes(ref) && "fill-current")} />
                   </IconBtn>
                   <IconBtn label="Partager" onClick={share}>
                     <Share2 className="size-4" />
@@ -324,8 +306,8 @@ function AyahStudyPage() {
                 <QuickCard text={summarize(mokhtasar, 2)} onStudy={() => setModeP("etude")} />
               )}
               <p className="px-1 text-center text-[11px] leading-relaxed text-muted-foreground">
-                Mode Lecture : Coran, traduction et audio uniquement. Passe en
-                mode Étude pour le tadabbur, les tafsirs et les moutachabihât.
+                Mode Lecture : Coran, traduction et audio uniquement. Passe en mode Étude pour le
+                tadabbur, les tafsirs et les moutachabihât.
               </p>
             </>
           ) : (
@@ -395,9 +377,8 @@ function AyahStudyPage() {
               )}
 
               <p className="px-1 pt-1 text-[11px] leading-relaxed text-muted-foreground">
-                Sources : Al-Moukhtasar fî at-tafsîr (français), Tafsîr as-Sa'dî,
-                Tafsîr Ibn Kathîr et « القرآن تدبر وعمل ». Affichage instantané,
-                sans génération automatique.
+                Sources : Al-Moukhtasar fî at-tafsîr (français), Tafsîr as-Sa'dî, Tafsîr Ibn Kathîr
+                et « القرآن تدبر وعمل ». Affichage instantané, sans génération automatique.
               </p>
             </>
           )}
@@ -444,9 +425,7 @@ function AyahStudyPage() {
 /* ---------- Briques UI ---------- */
 
 function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="shrink-0 rounded-full bg-muted/70 px-2.5 py-1">{children}</span>
-  );
+  return <span className="shrink-0 rounded-full bg-muted/70 px-2.5 py-1">{children}</span>;
 }
 
 function ModeBtn({
@@ -509,15 +488,7 @@ const MADD = /\u0653/;
 const SHADDA = "\u0651";
 
 /** Texte du mushaf avec repères de tajwid simples (madd, ghunnah). */
-function MushafText({
-  text,
-  n,
-  tajwid,
-}: {
-  text: string;
-  n: number;
-  tajwid: boolean;
-}) {
+function MushafText({ text, n, tajwid }: { text: string; n: number; tajwid: boolean }) {
   const { basmala, rest } = splitBasmala(text);
   const body = rest || basmala || "";
 
@@ -556,13 +527,7 @@ function MushafText({
           return (
             <span
               key={i}
-              className={cn(
-                isMadd
-                  ? "text-primary"
-                  : isGhunnah
-                    ? "text-gold"
-                    : "text-foreground",
-              )}
+              className={cn(isMadd ? "text-primary" : isGhunnah ? "text-gold" : "text-foreground")}
             >
               {w}{" "}
             </span>
@@ -628,13 +593,7 @@ function QuickCard({ text, onStudy }: { text: string; onStudy?: () => void }) {
   );
 }
 
-function Card({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
+export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <section
       className={cn(
@@ -667,14 +626,9 @@ function Accordion({
         className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
       >
         <span className="min-w-0">
-          <span className="block truncate text-sm font-bold text-foreground">
-            {title}
-          </span>
+          <span className="block truncate text-sm font-bold text-foreground">{title}</span>
           {subtitle && (
-            <span
-              lang="ar"
-              className="block truncate font-arabic text-xs text-muted-foreground"
-            >
+            <span lang="ar" className="block truncate font-arabic text-xs text-muted-foreground">
               {subtitle}
             </span>
           )}
@@ -687,9 +641,7 @@ function Accordion({
         />
       </button>
       {open && (
-        <div className="animate-fade-in border-t border-border/40 px-5 py-4">
-          {children}
-        </div>
+        <div className="animate-fade-in border-t border-border/40 px-5 py-4">{children}</div>
       )}
     </section>
   );
@@ -719,10 +671,7 @@ function TadabburTab({
 
   if (isPending) return <Loading />;
 
-  const actions = [
-    ...(localFr ? [localFr.amalFr] : []),
-    ...parsed.amal,
-  ].filter(Boolean);
+  const actions = [...(localFr ? [localFr.amalFr] : []), ...parsed.amal].filter(Boolean);
 
   return (
     <div className="space-y-3">
@@ -763,13 +712,9 @@ function TadabburTab({
           )}
           <Ar className="mt-2">{w.body}</Ar>
           {w.source && (
-            <p className="mt-2 text-[11px] font-medium text-muted-foreground">
-              📚 {w.source}
-            </p>
+            <p className="mt-2 text-[11px] font-medium text-muted-foreground">📚 {w.source}</p>
           )}
-          {w.question && (
-            <Question text={w.question} />
-          )}
+          {w.question && <Question text={w.question} />}
         </Card>
       ))}
 
@@ -812,9 +757,7 @@ function TadabburTab({
                       dir="auto"
                       className={cn(
                         "text-sm leading-relaxed",
-                        isDone
-                          ? "text-muted-foreground line-through"
-                          : "text-foreground/90",
+                        isDone ? "text-muted-foreground line-through" : "text-foreground/90",
                       )}
                     >
                       {a}
@@ -825,8 +768,8 @@ function TadabburTab({
             })}
           </ul>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            {done.filter((d) => d.startsWith(`${surah}:${ayah}:`)).length} /{" "}
-            {actions.length} action(s) réalisée(s)
+            {done.filter((d) => d.startsWith(`${surah}:${ayah}:`)).length} / {actions.length}{" "}
+            action(s) réalisée(s)
           </p>
         </Card>
       )}
@@ -846,14 +789,9 @@ function Question({ text }: { text: string }) {
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between gap-2 text-left"
       >
-        <span className="text-xs font-bold text-foreground">
-          ❓ Question de réflexion
-        </span>
+        <span className="text-xs font-bold text-foreground">❓ Question de réflexion</span>
         <ChevronDown
-          className={cn(
-            "size-3.5 shrink-0 text-muted-foreground transition",
-            open && "rotate-180",
-          )}
+          className={cn("size-3.5 shrink-0 text-muted-foreground transition", open && "rotate-180")}
         />
       </button>
       {open && <Ar className="mt-2">{text}</Ar>}
@@ -861,15 +799,7 @@ function Question({ text }: { text: string }) {
   );
 }
 
-function TafsirTab({
-  surah,
-  ayah,
-  french,
-}: {
-  surah: number;
-  ayah: number;
-  french: string;
-}) {
+function TafsirTab({ surah, ayah, french }: { surah: number; ayah: number; french: string }) {
   return (
     <div className="space-y-3">
       {french ? (
@@ -899,15 +829,7 @@ function TafsirTab({
   );
 }
 
-function ArTafsir({
-  slug,
-  surah,
-  ayah,
-}: {
-  slug: TafsirSlug;
-  surah: number;
-  ayah: number;
-}) {
+function ArTafsir({ slug, surah, ayah }: { slug: TafsirSlug; surah: number; ayah: number }) {
   const { data, isPending } = useQuery({
     queryKey: ["tafsir", slug, surah, ayah],
     queryFn: () => fetchTafsir(slug, surah, ayah),
@@ -949,7 +871,11 @@ function WordsTab({
           <p lang="ar" dir="rtl" className="font-arabic text-xl font-bold text-gold">
             {m.word}
           </p>
-          <p lang="ar" dir="rtl" className="mt-1 font-arabic text-base leading-[2] text-foreground/90">
+          <p
+            lang="ar"
+            dir="rtl"
+            className="mt-1 font-arabic text-base leading-[2] text-foreground/90"
+          >
             {m.meaning}
           </p>
         </Card>
@@ -965,9 +891,7 @@ function WordsTab({
               {w.count} occurrence{w.count > 1 ? "s" : ""} dans le Coran
             </span>
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Exemples : {w.refs.join(" · ")}
-          </p>
+          <p className="mt-2 text-[11px] text-muted-foreground">Exemples : {w.refs.join(" · ")}</p>
         </Card>
       ))}
       {meanings.length === 0 && filtered.length === 0 && (
@@ -986,10 +910,7 @@ function SimilarTab({
   all: { n: number; arabic: string }[];
   onJump: (n: number) => void;
 }) {
-  const similars = useMemo(
-    () => findMutashabihat(current, all),
-    [current, all],
-  );
+  const similars = useMemo(() => findMutashabihat(current, all), [current, all]);
   if (similars.length === 0)
     return (
       <Empty text="Aucun verset très similaire détecté dans cette sourate. Les mots en commun apparaissent dès qu'au moins quatre mots consécutifs se répètent." />
@@ -998,9 +919,9 @@ function SimilarTab({
   return (
     <div className="space-y-3">
       <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">
-        Les mots <span className="font-semibold text-primary">communs</span> sont
-        en vert, les mots <span className="font-semibold text-gold">différents</span>{" "}
-        en or : c'est là que se joue la confusion pendant le hifdh.
+        Les mots <span className="font-semibold text-primary">communs</span> sont en vert, les mots{" "}
+        <span className="font-semibold text-gold">différents</span> en or : c'est là que se joue la
+        confusion pendant le hifdh.
       </p>
       {similars.map((s) => (
         <Card key={s.n}>
@@ -1029,7 +950,7 @@ function SimilarTab({
 
 /* ---------- Utilitaires d'affichage ---------- */
 
-function Loading() {
+export function Loading() {
   return (
     <p className="flex items-center gap-2 px-1 text-sm text-muted-foreground">
       <Loader2 className="size-4 animate-spin" /> Chargement…
@@ -1037,7 +958,7 @@ function Loading() {
   );
 }
 
-function Empty({ text }: { text: string }) {
+export function Empty({ text }: { text: string }) {
   return (
     <p className="rounded-3xl border border-dashed border-border/60 px-5 py-6 text-center text-sm leading-relaxed text-muted-foreground">
       {text}

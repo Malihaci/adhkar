@@ -1,0 +1,30 @@
+/**
+ * Traduction française des sens du Coran — Muhammad Hamidullah.
+ * Source vérifiée : QuranEnc (Encyclopedia of the Noble Quran), clé
+ * `french_hameedullah`, API publique par ayah. Vérifié manuellement avant
+ * intégration (réponse HTTP, contenu, notes de bas de page) — voir l'audit
+ * du chantier "Étude d'une ayah".
+ *
+ * Ne jamais modifier le texte retourné : il doit être affiché tel quel.
+ */
+
+const QURANENC_API = "https://quranenc.com/api/v1/translation/aya/french_hameedullah";
+
+export interface HamidullahAyah {
+  translation: string;
+  /** Notes de bas de page éventuelles — toujours affichées séparément du texte. */
+  footnotes: string | null;
+}
+
+export async function fetchHamidullahAyah(
+  surah: number,
+  ayah: number,
+): Promise<HamidullahAyah | null> {
+  const res = await fetch(`${QURANENC_API}/${surah}/${ayah}`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  const translation = json?.result?.translation;
+  if (typeof translation !== "string" || !translation) return null;
+  const footnotes = typeof json?.result?.footnotes === "string" ? json.result.footnotes : null;
+  return { translation, footnotes: footnotes || null };
+}
