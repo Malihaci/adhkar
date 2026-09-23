@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, ChevronLeft } from "lucide-react";
 import { fetchChapters } from "@/lib/mushaf";
-import { AL_FATIHA_INTRO } from "@/data/surah-intro";
+import { getSurahIntro } from "@/data/surah-intro";
 import { Card, Loading } from "@/routes/tadabbur";
 
 export const Route = createFileRoute("/sourate/$surah")({
@@ -24,7 +24,7 @@ function SouratePage() {
   });
   const chapterMeta = chapters?.find((c) => c.id === surah);
 
-  const intro = surah === 1 ? AL_FATIHA_INTRO : null;
+  const intro = getSurahIntro(surah);
 
   const goToMushaf = () => {
     if (!chapterMeta) return;
@@ -58,20 +58,19 @@ function SouratePage() {
                 {chapterMeta.nameArabic}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {chapterMeta.nameFrench}
-                {intro ? ` (${intro.nameTransliteration})` : ""}
+                {chapterMeta.nameFrench} · {chapterMeta.nameSimple}
               </p>
-              {intro && (
-                <p className="mt-1 text-xs text-muted-foreground">{intro.versesCount} versets</p>
-              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                {chapterMeta.versesCount} versets
+              </p>
             </div>
           )}
 
           {!intro && chapterMeta && (
             <Card>
               <p className="text-sm text-muted-foreground">
-                La découverte détaillée de cette sourate n'est pas encore disponible — seule
-                Al-Fatiha a été préparée pour ce pilote.
+                La découverte détaillée de cette sourate n'est pas encore disponible — aucune
+                information suffisamment sourcée n'a encore été préparée pour elle.
               </p>
             </Card>
           )}

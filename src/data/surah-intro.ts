@@ -2,11 +2,17 @@
  * Données factuelles pour l'écran « Découvrir la sourate ».
  *
  * Chaque fait conserve sa propre source — jamais de fusion silencieuse.
+ * Le nom (arabe/translittéré) et le nombre d'ayat viennent déjà de l'API
+ * quran.com (`Chapter`), affichés séparément par l'écran : ce module ne
+ * porte que les faits narratifs supplémentaires (sens du nom, révélation,
+ * visée, thèmes...).
+ *
  * Aucun texte de « أول مرة أتدبر القرآن » (Adel Mohamed Khalil) n'est
  * reproduit ici : seule sa logique de rubriques a servi d'inspiration.
  */
 
 import type { SourceStatus } from "@/lib/etude-content";
+import { GENERATED_MUKHTASAR_INTROS } from "@/data/surah-intro.generated";
 
 export interface SurahIntroFact {
   label: string;
@@ -18,20 +24,18 @@ export interface SurahIntroFact {
 
 export interface SurahIntro {
   surahNumber: number;
-  nameArabic: string;
-  nameTransliteration: string;
-  versesCount: number;
   facts: SurahIntroFact[];
 }
 
 const MOKHTASAR = "Al-Mukhtasar fî at-tafsîr — Markaz Tafsîr";
 const SAADI = "Tafsir As-Sa'dî (synthèse de fin de sourate)";
 
-export const AL_FATIHA_INTRO: SurahIntro = {
+/**
+ * Al-Fatiha : entrée sourcée manuellement (pilote), plus riche que
+ * l'extraction générique (inclut la synthèse thématique d'As-Sa'dî).
+ */
+const AL_FATIHA_INTRO: SurahIntro = {
   surahNumber: 1,
-  nameArabic: "الفاتحة",
-  nameTransliteration: "Al-Fâtiha",
-  versesCount: 7,
   facts: [
     {
       label: "Sens du nom",
@@ -70,3 +74,19 @@ export const AL_FATIHA_INTRO: SurahIntro = {
     },
   ],
 };
+
+const MANUAL_INTROS: Record<number, SurahIntro> = {
+  1: AL_FATIHA_INTRO,
+};
+
+/**
+ * Assemble l'intro d'une sourate : l'entrée manuelle si elle existe
+ * (plus riche), sinon les faits extraits automatiquement (déterministe,
+ * texte réel d'Al-Mukhtasar via `scripts/extract-mukhtasar-intro.mjs` —
+ * jamais de PDF lu au runtime, jamais de contenu généré par l'IA).
+ * Retourne `null` si rien n'est disponible pour cette sourate.
+ */
+export function getSurahIntro(surahNumber: number): SurahIntro | null {
+  if (MANUAL_INTROS[surahNumber]) return MANUAL_INTROS[surahNumber];
+  return GENERATED_MUKHTASAR_INTROS[surahNumber] ?? null;
+}

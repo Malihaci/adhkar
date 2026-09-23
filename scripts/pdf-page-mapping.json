@@ -1,0 +1,47 @@
+{
+  "_comment": "Cartographie VÉRIFIÉE (échantillonnage visuel direct, pas une supposition) entre les 3 PDF uniques القرآن تدبر وعمل et la pagination réelle et continue du Mushaf (1-604). Le doublon (01.pdf) est exclu de cette table. Formule : mushafPage = pdfPage + offset, valide sur la plage indiquée.",
+  "verifiedSamples": [
+    { "file": "1-10.pdf", "pdfPage": 10, "mushafPage": 1, "surah": "Al-Fatiha", "juz": 1 },
+    { "file": "1-10.pdf", "pdfPage": 21, "mushafPage": 12, "surah": "Al-Baqara", "juz": 1 },
+    { "file": "1-10.pdf", "pdfPage": 30, "mushafPage": 21, "surah": "Al-Baqara", "juz": 1 },
+    { "file": "1-10.pdf", "pdfPage": 31, "mushafPage": 22, "surah": "Al-Baqara", "juz": 2 },
+    { "file": "1-10.pdf", "pdfPage": 210, "mushafPage": 201, "surah": "At-Tawbah", "juz": 10 },
+    { "file": "11-20.pdf", "pdfPage": 1, "mushafPage": 202, "surah": "At-Tawbah", "juz": 11 },
+    { "file": "11-20.pdf", "pdfPage": 200, "mushafPage": 401, "surah": "Al-Ankabut", "juz": 20 },
+    { "file": "21-30.pdf", "pdfPage": 1, "mushafPage": 402, "surah": "Al-Ankabut", "juz": 21 },
+    { "file": "21-30.pdf", "pdfPage": 206, "mushafPage": null, "note": "page de colophon/imprimeur, pas du contenu — dernière page de contenu estimée à mushafPage 604 = pdfPage 203" }
+  ],
+  "files": {
+    "01.pdf": {
+      "status": "duplicate",
+      "reason": "Contenu identique (page 1 = Al-Fatiha p.1, structure identique) aux pages 10-30 de 1-10.pdf (Mushaf pages 1-21, Juz 1). Ignoré par le pipeline. NON supprimé du disque.",
+      "coveredMushafPages": [1, 21]
+    },
+    "1-10.pdf": {
+      "status": "primary",
+      "pdfPageRange": [10, 210],
+      "mushafPageRange": [1, 201],
+      "offsetFormula": "mushafPage = pdfPage - 9",
+      "frontMatterPdfPages": [1, 9],
+      "juzRange": [1, 10]
+    },
+    "11-20.pdf": {
+      "status": "primary",
+      "pdfPageRange": [1, 200],
+      "mushafPageRange": [202, 401],
+      "offsetFormula": "mushafPage = pdfPage + 201",
+      "frontMatterPdfPages": [],
+      "juzRange": [11, 20]
+    },
+    "21-30.pdf": {
+      "status": "primary",
+      "pdfPageRange": [1, 203],
+      "mushafPageRange": [402, 604],
+      "offsetFormula": "mushafPage = pdfPage + 401",
+      "backMatterPdfPages": [204, 206],
+      "juzRange": [21, 30]
+    }
+  },
+  "conclusion": "Les 3 PDF uniques couvrent ensemble la totalité des 604 pages du Mushaf, donc les 30 juz'. Confirmé par échantillonnage direct (en-têtes الجزء/صفحة lus visuellement), pas par simple arithmétique de noms de fichiers.",
+  "verifiedAt": "2026-09-23"
+}

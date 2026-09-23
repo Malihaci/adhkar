@@ -13,6 +13,7 @@
  */
 
 import { AL_FATIHA_CONTENT } from "@/data/al-fatiha-content";
+import { AL_BAQARA_CONTENT } from "@/data/al-baqara-content";
 
 export type SourceStatus = "verified_source" | "needs_review";
 export type ContentStatus = "draft" | "reviewed" | "validated";
@@ -38,6 +39,8 @@ export interface EtudeContent {
   verseRange?: string;
   /** Sourate concernée si scopeType === "surah". */
   surahNumber?: number;
+  /** Page du Mushaf concernée si scopeType === "page" (portée éditoriale, sans ayah citée). */
+  pageNumber?: number;
 
   /** Texte source exact — jamais reformulé. */
   textAr: string;
@@ -63,22 +66,31 @@ export interface EtudeContent {
   explanationStatus?: ContentStatus;
 }
 
-const ALL_CONTENT: EtudeContent[] = [...AL_FATIHA_CONTENT];
+const ALL_CONTENT: EtudeContent[] = [...AL_FATIHA_CONTENT, ...AL_BAQARA_CONTENT];
 
 /**
  * Contenus réellement rattachés à `verseKey` pour une catégorie donnée,
  * quelle que soit leur portée (ayah unique, plage, sourate entière).
  * N'exclut pas `needs_review` : le statut est affiché, jamais masqué.
  */
-export function getEtudeContent(verseKey: string, category: EtudeCategory): EtudeContent[] {
-  return ALL_CONTENT.filter((c) => c.category === category && concernsVerse(c, verseKey));
+export function getEtudeContent(
+  verseKey: string,
+  category: EtudeCategory,
+  pageNumber?: number,
+): EtudeContent[] {
+  return ALL_CONTENT.filter(
+    (c) => c.category === category && concernsVerse(c, verseKey, pageNumber),
+  );
 }
 
-function concernsVerse(content: EtudeContent, verseKey: string): boolean {
+function concernsVerse(content: EtudeContent, verseKey: string, pageNumber?: number): boolean {
   const [surahNum] = verseKey.split(":").map(Number);
 
   if (content.scopeType === "surah") {
     return content.surahNumber === surahNum;
+  }
+  if (content.scopeType === "page") {
+    return pageNumber != null && content.pageNumber === pageNumber;
   }
   if (content.scopeType === "verse") {
     return content.verseKey === verseKey;
@@ -94,13 +106,16 @@ function concernsVerse(content: EtudeContent, verseKey: string): boolean {
   return false;
 }
 
-/** Libellé d'affichage honnête de la portée d'un contenu multi-ayah/sourate. */
+/** Libellé d'affichage honnête de la portée d'un contenu multi-ayah/sourate/page. */
 export function formatVerseScope(content: EtudeContent): string | null {
   if (content.scopeType === "verse_range" && content.verseRange) {
     return `Concerne les ayat ${content.verseRange.replace("-", "–")}`;
   }
   if (content.scopeType === "surah") {
     return "Concerne l'ensemble de la sourate";
+  }
+  if (content.scopeType === "page") {
+    return `Concerne la page ${content.pageNumber} du Mushaf`;
   }
   return null;
 }

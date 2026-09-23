@@ -188,6 +188,36 @@ export function keysToEndOfQuran(fromKey: string, chapters: Chapter[]): string[]
   return out;
 }
 
+/** Vrai si `key` est un verseKey syntaxiquement valide au regard de `chapters`. */
+export function isValidVerseKey(key: string, chapters: Chapter[]): boolean {
+  const m = /^(\d{1,3}):(\d{1,3})$/.exec(key.trim());
+  if (!m) return false;
+  const [, s, a] = m;
+  const c = chapters.find((ch) => ch.id === Number(s));
+  return !!c && Number(a) >= 1 && Number(a) <= c.versesCount;
+}
+
+/**
+ * Clés de versets de `startKey` à `endKey` inclus (intervalle personnalisé),
+ * calculées localement — peut traverser plusieurs sourates. Retourne `[]`
+ * si l'intervalle est invalide ou inversé (jamais d'ordre implicite corrigé
+ * silencieusement : à l'appelant de refuser/expliquer).
+ */
+export function keysBetween(startKey: string, endKey: string, chapters: Chapter[]): string[] {
+  if (!isValidVerseKey(startKey, chapters) || !isValidVerseKey(endKey, chapters)) return [];
+  const [s0, a0] = startKey.split(":").map(Number);
+  const [s1, a1] = endKey.split(":").map(Number);
+  if (s0 > s1 || (s0 === s1 && a0 > a1)) return []; // intervalle inversé refusé
+  const out: string[] = [];
+  for (const c of chapters) {
+    if (c.id < s0 || c.id > s1) continue;
+    const start = c.id === s0 ? a0 : 1;
+    const end = c.id === s1 ? a1 : c.versesCount;
+    for (let a = start; a <= end; a++) out.push(`${c.id}:${a}`);
+  }
+  return out;
+}
+
 /* ---------------------------------------------------------------- Récitateurs */
 
 export interface Reciter {

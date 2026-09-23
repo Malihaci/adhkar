@@ -70,10 +70,13 @@ function EtudePage() {
 
   // Contenus locaux (synchrones) — vides tant qu'aucune donnée n'est vérifiée
   // pour cette sourate. Aucune rubrique n'est affichée si elle est vide.
-  const contexteItems = getEtudeContent(verseKey, "asbab_nuzul");
-  const meditateItems = getEtudeContent(verseKey, "tadabbur");
-  const agirItems = getEtudeContent(verseKey, "amal");
-  const orienterItems = getEtudeContent(verseKey, "tawjihat");
+  // `verse?.page` n'est connu qu'une fois la requête résolue : les contenus
+  // à portée "page" (sans ayah citée dans la source) n'apparaissent qu'à
+  // ce moment-là, jamais par une supposition de page.
+  const contexteItems = getEtudeContent(verseKey, "asbab_nuzul", verse?.page);
+  const meditateItems = getEtudeContent(verseKey, "tadabbur", verse?.page);
+  const agirItems = getEtudeContent(verseKey, "amal", verse?.page);
+  const orienterItems = getEtudeContent(verseKey, "tawjihat", verse?.page);
 
   const sections: Section[] = [
     ...(contexteItems.length ? (["asbab_nuzul"] as const) : []),

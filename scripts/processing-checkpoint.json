@@ -1,0 +1,42 @@
+{
+  "_comment": "État de reprise du pipeline de contenu القرآن تدبر وعمل. Déterministe : basé sur les fichiers de données réels, pas sur une mémoire de conversation. Avant de traiter une nouvelle page, vérifier les IDs déjà présents dans src/data/*-content.ts pour ne jamais dupliquer. CORRECTION 2026-09-23 : la cartographie précédente sous-estimait la couverture source — voir scripts/pdf-page-mapping.json (vérifié par échantillonnage visuel).",
+  "sourceMapping": "scripts/pdf-page-mapping.json",
+  "sourceCoverage": {
+    "conclusion": "Les 3 PDF uniques (1-10.pdf, 11-20.pdf, 21-30.pdf) couvrent ensemble les 604 pages du Mushaf, donc les 30 juz'. 01.pdf est un doublon confirmé (pages 10-30 de 1-10.pdf) et n'est pas utilisé par le pipeline.",
+    "notConfused": "Disponibilité de la SOURCE (confirmée pour tout le Coran) != contenu déjà EXTRAIT en données structurées (voir tadabburWaAmal ci-dessous, très partiel)."
+  },
+  "tadabburWaAmal": {
+    "sourceInventory": "scripts/tadabbur-pdf-inventory.json",
+    "surah1_fatiha": {
+      "status": "complete",
+      "primarySourceFile": "1-10.pdf (pdfPage 10 = mushafPage 1)",
+      "duplicateSourceFile": "01.pdf (pdfPage 1) — non utilisé, doublon",
+      "mushafPage": 1,
+      "verses": "1:1-1:7",
+      "dataFile": "src/data/al-fatiha-content.ts"
+    },
+    "surah2_baqara": {
+      "status": "partial",
+      "primarySourceFile": "1-10.pdf",
+      "mushafPagesDone": [2, 4],
+      "mushafPagesRemaining_thisJuz": [3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+      "versesDone": ["2:1-2:5", "2:17-2:24"],
+      "dataFile": "src/data/al-baqara-content.ts",
+      "note": "Prochaine étape logique : mushafPage 3 (pdfPage 12 dans 1-10.pdf) — déjà lue visuellement lors d'une session précédente (voir historique) mais pas encore structurée/traduite dans le fichier de données."
+    },
+    "mushafPages5to604": {
+      "status": "not_started",
+      "note": "Couverts par la source (voir pdf-page-mapping.json) mais AUCUNE page lue/structurée à ce jour au-delà de mushafPage 1, 2 et 4. Chaque page nécessite une lecture visuelle individuelle (PDF scanné, aucun texte extractible) — volume de ~600 pages restantes, non automatisable sans lecture page par page."
+    }
+  },
+  "mukhtasarIntros": {
+    "extractionScript": "scripts/extract-mukhtasar-intro.mjs",
+    "generatorScript": "scripts/generate-surah-intro-ts.mjs",
+    "rawDataFile": "scripts/mukhtasar-intro-raw.json",
+    "outputFile": "src/data/surah-intro.generated.ts",
+    "lastCoverage": "89/114",
+    "missingSurahs": [7, 12, 18, 28, 30, 35, 51, 52, 54, 57, 69, 70, 76, 79, 83, 87, 92, 93, 94, 96, 98, 102, 105, 108, 111],
+    "note": "Coverage improved from 70/114 to 89/114 by fixing the header regex to tolerate en-dash separators and the 'Observation: translate@mokhtasr.com' watermark splitting the naming parenthetical across lines. Remaining 25 surahs likely need further format-specific fixes (not chased further this session)."
+  },
+  "lastUpdated": "2026-09-23"
+}

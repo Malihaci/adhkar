@@ -23,11 +23,14 @@ import {
   clampPage,
   fetchChapters,
   fetchFullQuranText,
+  fetchHizbVerseKeys,
   fetchJuzVerseKeys,
   fetchPageLayout,
   fetchSurahVerseKeys,
   fetchVersePage,
   getReciter,
+  isValidVerseKey,
+  keysBetween,
   keysToEndOfQuran,
   normalizeArabicForSearch,
   parseQuranQuery,
@@ -69,22 +72,8 @@ export const Route = createFileRoute("/quran/page/$page")({
   component: MushafPage,
 });
 
-/**
- * Mode de lecture choisi dans Options — détermine où le bouton ▶ s'arrête.
- * "continuous" (par défaut) et "toEnd" génèrent la même file (utile pour
- * réutiliser exactement keysToEndOfQuran) mais restent deux entrées de menu
- * séparées, comme demandé.
- */
-type ReadMode = "continuous" | "ayah" | "page" | "surah" | "juz" | "toEnd";
-
-const READ_MODES: { id: ReadMode; label: string }[] = [
-  { id: "continuous", label: "Lecture continue" },
-  { id: "ayah", label: "Cette ayah" },
-  { id: "page", label: "Cette page" },
-  { id: "surah", label: "Cette sourate" },
-  { id: "juz", label: "Ce juz'" },
-  { id: "toEnd", label: "Depuis cette ayah jusqu'à la fin du Coran" },
-];
+/** Portée de lecture choisie dans Options — détermine la file construite. */
+type ReadMode = "ayah" | "page" | "surah" | "juz" | "hizb" | "toEnd" | "range";
 
 const ARABIC_DIGITS = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
 const toArabic = (n: number) =>
@@ -158,16 +147,19 @@ function MushafPage() {
   const [speed, setSpeed] = useState(1); // 1 ou 1.25
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [autoTurn, setAutoTurn] = useState(false);
-  const [readMode, setReadMode] = useState<ReadMode>("continuous");
+  const [readMode, setReadMode] = useState<ReadMode>("toEnd");
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
   const current = playing || queue.length ? queue[qIndex] : undefined;
   /**
-   * Identifie la commande (ayah de départ + mode) pour laquelle `queue` a
-   * été construite. Tant que rien n'a changé depuis, le ▶ principal doit
-   * reprendre la session en cours (pause → play) ; dès que l'ayah
-   * sélectionnée ou le mode diffère, il doit s'agir d'une NOUVELLE
-   * commande, jamais d'une reprise silencieuse de l'ancienne file.
+   * Identifie la commande (portée + point de départ, ou bornes pour un
+   * intervalle) pour laquelle `queue` a été construite. Tant que rien n'a
+   * changé depuis, le ▶ principal doit reprendre la session en cours
+   * (pause → play) ; dès que la portée ou le point de départ diffère, il
+   * s'agit d'une NOUVELLE commande, jamais d'une reprise silencieuse de
+   * l'ancienne file.
    */
-  const activeQueueContext = useRef<{ key: string; mode: ReadMode } | null>(null);
+  const activeQueueContext = useRef<string | null>(null);
   /** Incrémenté à chaque `load()` : ignore les promesses `play()` obsolètes. */
   const loadSessionRef = useRef(0);
 
@@ -206,8 +198,11 @@ function MushafPage() {
     if (!keys.length) return;
     // Nouvelle commande explicite : invalide toute notion de "reprise" de
     // l'ancienne file — le prochain ▶ ne pourra plus la confondre avec
-    // celle-ci tant que l'ayah/le mode n'auront pas de nouveau changé.
-    activeQueueContext.current = { key: keys[0], mode: readMode };
+    // celle-ci tant que la portée, le point de départ ou les réglages
+    // (répétitions) n'auront pas de nouveau changé. Basé sur les PARAMÈTRES
+    // de la commande (pas sur la file résultante, parfois construite de
+    // façon asynchrone pour sourate/juz'/hizb).
+    activeQueueContext.current = selectionSignature();
     const perAyah = ayahRepeat > 1 ? ayahRepeat : 1;
     let full = keys.flatMap((k) => Array.from({ length: perAyah }, () => k));
     const applySelRepeat = !opts?.skipSelRepeat;
@@ -395,20 +390,37 @@ function MushafPage() {
     key: anchorVerse?.key ?? "",
     surah: anchorVerse?.surah ?? surahOnPage,
     juz: anchorVerse?.juz ?? 1,
+    hizb: anchorVerse?.hizb ?? 1,
   };
 
+  /** Signature des PARAMÈTRES de la commande actuellement affichée dans Options. */
+  const selectionSignature = () =>
+    readMode === "range"
+      ? `range|${rangeStart}|${rangeEnd}|${ayahRepeat}|${selRepeat}`
+      : `${readMode}|${anchor.key}|${ayahRepeat}|${selRepeat}`;
+
   /**
-   * Vrai uniquement si la file en cours a été construite pour l'ayah et le
-   * mode actuellement demandés : dans ce cas, et seulement dans ce cas, le
-   * ▶ principal doit se comporter comme Pause → Play (reprise exacte).
-   * Dès que l'ayah sélectionnée ou le mode a changé depuis, il s'agit d'une
-   * nouvelle commande explicite qui doit reconstruire la file — jamais
-   * reprendre silencieusement l'ancienne lecture.
+   * Vrai uniquement si la file en cours a été construite pour exactement la
+   * commande actuellement affichée : dans ce cas, et seulement dans ce cas,
+   * le ▶ doit se comporter comme Pause → Play (reprise exacte). Dès que la
+   * portée, le point de départ ou les réglages ont changé depuis, il s'agit
+   * d'une nouvelle commande qui doit reconstruire la file — jamais reprendre
+   * silencieusement l'ancienne lecture.
    */
-  const isCurrentSession =
-    queue.length > 0 &&
-    activeQueueContext.current?.key === anchor.key &&
-    activeQueueContext.current?.mode === readMode;
+  const isCurrentSession = queue.length > 0 && activeQueueContext.current === selectionSignature();
+
+  /** Raison lisible si la commande actuelle ne peut pas construire de file. */
+  const rangeInvalidReason = (() => {
+    if (readMode !== "range") return null;
+    if (!rangeStart || !rangeEnd) return "Choisissez l'ayah de départ et de fin";
+    if (!chapters) return null;
+    if (!isValidVerseKey(rangeStart, chapters) || !isValidVerseKey(rangeEnd, chapters))
+      return "Ayah introuvable (format attendu : sourate:ayah)";
+    if (keysBetween(rangeStart, rangeEnd, chapters).length === 0)
+      return "L'ayah de fin doit être après l'ayah de départ";
+    return null;
+  })();
+  const canPlay = readMode === "range" ? !rangeInvalidReason && !!chapters : !!anchor.key;
 
   /*
    * Chaque mode part de `anchor.key` (1re ayah sélectionnée, sinon 1re ayah
@@ -436,8 +448,14 @@ function MushafPage() {
     start(all.slice(idx < 0 ? 0 : idx), { turnPages: true });
   };
 
-  /** "Lecture continue" et "toEnd" : identique, jusqu'à la fin du Coran. */
-  const playContinuousFromAnchor = () => {
+  const playHizbFromAnchor = async () => {
+    const all = await fetchHizbVerseKeys(anchor.hizb);
+    const idx = all.indexOf(anchor.key);
+    start(all.slice(idx < 0 ? 0 : idx), { turnPages: true });
+  };
+
+  /** Jusqu'à la fin du Coran, depuis l'ayah sélectionnée. */
+  const playToEndFromAnchor = () => {
     if (!chapters || !anchor.key) return;
     start(keysToEndOfQuran(anchor.key, chapters), {
       turnPages: true,
@@ -445,26 +463,38 @@ function MushafPage() {
     });
   };
 
-  /** Point d'entrée unique du bouton ▶ — démarre selon le mode choisi. */
+  /** Intervalle personnalisé De → À (inclusif, peut traverser une sourate). */
+  const playRangeFromAnchor = () => {
+    if (!chapters) return;
+    const keys = keysBetween(rangeStart, rangeEnd, chapters);
+    if (!keys.length) return;
+    start(keys, { turnPages: true });
+  };
+
+  /** Point d'entrée unique du bouton ▶ — démarre selon la portée choisie. */
   const playFromAnchor = () => {
-    if (!anchor.key) return;
     switch (readMode) {
       case "ayah":
-        playAyah();
+        if (anchor.key) playAyah();
         return;
       case "page":
-        playPageFromAnchor();
+        if (anchor.key) playPageFromAnchor();
         return;
       case "surah":
-        void playSurahFromAnchor();
+        if (anchor.key) void playSurahFromAnchor();
         return;
       case "juz":
-        void playJuzFromAnchor();
+        if (anchor.key) void playJuzFromAnchor();
         return;
-      case "continuous":
+      case "hizb":
+        if (anchor.key) void playHizbFromAnchor();
+        return;
+      case "range":
+        playRangeFromAnchor();
+        return;
       case "toEnd":
       default:
-        playContinuousFromAnchor();
+        if (anchor.key) playToEndFromAnchor();
         return;
     }
   };
@@ -579,7 +609,12 @@ function MushafPage() {
       gesture.current.timer = window.setTimeout(() => {
         gesture.current.longPress = true;
         suppressNextClick.current = true;
-        setMenuFor(gesture.current.wordKey);
+        const key = gesture.current.wordKey!;
+        // L'appui long sélectionne l'ayah si nécessaire (jamais un toggle/
+        // une extension de plage comme le tap) puis ouvre son menu —
+        // selectedVerseKey correspond toujours à l'ayah concernée.
+        setSelected((prev) => (prev.includes(key) ? prev : [key]));
+        setMenuFor(key);
       }, 480);
     }
   };
@@ -716,15 +751,13 @@ function MushafPage() {
                         {meta?.nameArabic ?? ""}
                       </span>
                     </p>
-                    {startSurah === 1 && (
-                      <Link
-                        to="/sourate/$surah"
-                        params={{ surah: "1" }}
-                        className="rounded-full bg-gold/15 px-2 py-0.5 text-[0.55em] font-semibold text-gold"
-                      >
-                        🌿 Découvrir
-                      </Link>
-                    )}
+                    <Link
+                      to="/sourate/$surah"
+                      params={{ surah: String(startSurah) }}
+                      className="rounded-full bg-gold/15 px-2 py-0.5 text-[0.55em] font-semibold text-gold"
+                    >
+                      🌿 Découvrir
+                    </Link>
                   </div>
                 )}
                 {showBasmala && (
@@ -828,27 +861,38 @@ function MushafPage() {
       )}
 
       {menuFor && (
-        <div
-          className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm"
-          onClick={() => setMenuFor(null)}
-        >
+        // Pas de voile gris/assombrissement : le Mushaf et l'ayah sélectionnée
+        // (déjà surlignée via `isSel`) restent pleinement visibles. Le calque
+        // transparent ne sert qu'à détecter le tap "en dehors" pour fermer.
+        <div className="fixed inset-0 z-50" onClick={() => setMenuFor(null)}>
           <div
-            className="w-full rounded-t-3xl border-t border-border bg-card p-3 pb-4"
+            className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-border bg-card p-3 pb-4 shadow-[var(--shadow-elevated)]"
             onClick={(e) => e.stopPropagation()}
           >
             <p className="mb-2 text-center text-xs font-semibold text-muted-foreground">
-              Ayah {menuFor}
+              {menuFor}
+              {menuVerse &&
+                (() => {
+                  const meta = chapters?.find((c) => c.id === menuVerse.surah);
+                  return meta ? ` · ${meta.nameFrench} · ${meta.nameArabic}` : "";
+                })()}
             </p>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => {
-                  toggleVerse(menuFor);
+                  const [s, a] = menuFor.split(":");
+                  const target = menuFor;
                   setMenuFor(null);
+                  navigate({
+                    to: "/etude/$surah/$ayah",
+                    params: { surah: s, ayah: a },
+                    search: { fromPage: String(page), r: reciterId, sel: target },
+                  });
                 }}
-                className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
+                className="flex flex-col items-center gap-1 rounded-2xl border border-primary/40 bg-primary/5 py-3 text-xs font-semibold text-primary transition hover:bg-primary/10"
               >
-                <Check className="size-5" />
-                Sélectionner
+                <Sparkles className="size-5" />
+                Étudier
               </button>
               <button
                 onClick={copyVerse}
@@ -866,22 +910,6 @@ function MushafPage() {
               >
                 <Share2 className="size-5" />
                 Partager
-              </button>
-              <button
-                onClick={() => {
-                  const [s, a] = menuFor.split(":");
-                  const target = menuFor;
-                  setMenuFor(null);
-                  navigate({
-                    to: "/etude/$surah/$ayah",
-                    params: { surah: s, ayah: a },
-                    search: { fromPage: String(page), r: reciterId, sel: target },
-                  });
-                }}
-                className="flex flex-col items-center gap-1 rounded-2xl border border-primary/40 bg-primary/5 py-3 text-xs font-semibold text-primary transition hover:bg-primary/10"
-              >
-                <Sparkles className="size-5" />
-                Étudier
               </button>
             </div>
           </div>
@@ -909,8 +937,8 @@ function MushafPage() {
 
       {optionsOpen && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm">
-          <div className="max-h-[85dvh] w-full overflow-y-auto rounded-t-3xl border-t border-border bg-card p-4">
-            <div className="mb-3 flex items-center justify-between">
+          <div className="flex max-h-[85dvh] w-full flex-col rounded-t-3xl border-t border-border bg-card">
+            <div className="flex items-center justify-between px-4 pb-3 pt-4">
               <h2 className="font-display text-lg font-semibold">Options de récitation</h2>
               <button
                 onClick={() => setOptionsOpen(false)}
@@ -921,63 +949,148 @@ function MushafPage() {
               </button>
             </div>
 
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Récitateur
-            </p>
-            <select
-              aria-label="Récitateur"
-              value={reciterId}
-              onChange={(e) => setSearchParam({ r: e.target.value })}
-              className="h-11 w-full rounded-full border border-border bg-background px-4 text-sm font-medium"
-            >
-              {RECITERS.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-
-            <PillRow label="Répéter chaque ayah" value={ayahRepeat} onChange={setAyahRepeat} />
-            <PillRow label="Répéter la sélection" value={selRepeat} onChange={setSelRepeat} />
-
-            <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Vitesse
-            </p>
-            <div className="flex gap-1 rounded-full border border-border p-1">
-              {[1, 1.25].map((s) => (
+            <div className="min-h-0 flex-1 overflow-y-auto px-4">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Sélection rapide
+              </p>
+              <div className="grid grid-cols-2 gap-1.5 pb-1">
+                {(
+                  [
+                    { id: "ayah", label: "Cette ayah", detail: anchor.key || undefined },
+                    { id: "page", label: "Cette page", detail: `Page ${page}` },
+                    {
+                      id: "surah",
+                      label: "Cette sourate",
+                      detail: chapters?.find((c) => c.id === anchor.surah)?.nameFrench,
+                    },
+                    { id: "juz", label: "Ce juz'", detail: `Juz ${anchor.juz}` },
+                    { id: "hizb", label: "Ce hizb", detail: `Hizb ${anchor.hizb}` },
+                    { id: "toEnd", label: "Jusqu'à la fin", detail: undefined },
+                  ] as { id: ReadMode; label: string; detail?: string }[]
+                ).map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setReadMode(m.id)}
+                    aria-pressed={readMode === m.id}
+                    className={cn(
+                      "rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold transition",
+                      readMode === m.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background hover:border-primary/40",
+                    )}
+                  >
+                    <span className="block">{m.label}</span>
+                    {m.detail && (
+                      <span className="block truncate text-[11px] font-normal text-muted-foreground">
+                        {m.detail}
+                      </span>
+                    )}
+                  </button>
+                ))}
                 <button
-                  key={s}
-                  onClick={() => setSpeed(s)}
+                  onClick={() => {
+                    setReadMode("range");
+                    if (!rangeStart && anchor.key) setRangeStart(anchor.key);
+                  }}
+                  aria-pressed={readMode === "range"}
                   className={cn(
-                    "flex-1 rounded-full py-2 text-sm font-semibold transition",
-                    speed === s ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {s}×
-                </button>
-              ))}
-            </div>
-
-            <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Mode de lecture
-            </p>
-            <div className="space-y-1.5 pb-4">
-              {READ_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setReadMode(m.id)}
-                  aria-pressed={readMode === m.id}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition",
-                    readMode === m.id
+                    "col-span-2 rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold transition",
+                    readMode === "range"
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border bg-background hover:border-primary/40",
                   )}
                 >
-                  {m.label}
-                  {readMode === m.id && <Check className="size-4 shrink-0" />}
+                  Intervalle personnalisé
                 </button>
-              ))}
+              </div>
+
+              {readMode === "range" && (
+                <div className="mb-2 grid grid-cols-2 gap-2 rounded-2xl border border-border bg-background p-3">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    De
+                    <input
+                      value={rangeStart}
+                      onChange={(e) => setRangeStart(e.target.value.trim())}
+                      placeholder="ex : 5:39"
+                      className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
+                    />
+                  </label>
+                  <label className="text-xs font-medium text-muted-foreground">
+                    À
+                    <input
+                      value={rangeEnd}
+                      onChange={(e) => setRangeEnd(e.target.value.trim())}
+                      placeholder="ex : 5:50"
+                      className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
+                    />
+                  </label>
+                  {rangeInvalidReason && (
+                    <p className="col-span-2 text-xs text-destructive">{rangeInvalidReason}</p>
+                  )}
+                </div>
+              )}
+
+              <p className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Récitateur
+              </p>
+              <select
+                aria-label="Récitateur"
+                value={reciterId}
+                onChange={(e) => setSearchParam({ r: e.target.value })}
+                className="h-11 w-full rounded-full border border-border bg-background px-4 text-sm font-medium"
+              >
+                {RECITERS.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+
+              <PillRow label="Répéter chaque ayah" value={ayahRepeat} onChange={setAyahRepeat} />
+              <PillRow label="Répéter la sélection" value={selRepeat} onChange={setSelRepeat} />
+
+              <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Vitesse
+              </p>
+              <div className="mb-4 flex gap-1 rounded-full border border-border p-1">
+                {[1, 1.25].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSpeed(s)}
+                    className={cn(
+                      "flex-1 rounded-full py-2 text-sm font-semibold transition",
+                      speed === s ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {s}×
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer sticky : une seule action pour appliquer la config et lancer. */}
+            <div
+              className="shrink-0 border-t border-border/60 bg-card px-4 pt-3"
+              style={{ paddingBottom: "calc(0.875rem + env(safe-area-inset-bottom))" }}
+            >
+              {!canPlay && (
+                <p className="mb-2 text-center text-xs text-muted-foreground">
+                  {rangeInvalidReason ?? "Sélectionnez une ayah pour commencer"}
+                </p>
+              )}
+              <button
+                onClick={playFromAnchor}
+                disabled={!canPlay}
+                className={cn(
+                  "flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-bold transition active:scale-[0.98]",
+                  canPlay
+                    ? "bg-primary text-primary-foreground shadow-[var(--shadow-elevated)]"
+                    : "cursor-not-allowed bg-muted text-muted-foreground",
+                )}
+              >
+                <Play className="size-4 fill-current" />
+                {isCurrentSession && !playing ? "Reprendre la lecture" : "Commencer la lecture"}
+              </button>
             </div>
           </div>
         </div>

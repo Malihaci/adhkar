@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-09-22T20:20:30.603Z",
+  "files": [
+    {
+      "fileName": "01.pdf",
+      "path": "C:\\adhkar\\sources\\01.pdf",
+      "sizeBytes": 72335693,
+      "readable": true,
+      "pages": 21,
+      "textExtractableSample": false
+    },
+    {
+      "fileName": "1-10.pdf",
+      "path": "C:\\adhkar\\sources\\1-10.pdf",
+      "sizeBytes": 520390012,
+      "readable": true,
+      "pages": 210,
+      "textExtractableSample": false
+    },
+    {
+      "fileName": "11-20.pdf",
+      "path": "C:\\adhkar\\sources\\11-20.pdf",
+      "sizeBytes": 492796897,
+      "readable": true,
+      "pages": 200,
+      "textExtractableSample": false
+    },
+    {
+      "fileName": "21-30.pdf",
+      "path": "C:\\adhkar\\sources\\21-30.pdf",
+      "sizeBytes": 492997979,
+      "readable": true,
+      "pages": 206,
+      "textExtractableSample": false
+    }
+  ],
+  "note": "Cartographie fine (offsets vers la pagination réelle du Mushaf 1-604, doublon confirmé) : voir scripts/pdf-page-mapping.json, établie par échantillonnage visuel direct des en-têtes الجزء/صفحة. Les 3 fichiers 1-10.pdf/11-20.pdf/21-30.pdf couvrent ensemble Juz 1 à 30 (01.pdf est un doublon des pages 10-30 de 1-10.pdf)."
+}
