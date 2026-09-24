@@ -29,6 +29,10 @@ adhkari-daily-guide-main/
 # Sources de travail (PDF sous droits, non destinés au dépôt)
 /sources/
 
+# Pages rendues à la volée depuis les PDF (scripts/render-mushaf-page.mjs) —
+# artefacts temporaires régénérables, jamais des livrables versionnés.
+/scripts/_pages/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

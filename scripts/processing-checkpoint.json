@@ -34,7 +34,20 @@
     },
     "mushafPagesRemaining": {
       "status": "not_started",
-      "note": "~598 pages du Mushaf restent à traiter (toutes couvertes par la source, voir pdf-page-mapping.json). Chaque page nécessite une lecture visuelle individuelle (PDF scanné, aucun texte extractible) — non automatisable sans lecture page par page. Le format s'est confirmé identique sur les 3 fichiers, donc la même méthode s'applique partout."
+      "note": "~598 pages du Mushaf restent à traiter (toutes couvertes par la source, voir pdf-page-mapping.json). Le format s'est confirmé identique sur les 3 fichiers, donc la même méthode de rendu s'applique partout — voir ocrFeasibility ci-dessous pour la conclusion sur l'automatisation du contenu lui-même."
+    },
+    "ocrFeasibility": {
+      "testedAt": "2026-09-24",
+      "tool": "tesseract.js v7 (modèle 'ara'), testé en isolation (jamais ajouté aux dépendances du projet)",
+      "conclusion": "NON FIABLE pour extraire directement le texte religieux (ayat citées + explications + références). Confiance mesurée 53-68% sur un item déjà connu et vérifié (page 6, Waqfa 1) : erreurs de lettres sur le texte coranique cité (police ornementée), ET erreur sur la référence elle-même (398/1 lu au lieu de 395/1 — une référence de source fausse est exactement le type d'erreur inacceptable ici). Une résolution plus élevée (400 dpi) a DÉGRADÉ le résultat (confiance 53%), pas amélioré.",
+      "whatDoesWork": "Les grands titres de rubrique non vocalisés (الوقفات التدبرية / العمل بالآيات / التوجيهات) sont lus correctement par l'OCR — utilisable pour un futur inventaire automatique de PRÉSENCE des rubriques par page (sans le contenu), mais pas testé à l'échelle des 604 pages faute de valeur ajoutée suffisante pour ce chantier (l'inventaire seul ne produit pas de contenu affichable).",
+      "installBlocked": "L'installeur Tesseract natif (winget et .exe silencieux) nécessite une élévation UAC indisponible dans cet environnement non interactif — contournement via tesseract.js (WASM, aucune installation système) pour le test, sans jamais nécessiter les droits admin.",
+      "recommendation": "Pas d'automatisation fiable disponible dans cet environnement pour le CONTENU. Les options restantes : (1) lecture visuelle continuée page par page — explicitement écartée comme méthode principale par consigne utilisateur ; (2) une API OCR tierce spécialisée arabe/tashkeel (ex. Google Cloud Vision) nécessitant un compte et des identifiants que je n'ai pas et ne dois pas créer sans validation explicite ; (3) rester à 4/604 pages fiables jusqu'à décision de l'utilisateur sur (1) ou (2)."
+    },
+    "renderTooling": {
+      "script": "scripts/render-mushaf-page.mjs",
+      "usage": "node --experimental-strip-types scripts/render-mushaf-page.mjs <mushafPage 1-604> [dpi=200]",
+      "note": "Seule brique réellement industrialisée ce chantier : résout mushafPage -> PDF/pdfPage via les formules vérifiées et rend la page en PNG (scripts/_pages/, gitignored). Zéro lecture, zéro structuration — prépare seulement la page pour revue/extraction, quelle que soit la méthode retenue ensuite."
     }
   },
   "mukhtasarIntros": {
