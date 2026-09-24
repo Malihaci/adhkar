@@ -5,8 +5,14 @@ import { AL_FATIHA_CONTENT } from "../src/data/al-fatiha-content.ts";
 import { AL_BAQARA_CONTENT } from "../src/data/al-baqara-content.ts";
 
 const ALL = [...AL_FATIHA_CONTENT, ...AL_BAQARA_CONTENT];
-const CATEGORIES = new Set(["tadabbur", "amal", "tawjihat", "asbab_nuzul"]);
+const CATEGORIES = new Set(["tadabbur", "amal", "tawjihat", "asbab_nuzul", "lesson", "today"]);
 const SCOPES = new Set(["verse", "verse_range", "passage", "page", "surah"]);
+const ORIGINS = new Set([
+  "source_quote",
+  "source_translation",
+  "editorial_explanation",
+  "pedagogical_synthesis",
+]);
 
 let issues = 0;
 const flag = (item, msg) => {
@@ -43,7 +49,8 @@ for (const item of ALL) {
       }
     }
   }
-  if (item.scopeType === "surah" && !item.surahNumber) flag(item, "scopeType surah sans surahNumber");
+  if (item.scopeType === "surah" && !item.surahNumber)
+    flag(item, "scopeType surah sans surahNumber");
   if (item.scopeType === "page" && !item.pageNumber) flag(item, "scopeType page sans pageNumber");
 
   if (!item.sourceTitle) flag(item, "sourceTitle manquant (contenu sans source)");
@@ -60,7 +67,10 @@ for (const item of ALL) {
   // contenir de question de réflexion (marque éditoriale des Waqafat), et
   // aucune catégorie ne doit porter un id préfixé d'une autre catégorie.
   if (item.category === "amal" && (item.reflectionQuestionAr || item.reflectionQuestionFr)) {
-    flag(item, "Amal porte une question de réflexion (signature typique d'un Waqfa/Tawjih — vérifier la classification)");
+    flag(
+      item,
+      "Amal porte une question de réflexion (signature typique d'un Waqfa/Tawjih — vérifier la classification)",
+    );
   }
   const idCategoryHint = item.id.match(/-(w|a|t)\d+$/);
   if (idCategoryHint) {
@@ -70,8 +80,32 @@ for (const item of ALL) {
       flag(item, `id suggère ${expected} mais category=${item.category} (anomalie type T3/A1)`);
     }
   }
+
+  // Anti-invention (chantier "Étudier cette ayah") : une synthèse pédagogique
+  // (Leçons à retenir, Dans ma vie, ou toute reformulation) n'a de valeur que
+  // si elle remonte à des sources réelles — jamais une conclusion inventée
+  // par l'IA sans traçabilité.
+  if (!item.contentOrigin || !ORIGINS.has(item.contentOrigin)) {
+    flag(item, `contentOrigin manquant ou inconnu: ${item.contentOrigin}`);
+  }
+  if (item.contentOrigin === "pedagogical_synthesis") {
+    if (!Array.isArray(item.sourceIds) || item.sourceIds.length === 0) {
+      flag(item, "pedagogical_synthesis sans sourceIds[] (synthèse non traçable)");
+    }
+  }
 }
 
-console.log(`\n${ALL.length} contenus vérifiés (${AL_FATIHA_CONTENT.length} Al-Fatiha, ${AL_BAQARA_CONTENT.length} Al-Baqara).`);
+// Une synthèse doit remonter à des sources qui existent réellement —
+// jamais un sourceId fantôme censé masquer l'absence de fondement.
+const allIds = new Set(ALL.map((i) => i.id));
+for (const item of ALL) {
+  for (const srcId of item.sourceIds ?? []) {
+    if (!allIds.has(srcId)) flag(item, `sourceIds référence un id inexistant: ${srcId}`);
+  }
+}
+
+console.log(
+  `\n${ALL.length} contenus vérifiés (${AL_FATIHA_CONTENT.length} Al-Fatiha, ${AL_BAQARA_CONTENT.length} Al-Baqara).`,
+);
 console.log(issues === 0 ? "Aucune anomalie détectée." : `${issues} anomalie(s) détectée(s).`);
 process.exit(issues === 0 ? 0 : 1);

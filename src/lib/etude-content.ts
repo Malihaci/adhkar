@@ -18,7 +18,13 @@ import { AL_BAQARA_CONTENT } from "@/data/al-baqara-content";
 export type SourceStatus = "verified_source" | "needs_review";
 export type ContentStatus = "draft" | "reviewed" | "validated";
 
-export type EtudeCategory = "tadabbur" | "amal" | "tawjihat" | "asbab_nuzul";
+export type EtudeCategory =
+  | "tadabbur"
+  | "amal"
+  | "tawjihat"
+  | "asbab_nuzul"
+  | "lesson" // ✨ Leçons à retenir — synthèse fidèle sourcée, jamais une conclusion nouvelle
+  | "today"; // 🌍 Dans ma vie / Dès aujourd'hui — synthèse pédagogique sourcée uniquement
 
 /** Portée réelle d'un contenu — ne jamais forcer un contenu large sur "verse". */
 export type ScopeType = "verse" | "verse_range" | "passage" | "page" | "surah";
@@ -64,6 +70,14 @@ export interface EtudeContent {
   sourceStatus: SourceStatus;
   translationStatus?: ContentStatus;
   explanationStatus?: ContentStatus;
+
+  /**
+   * Pour `contentOrigin: "pedagogical_synthesis"` uniquement : identifiants
+   * des contenus sources (autres `EtudeContent.id`) sur lesquels la
+   * synthèse s'appuie. Une synthèse sans `sourceIds` ne doit jamais être
+   * affichée comme fiable (voir `validate-etude-content.mjs`).
+   */
+  sourceIds?: string[];
 }
 
 const ALL_CONTENT: EtudeContent[] = [...AL_FATIHA_CONTENT, ...AL_BAQARA_CONTENT];
@@ -104,6 +118,38 @@ function concernsVerse(content: EtudeContent, verseKey: string, pageNumber?: num
     return a0 >= a1 && a0 <= a2;
   }
   return false;
+}
+
+/**
+ * Contenus d'une catégorie qui concernent une PAGE du Mushaf pour
+ * « Vivre cette page » — regroupe tout contenu dont la portée réelle
+ * touche au moins une ayah de la page (verse/verse_range/page/surah),
+ * sans jamais dupliquer ni forcer une portée plus étroite qu'elle ne
+ * l'est réellement dans la source.
+ */
+export function getPageContent(
+  pageNumber: number,
+  pageVerseKeys: string[],
+  category: EtudeCategory,
+): EtudeContent[] {
+  const surahsOnPage = new Set(pageVerseKeys.map((k) => Number(k.split(":")[0])));
+  return ALL_CONTENT.filter((c) => {
+    if (c.category !== category) return false;
+    if (c.scopeType === "page") return c.pageNumber === pageNumber;
+    if (c.scopeType === "surah") return c.surahNumber != null && surahsOnPage.has(c.surahNumber);
+    if (c.scopeType === "verse") return !!c.verseKey && pageVerseKeys.includes(c.verseKey);
+    if (c.scopeType === "verse_range" && c.verseRange) {
+      const [start, end] = c.verseRange.split("-");
+      const [s1, a1] = start.split(":").map(Number);
+      const [s2, a2] = end.split(":").map(Number);
+      if (s1 !== s2) return false;
+      return pageVerseKeys.some((k) => {
+        const [s0, a0] = k.split(":").map(Number);
+        return s0 === s1 && a0 >= a1 && a0 <= a2;
+      });
+    }
+    return false;
+  });
 }
 
 /** Libellé d'affichage honnête de la portée d'un contenu multi-ayah/sourate/page. */

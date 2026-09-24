@@ -78,6 +78,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#0f2a23" },
+      // Installation en PWA (Android/Chrome + iOS Safari) : app en mode
+      // standalone une fois ajoutée à l'écran d'accueil. Pas d'icône dédiée
+      // ici (apple-touch-icon nécessite un vrai PNG haute résolution qui
+      // n'existe pas encore — voir rapport final, aucune identité de
+      // remplacement fabriquée).
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Adhkâr" },
       { title: "Adhkâr du Matin et du Soir" },
       {
         name: "description",

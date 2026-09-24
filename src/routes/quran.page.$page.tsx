@@ -8,6 +8,8 @@ import {
   Copy,
   Home,
   Loader2,
+  Maximize2,
+  Minimize2,
   Pause,
   Play,
   Search,
@@ -42,6 +44,9 @@ import {
   type SearchResult,
 } from "@/lib/mushaf";
 import { Basmala } from "@/components/AyahText";
+import { useLocalState } from "@/lib/storage";
+import { getPageContent, type EtudeCategory } from "@/lib/etude-content";
+import { ContentList, AgirSection } from "@/routes/etude.$surah.$ayah";
 import { cn } from "@/lib/utils";
 
 interface Search {
@@ -119,8 +124,25 @@ function MushafPage() {
   const [showNav, setShowNav] = useState(false);
   const [copied, setCopied] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  /** Position d'ouverture desktop (clic droit) — reste `null` pour l'appui
+   * long mobile, qui garde la bottom sheet existante. Les deux modes sont
+   * distingués par le geste réel, jamais par la largeur d'écran. */
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
+  const closeMenu = () => {
+    setMenuFor(null);
+    setMenuAnchor(null);
+  };
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchNavigating, setSearchNavigating] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  /** `document.fullscreenEnabled` n'existe pas côté serveur (SSR) : rester à
+   * `false` au premier rendu (identique au serveur) puis ne détecter le
+   * support qu'après montage évite un mismatch d'hydratation React — jamais
+   * lire `document` directement dans le JSX de rendu. */
+  const [fullscreenSupported, setFullscreenSupported] = useState(false);
+  useEffect(() => {
+    setFullscreenSupported(!!document.fullscreenEnabled);
+  }, []);
 
   // Sélection venant du lien partagé
   useEffect(() => {
@@ -146,6 +168,7 @@ function MushafPage() {
   const [selRepeat, setSelRepeat] = useState(1); // 1,3,5 ou 0 = ∞
   const [speed, setSpeed] = useState(1); // 1 ou 1.25
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [pageLifeOpen, setPageLifeOpen] = useState(false);
   const [autoTurn, setAutoTurn] = useState(false);
   const [readMode, setReadMode] = useState<ReadMode>("toEnd");
   const [rangeStart, setRangeStart] = useState("");
@@ -516,13 +539,21 @@ function MushafPage() {
 
   /* ------------------------------------- ajustement à la hauteur d'écran */
   const boxRef = useRef<HTMLDivElement>(null);
+  /** Conteneur "virtuel" sur lequel le fitting calcule réellement — sa
+   * taille est délibérément box/zoom (jamais 100%), pour que l'agrandissement
+   * agisse sur l'échelle visuelle (CSS transform) sans jamais changer la
+   * composition (line_number, retours à la ligne) calculée par le fitting. */
+  const fitBoxRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState(26);
+  const [zoom, setZoom] = useLocalState("adhkar:mushaf-zoom", 1);
+  const ZOOM_LEVELS = [0.85, 1, 1.15, 1.3] as const;
 
   useLayoutEffect(() => {
     const box = boxRef.current;
+    const fitBox = fitBoxRef.current;
     const sheet = sheetRef.current;
-    if (!box || !sheet || !lines?.length) return;
+    if (!box || !fitBox || !sheet || !lines?.length) return;
     let raf = 0;
     let cancelled = false;
     // scrollWidth === clientWidth dès qu'une ligne tient (pas de "marge"
@@ -531,13 +562,33 @@ function MushafPage() {
     // jamais laisser un mot/haraka effleurer le bord de la ligne.
     const SAFE_FACTOR = 0.97;
     const fits = () => {
-      if (sheet.scrollHeight > box.clientHeight) return false;
+      if (sheet.scrollHeight > fitBox.clientHeight) return false;
       const rows = sheet.querySelectorAll<HTMLElement>("[data-mushaf-line]");
       for (const r of rows) if (r.scrollWidth > r.clientWidth) return false;
       return true;
     };
     const fit = () => {
       if (cancelled) return;
+      // Boîte virtuelle = boîte réelle / zoom : le fitting compose toujours
+      // pour cette taille virtuelle, jamais pour la taille visuelle finale.
+      // En portrait, la largeur reste plafonnée (comme l'ancien max-w-2xl) ;
+      // en paysage, le Mushaf utilise toute la largeur réellement disponible
+      // — c'est le cœur de la correction du mode paysage.
+      const isLandscape =
+        typeof window !== "undefined" && window.matchMedia("(orientation: landscape)").matches;
+      const PORTRAIT_MAX_WIDTH_PX = 672; // équivalent Tailwind max-w-2xl
+      // Plafond de lecture en paysage/desktop : un mobile ou une tablette en
+      // paysage reste presque toujours en dessous de ce plafond et continue
+      // donc d'utiliser tout l'espace réel (correction du mode paysage) ;
+      // un grand écran desktop, lui, ne doit jamais étirer les lignes du
+      // Mushaf jusqu'aux bords — proportions de page et espacement des mots
+      // restent naturels, comme une vraie page de Mushaf centrée.
+      const LANDSCAPE_MAX_WIDTH_PX = 960;
+      const effectiveWidth = isLandscape
+        ? Math.min(box.clientWidth, LANDSCAPE_MAX_WIDTH_PX)
+        : Math.min(box.clientWidth, PORTRAIT_MAX_WIDTH_PX);
+      fitBox.style.width = `${effectiveWidth / zoom}px`;
+      fitBox.style.height = `${box.clientHeight / zoom}px`;
       let lo = 8;
       let hi = 40;
       let best = lo;
@@ -566,6 +617,8 @@ function MushafPage() {
         if (!cancelled) requestAnimationFrame(fit);
       });
     }
+    // Observe la boîte RÉELLE : redimensionnement de fenêtre ET rotation
+    // portrait/paysage déclenchent tous les deux un recalcul du fitting.
     const ro = new ResizeObserver(() => {
       if (!cancelled) requestAnimationFrame(fit);
     });
@@ -575,9 +628,9 @@ function MushafPage() {
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-    // Volontairement limité à `lines` (changement de page) : ni la sélection
-    // ni la file de lecture ne doivent redéclencher ce calcul coûteux.
-  }, [lines]);
+    // `zoom` recalcule volontairement le fitting (nouvelle boîte virtuelle) ;
+    // ni la sélection ni la file de lecture ne doivent le redéclencher.
+  }, [lines, zoom]);
 
   /* ------------------------------------------------- swipe + appui long */
   const gesture = useRef({
@@ -594,6 +647,73 @@ function MushafPage() {
       params: { page: String(clampPage(page + delta)) },
       search: { r: reciterId },
     });
+
+  /** Références "toujours à jour" pour les raccourcis clavier : l'effet qui
+   * écoute `keydown` n'a volontairement pas `page`/`queue`/etc. dans ses
+   * dépendances (il tournerait à chaque tick audio) — sans cela, la
+   * fermeture capturerait une valeur de `page` figée au moment où l'effet a
+   * été (re)créé, et ← / → navigueraient depuis une ancienne page (bug
+   * constaté en test : ← puis → ne revenait pas sur la page de départ). */
+  const goPageRef = useRef(goPage);
+  const toggleRef = useRef(toggle);
+  const playFromAnchorRef = useRef(playFromAnchor);
+  const isCurrentSessionRef = useRef(isCurrentSession);
+  useEffect(() => {
+    goPageRef.current = goPage;
+    toggleRef.current = toggle;
+    playFromAnchorRef.current = playFromAnchor;
+    isCurrentSessionRef.current = isCurrentSession;
+  });
+
+  /* --------------------------------------------------- plein écran (desktop) */
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen?.().catch(() => {});
+  };
+
+  /* ------------------------------------------- raccourcis clavier (desktop)
+   * ← / → : page suivante/précédente (même sens que les boutons existants,
+   * cohérent avec la navigation RTL déjà en place — ChevronLeft = suivante).
+   * Espace : lecture/pause, ignoré si le focus est dans un champ de saisie.
+   * Échap : ferme le panneau ouvert le plus prioritaire, ou quitte le plein
+   * écran — ne remplace jamais les commandes visibles, ne fait rien de plus. */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing =
+        !!target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+      if (e.key === "Escape") {
+        if (menuFor) closeMenu();
+        else if (optionsOpen) setOptionsOpen(false);
+        else if (searchOpen) setSearchOpen(false);
+        else if (showNav) setShowNav(false);
+        else if (pageLifeOpen) setPageLifeOpen(false);
+        else if (document.fullscreenElement) void document.exitFullscreen();
+        return;
+      }
+      if (typing) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goPageRef.current(1);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goPageRef.current(-1);
+      } else if (e.code === "Space") {
+        e.preventDefault();
+        if (isCurrentSessionRef.current) toggleRef.current();
+        else playFromAnchorRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuFor, optionsOpen, searchOpen, showNav, pageLifeOpen]);
 
   const suppressNextClick = useRef(false);
 
@@ -663,6 +783,65 @@ function MushafPage() {
     toggleVerse(key);
   };
 
+  /** Clic droit desktop : sélectionne l'ayah et ouvre le menu près du curseur
+   * (jamais le gros menu plein écran) — équivalent desktop de l'appui long. */
+  const onWordContextMenu = (e: React.MouseEvent, key: string) => {
+    e.preventDefault();
+    setSelected((prev) => (prev.includes(key) ? prev : [key]));
+    setMenuFor(key);
+    setMenuAnchor({ x: e.clientX, y: e.clientY });
+  };
+
+  /** Contenu identique (titre + Étudier/Copier/Partager) pour les deux
+   * présentations du menu — bottom sheet mobile (appui long) et popover
+   * ancré au curseur (clic droit desktop). Mêmes actions, même comportement. */
+  const menuActions = (key: string) => (
+    <>
+      <p className="mb-2 text-center text-xs font-semibold text-muted-foreground">
+        {key}
+        {menuVerse &&
+          (() => {
+            const meta = chapters?.find((c) => c.id === menuVerse.surah);
+            return meta ? ` · ${meta.nameFrench} · ${meta.nameArabic}` : "";
+          })()}
+      </p>
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          onClick={() => {
+            const [s, a] = key.split(":");
+            closeMenu();
+            navigate({
+              to: "/etude/$surah/$ayah",
+              params: { surah: s, ayah: a },
+              search: { fromPage: String(page), r: reciterId, sel: key },
+            });
+          }}
+          className="flex flex-col items-center gap-1 rounded-2xl border border-primary/40 bg-primary/5 py-3 text-xs font-semibold text-primary transition hover:bg-primary/10"
+        >
+          <Sparkles className="size-5" />
+          Étudier
+        </button>
+        <button
+          onClick={copyVerse}
+          className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
+        >
+          <Copy className="size-5" />
+          Copier
+        </button>
+        <button
+          onClick={() => {
+            share(key);
+            closeMenu();
+          }}
+          className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
+        >
+          <Share2 className="size-5" />
+          Partager
+        </button>
+      </div>
+    </>
+  );
+
   const menuVerse = verses?.find((v) => v.key === menuFor);
   const copyVerse = async () => {
     if (!menuVerse) return;
@@ -673,7 +852,7 @@ function MushafPage() {
     } catch {
       /* refusé */
     }
-    setMenuFor(null);
+    closeMenu();
   };
 
   return (
@@ -688,8 +867,9 @@ function MushafPage() {
         }}
       />
 
-      {/* En-tête ultra-compacte : sourate/page + recherche, une seule fois */}
-      <header className="shrink-0 border-b border-border/40 bg-card/80 px-2 py-1 backdrop-blur-xl">
+      {/* En-tête ultra-compacte : sourate/page + recherche, une seule fois.
+          Plus fine en paysage pour laisser le maximum d'espace au Mushaf. */}
+      <header className="shrink-0 border-b border-border/40 bg-card/80 px-2 py-1 backdrop-blur-xl [@media(orientation:landscape)_and_(max-height:500px)]:py-0.5">
         <div className="mx-auto flex max-w-2xl items-center gap-1.5">
           <button
             onClick={() => setShowNav(true)}
@@ -710,16 +890,42 @@ function MushafPage() {
             <span className="text-muted-foreground"> / {TOTAL_PAGES}</span>
           </button>
           <button
+            onClick={() => setPageLifeOpen(true)}
+            aria-label="Vivre cette page"
+            className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <span aria-hidden className="text-[15px] leading-none">
+              🌿
+            </span>
+          </button>
+          <button
             onClick={() => setSearchOpen(true)}
             aria-label="Recherche"
             className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
             <Search className="size-[17px]" />
           </button>
+          {/* Plein écran — desktop uniquement (souris fine), discret, à côté
+              de la recherche. Aucun impact mobile. */}
+          {fullscreenSupported && (
+            <button
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
+              className="hidden size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground [@media(pointer:fine)]:grid"
+            >
+              {isFullscreen ? (
+                <Minimize2 className="size-[15px]" />
+              ) : (
+                <Maximize2 className="size-[15px]" />
+              )}
+            </button>
+          )}
         </div>
       </header>
 
-      {/* Mushaf — élément principal, coupures de lignes officielles (15 lignes) */}
+      {/* Mushaf — élément principal, coupures de lignes officielles (15 lignes).
+          En paysage, toute la largeur/hauteur disponible est utilisée (pas
+          de max-w-2xl) : c'est l'élément prioritaire de l'écran. */}
       <div
         ref={boxRef}
         className="min-h-0 flex-1 overflow-hidden px-1.5 py-1"
@@ -732,71 +938,82 @@ function MushafPage() {
             <Loader2 className="size-4 animate-spin" /> Chargement de la page…
           </p>
         )}
+        {/* Boîte virtuelle : dimensionnée en JS (box/zoom, capée à 672px
+            seulement en portrait) puis agrandie visuellement par transform
+            scale — le fitting à l'intérieur ne voit jamais l'agrandissement,
+            donc jamais de reflow/retour à la ligne différent selon le zoom. */}
         <div
-          ref={sheetRef}
-          style={{ fontSize: fontPx }}
-          className="mx-auto flex h-full max-w-2xl flex-col justify-start gap-[0.35em]"
+          ref={fitBoxRef}
+          style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
+          className="mx-auto h-full"
         >
-          {(lines ?? []).map((line, li) => {
-            const startSurah = surahStartAtLine.get(li);
-            const meta = startSurah ? chapters?.find((c) => c.id === startSurah) : undefined;
-            const showBasmala = !!startSurah && startSurah !== 1 && startSurah !== 9;
-            return (
-              <div key={line.n} className="contents">
-                {startSurah && (
-                  <div className="flex items-center justify-center gap-2 rounded-xl border border-gold/30 bg-gold/5 py-[0.15em] text-center">
-                    <p className="text-[0.7em] font-semibold text-gold">
-                      {meta?.nameSimple}{" "}
-                      <span lang="ar" className="font-arabic text-[1.05em]">
-                        {meta?.nameArabic ?? ""}
-                      </span>
-                    </p>
-                    <Link
-                      to="/sourate/$surah"
-                      params={{ surah: String(startSurah) }}
-                      className="rounded-full bg-gold/15 px-2 py-0.5 text-[0.55em] font-semibold text-gold"
-                    >
-                      🌿 Découvrir
-                    </Link>
-                  </div>
-                )}
-                {showBasmala && (
-                  <Basmala
-                    text="بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
-                    className="text-[0.75em]"
-                  />
-                )}
-                <div
-                  data-mushaf-line
-                  lang="ar"
-                  dir="rtl"
-                  className="flex items-baseline justify-between gap-[0.12em] whitespace-nowrap font-arabic font-bold leading-[1.9] text-foreground"
-                >
-                  {line.words.map((w, wi) => {
-                    const isSel = selected.includes(w.key);
-                    const isPlaying = current === w.key;
-                    return (
-                      <span
-                        key={`${w.key}-${wi}`}
-                        role="button"
-                        tabIndex={-1}
-                        data-word-key={w.key}
-                        onClick={() => onWordClick(w.key)}
-                        className={cn(
-                          "cursor-pointer rounded px-[0.05em] transition-colors",
-                          isSel && "bg-primary/15 text-primary",
-                          isPlaying && "bg-gold/20 text-gold",
-                          w.end && "text-gold",
-                        )}
+          <div
+            ref={sheetRef}
+            style={{ fontSize: fontPx }}
+            className="flex h-full w-full flex-col justify-start gap-[0.35em]"
+          >
+            {(lines ?? []).map((line, li) => {
+              const startSurah = surahStartAtLine.get(li);
+              const meta = startSurah ? chapters?.find((c) => c.id === startSurah) : undefined;
+              const showBasmala = !!startSurah && startSurah !== 1 && startSurah !== 9;
+              return (
+                <div key={line.n} className="contents">
+                  {startSurah && (
+                    <div className="flex items-center justify-center gap-2 rounded-xl border border-gold/30 bg-gold/5 py-[0.15em] text-center">
+                      <p className="text-[0.7em] font-semibold text-gold">
+                        {meta?.nameSimple}{" "}
+                        <span lang="ar" className="font-arabic text-[1.05em]">
+                          {meta?.nameArabic ?? ""}
+                        </span>
+                      </p>
+                      <Link
+                        to="/sourate/$surah"
+                        params={{ surah: String(startSurah) }}
+                        className="rounded-full bg-gold/15 px-2 py-0.5 text-[0.55em] font-semibold text-gold"
                       >
-                        {w.end ? `\u06DD${toArabic(w.ayah)}` : w.text}
-                      </span>
-                    );
-                  })}
+                        🌿 Découvrir
+                      </Link>
+                    </div>
+                  )}
+                  {showBasmala && (
+                    <Basmala
+                      text="بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+                      className="text-[0.75em]"
+                    />
+                  )}
+                  <div
+                    data-mushaf-line
+                    lang="ar"
+                    dir="rtl"
+                    className="flex items-baseline justify-between gap-[0.12em] whitespace-nowrap font-arabic font-bold leading-[1.9] text-foreground"
+                  >
+                    {line.words.map((w, wi) => {
+                      const isSel = selected.includes(w.key);
+                      const isPlaying = current === w.key;
+                      return (
+                        <span
+                          key={`${w.key}-${wi}`}
+                          role="button"
+                          tabIndex={-1}
+                          data-word-key={w.key}
+                          onClick={() => onWordClick(w.key)}
+                          onContextMenu={(e) => onWordContextMenu(e, w.key)}
+                          className={cn(
+                            "cursor-pointer rounded px-[0.05em] transition-colors",
+                            isSel && "bg-primary/15 text-primary",
+                            isPlaying && "bg-gold/20 text-gold",
+                            w.end && "text-gold",
+                          )}
+                        >
+                          {w.end ? `\u06DD${toArabic(w.ayah)}` : w.text}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -860,58 +1077,40 @@ function MushafPage() {
         </div>
       )}
 
-      {menuFor && (
-        // Pas de voile gris/assombrissement : le Mushaf et l'ayah sélectionnée
-        // (déjà surlignée via `isSel`) restent pleinement visibles. Le calque
-        // transparent ne sert qu'à détecter le tap "en dehors" pour fermer.
-        <div className="fixed inset-0 z-50" onClick={() => setMenuFor(null)}>
+      {menuFor && !menuAnchor && (
+        // Appui long mobile — bottom sheet. Pas de voile gris/assombrissement :
+        // le Mushaf et l'ayah sélectionnée (déjà surlignée via `isSel`)
+        // restent pleinement visibles. Le calque transparent ne sert qu'à
+        // détecter le tap "en dehors" pour fermer.
+        <div className="fixed inset-0 z-50" onClick={closeMenu}>
           <div
             className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-border bg-card p-3 pb-4 shadow-[var(--shadow-elevated)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="mb-2 text-center text-xs font-semibold text-muted-foreground">
-              {menuFor}
-              {menuVerse &&
-                (() => {
-                  const meta = chapters?.find((c) => c.id === menuVerse.surah);
-                  return meta ? ` · ${meta.nameFrench} · ${meta.nameArabic}` : "";
-                })()}
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => {
-                  const [s, a] = menuFor.split(":");
-                  const target = menuFor;
-                  setMenuFor(null);
-                  navigate({
-                    to: "/etude/$surah/$ayah",
-                    params: { surah: s, ayah: a },
-                    search: { fromPage: String(page), r: reciterId, sel: target },
-                  });
-                }}
-                className="flex flex-col items-center gap-1 rounded-2xl border border-primary/40 bg-primary/5 py-3 text-xs font-semibold text-primary transition hover:bg-primary/10"
-              >
-                <Sparkles className="size-5" />
-                Étudier
-              </button>
-              <button
-                onClick={copyVerse}
-                className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
-              >
-                <Copy className="size-5" />
-                Copier
-              </button>
-              <button
-                onClick={() => {
-                  share(menuFor);
-                  setMenuFor(null);
-                }}
-                className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
-              >
-                <Share2 className="size-5" />
-                Partager
-              </button>
-            </div>
+            {menuActions(menuFor)}
+          </div>
+        </div>
+      )}
+
+      {menuFor && menuAnchor && (
+        // Clic droit desktop — petit menu ancré près du curseur, jamais un
+        // grand panneau qui cacherait le Mushaf.
+        <div className="fixed inset-0 z-50" onClick={closeMenu}>
+          <div
+            className="absolute w-56 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-elevated)]"
+            style={{
+              left: Math.min(
+                menuAnchor.x,
+                (typeof window !== "undefined" ? window.innerWidth : 0) - 232,
+              ),
+              top: Math.min(
+                menuAnchor.y,
+                (typeof window !== "undefined" ? window.innerHeight : 0) - 190,
+              ),
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {menuActions(menuFor)}
           </div>
         </div>
       )}
@@ -936,8 +1135,10 @@ function MushafPage() {
       )}
 
       {optionsOpen && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm">
-          <div className="flex max-h-[85dvh] w-full flex-col rounded-t-3xl border-t border-border bg-card">
+        // Mobile/tablette : bottom sheet inchangée. Desktop (lg+) : panneau
+        // latéral droit ~420px — n'occupe jamais la quasi-totalité de l'écran.
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm lg:items-stretch lg:justify-end">
+          <div className="flex max-h-[85dvh] w-full flex-col rounded-t-3xl border-t border-border bg-card lg:max-h-none lg:w-[420px] lg:rounded-none lg:rounded-l-3xl lg:border-l lg:border-t-0">
             <div className="flex items-center justify-between px-4 pb-3 pt-4">
               <h2 className="font-display text-lg font-semibold">Options de récitation</h2>
               <button
@@ -1066,6 +1267,41 @@ function MushafPage() {
                   </button>
                 ))}
               </div>
+
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Taille du Mushaf
+              </p>
+              <div className="mb-4 flex items-center gap-2 rounded-full border border-border p-1">
+                <button
+                  onClick={() =>
+                    setZoom((z) => {
+                      const i = ZOOM_LEVELS.indexOf(z as (typeof ZOOM_LEVELS)[number]);
+                      return ZOOM_LEVELS[Math.max(0, i - 1)] ?? ZOOM_LEVELS[0];
+                    })
+                  }
+                  disabled={zoom <= ZOOM_LEVELS[0]}
+                  aria-label="Réduire le Mushaf"
+                  className="grid size-9 shrink-0 place-items-center rounded-full text-sm font-bold text-foreground transition disabled:opacity-30"
+                >
+                  A−
+                </button>
+                <span className="flex-1 text-center text-xs font-semibold text-muted-foreground">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  onClick={() =>
+                    setZoom((z) => {
+                      const i = ZOOM_LEVELS.indexOf(z as (typeof ZOOM_LEVELS)[number]);
+                      return ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, i + 1)] ?? ZOOM_LEVELS[0];
+                    })
+                  }
+                  disabled={zoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+                  aria-label="Agrandir le Mushaf"
+                  className="grid size-9 shrink-0 place-items-center rounded-full text-sm font-bold text-foreground transition disabled:opacity-30"
+                >
+                  A+
+                </button>
+              </div>
             </div>
 
             {/* Footer sticky : une seule action pour appliquer la config et lancer. */}
@@ -1094,6 +1330,15 @@ function MushafPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {pageLifeOpen && verses && (
+        <PageLifeSheet
+          page={page}
+          verses={verses}
+          chapters={chapters ?? []}
+          onClose={() => setPageLifeOpen(false)}
+        />
       )}
     </div>
   );
@@ -1469,6 +1714,125 @@ function SearchPanel({
                 })}
               </ul>
             </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const PAGE_LIFE_SECTIONS: { key: EtudeCategory; icon: string; label: string; subtitle: string }[] =
+  [
+    { key: "tadabbur", icon: "💭", label: "Méditer", subtitle: "تدبر" },
+    { key: "amal", icon: "🌱", label: "Agir", subtitle: "العمل بالآيات" },
+    { key: "tawjihat", icon: "🧭", label: "S'orienter", subtitle: "التوجيهات" },
+    { key: "lesson", icon: "✨", label: "À retenir", subtitle: "دروس" },
+    { key: "today", icon: "🌍", label: "Dès aujourd'hui", subtitle: "اليوم" },
+  ];
+
+/**
+ * « Vivre cette page » — répond à une intention différente d'« Étudier
+ * cette ayah » : après avoir lu toute la page, que puis-je en retenir et
+ * mettre en pratique ? Réutilise exactement les mêmes données (Waqafat/
+ * Amal/Tawjihat de القرآن تدبر وعمل) via `getPageContent`, sans
+ * réextraction ni deuxième base. Aucune rubrique sans contenu réel ne
+ * s'affiche — pas de "Message de la page" tant qu'aucune source ne permet
+ * d'en établir un fidèlement.
+ */
+function PageLifeSheet({
+  page,
+  verses,
+  chapters,
+  onClose,
+}: {
+  page: number;
+  verses: PageVerse[];
+  chapters: Chapter[];
+  onClose: () => void;
+}) {
+  const pageVerseKeys = verses.map((v) => v.key);
+  const surahesOnPage = [...new Set(verses.map((v) => v.surah))]
+    .map((id) => chapters.find((c) => c.id === id)?.nameFrench)
+    .filter(Boolean);
+  const [openSection, setOpenSection] = useState<EtudeCategory | null>(null);
+
+  const contentBySection = PAGE_LIFE_SECTIONS.map((s) => ({
+    ...s,
+    items: getPageContent(page, pageVerseKeys, s.key),
+  })).filter((s) => s.items.length > 0);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm">
+      <div className="flex max-h-[85dvh] w-full flex-col rounded-t-3xl border-t border-border bg-card">
+        <div className="flex items-center justify-between px-4 pb-3 pt-4">
+          <div className="min-w-0">
+            <h2 className="font-display text-lg font-semibold">🌿 Vivre cette page</h2>
+            <p className="truncate text-xs text-muted-foreground">
+              Page {page} {surahesOnPage.length ? `· ${surahesOnPage.join(", ")}` : ""}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Fermer"
+            className="grid size-9 shrink-0 place-items-center rounded-full border border-border"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          {contentBySection.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Aucun contenu vérifié disponible pour cette page pour le moment.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {contentBySection.map((s) => {
+                const open = openSection === s.key;
+                return (
+                  <div
+                    key={s.key}
+                    className="overflow-hidden rounded-3xl border border-border/40 bg-background"
+                  >
+                    <button
+                      onClick={() => setOpenSection(open ? null : s.key)}
+                      aria-expanded={open}
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span aria-hidden className="text-base leading-none">
+                          {s.icon}
+                        </span>
+                        <span>
+                          <span className="block text-sm font-bold text-foreground">{s.label}</span>
+                          <span
+                            lang="ar"
+                            className="block font-arabic text-xs text-muted-foreground"
+                          >
+                            {s.subtitle}
+                          </span>
+                        </span>
+                      </span>
+                      <ChevronRight
+                        className={cn(
+                          "size-4 shrink-0 text-muted-foreground transition-transform",
+                          open && "rotate-90",
+                        )}
+                      />
+                    </button>
+                    {open && (
+                      <div className="border-t border-border/40 px-4 py-3.5">
+                        {s.key === "amal" ? (
+                          <AgirSection items={s.items} />
+                        ) : (
+                          <ContentList items={s.items} />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

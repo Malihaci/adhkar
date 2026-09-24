@@ -48,27 +48,34 @@ export async function fetchSurahText(surah: number): Promise<AyahText[]> {
 export type TafsirSlug =
   | "ar-tafsir-as-saadi"
   | "ar-tafsir-ibn-kathir"
+  | "ar-tafsir-muyassar"
   | "french-mokhtasar"
   | "tadabbur-wa-amal";
 
-export async function fetchTafsir(
-  slug: TafsirSlug,
-  surah: number,
-  ayah: number,
-): Promise<string> {
-  // Contenu local enrichi (Al-Baqara, Juz' 1) prioritaire
-  if (surah === 2 && ayah <= 141 && slug !== "french-mokhtasar") {
+/**
+ * Association explicite (jamais un "sinon") entre un slug et la clé du
+ * cache local `public/tafsir/2/*.json` : un nouveau slug sans entrée ici
+ * doit systématiquement passer par le CDN, jamais retomber par accident
+ * sur une clé locale d'une autre provenance (bug réel constaté avec
+ * "ar-tafsir-muyassar" qui remontait la clé `tadabbur`, à la provenance
+ * non confirmée — voir src/lib/etude-content.ts).
+ */
+const LOCAL_CACHE_KEY: Partial<Record<TafsirSlug, string>> = {
+  "ar-tafsir-as-saadi": "saadi",
+  "ar-tafsir-ibn-kathir": "ibnKathir",
+  "tadabbur-wa-amal": "tadabbur",
+};
+
+export async function fetchTafsir(slug: TafsirSlug, surah: number, ayah: number): Promise<string> {
+  // Contenu local enrichi (Al-Baqara, Juz' 1) prioritaire, uniquement pour
+  // les slugs explicitement mappés ci-dessus.
+  const localKey = LOCAL_CACHE_KEY[slug];
+  if (surah === 2 && ayah <= 141 && localKey) {
     try {
       const local = await fetch(`/tafsir/2/${ayah}.json`);
       if (local.ok) {
         const d = await local.json();
-        const key =
-          slug === "ar-tafsir-as-saadi"
-            ? "saadi"
-            : slug === "ar-tafsir-ibn-kathir"
-              ? "ibnKathir"
-              : "tadabbur";
-        if (d?.[key]) return d[key] as string;
+        if (d?.[localKey]) return d[localKey] as string;
       }
     } catch {
       /* on retombe sur le CDN */

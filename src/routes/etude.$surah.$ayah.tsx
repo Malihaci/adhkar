@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, ChevronDown, ChevronLeft, Compass, Lightbulb, Sparkles } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronLeft, Compass, Sparkles, Sun } from "lucide-react";
 import { fetchChapters, fetchVerseDetail } from "@/lib/mushaf";
 import { fetchTafsir, type TafsirSlug } from "@/lib/quran";
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
 import { useActionsProgress } from "@/lib/storage";
 import { formatVerseScope, getEtudeContent, type EtudeContent } from "@/lib/etude-content";
+import { SourceInfo } from "@/components/SourceInfo";
 import { Card, Empty, Loading } from "@/routes/tadabbur";
 import { cn } from "@/lib/utils";
 
@@ -30,14 +31,21 @@ export const Route = createFileRoute("/etude/$surah/$ayah")({
   component: EtudePage,
 });
 
-type Section = "asbab_nuzul" | "tafsir" | "tadabbur" | "amal" | "tawjihat";
+/**
+ * S'orienter (التوجيهات) n'apparaît plus au niveau d'une ayah isolée :
+ * cette rubrique vit désormais exclusivement dans « Vivre cette page »,
+ * puisque les Tawjihat concernent presque toujours un passage plus large
+ * qu'une seule ayah — décision produit assumée, pas un oubli.
+ */
+type Section = "asbab_nuzul" | "tafsir" | "lesson" | "tadabbur" | "amal" | "today";
 
 const SECTION_META: Record<Section, { label: string; subtitle: string; icon: typeof BookOpen }> = {
-  asbab_nuzul: { label: "Contexte", subtitle: "سبب النزول", icon: BookOpen },
+  asbab_nuzul: { label: "Circonstances de révélation", subtitle: "سبب النزول", icon: BookOpen },
   tafsir: { label: "Comprendre", subtitle: "تفسير", icon: BookOpen },
+  lesson: { label: "Leçons à retenir", subtitle: "دروس", icon: Sparkles },
   tadabbur: { label: "Méditer", subtitle: "تدبر", icon: Sparkles },
   amal: { label: "Agir", subtitle: "العمل بالآيات", icon: Compass },
-  tawjihat: { label: "S'orienter", subtitle: "التوجيهات", icon: Lightbulb },
+  today: { label: "Dans ma vie", subtitle: "في حياتي", icon: Sun },
 };
 
 function EtudePage() {
@@ -69,21 +77,22 @@ function EtudePage() {
   const chapterMeta = chapters?.find((c) => c.id === surah);
 
   // Contenus locaux (synchrones) — vides tant qu'aucune donnée n'est vérifiée
-  // pour cette sourate. Aucune rubrique n'est affichée si elle est vide.
-  // `verse?.page` n'est connu qu'une fois la requête résolue : les contenus
-  // à portée "page" (sans ayah citée dans la source) n'apparaissent qu'à
-  // ce moment-là, jamais par une supposition de page.
+  // pour cette ayah. Aucune rubrique n'est affichée si elle est vide : une
+  // rubrique absente est toujours préférable à un contenu religieux
+  // incertain ou mal rattaché.
   const contexteItems = getEtudeContent(verseKey, "asbab_nuzul", verse?.page);
+  const lessonItems = getEtudeContent(verseKey, "lesson", verse?.page);
   const meditateItems = getEtudeContent(verseKey, "tadabbur", verse?.page);
   const agirItems = getEtudeContent(verseKey, "amal", verse?.page);
-  const orienterItems = getEtudeContent(verseKey, "tawjihat", verse?.page);
+  const todayItems = getEtudeContent(verseKey, "today", verse?.page);
 
   const sections: Section[] = [
     ...(contexteItems.length ? (["asbab_nuzul"] as const) : []),
     "tafsir",
+    ...(lessonItems.length ? (["lesson"] as const) : []),
     ...(meditateItems.length ? (["tadabbur"] as const) : []),
     ...(agirItems.length ? (["amal"] as const) : []),
-    ...(orienterItems.length ? (["tawjihat"] as const) : []),
+    ...(todayItems.length ? (["today"] as const) : []),
   ];
 
   const backToMushaf = () => {
@@ -139,8 +148,14 @@ function EtudePage() {
                     {hamidullah.footnotes}
                   </p>
                 )}
-                <p className="mt-4 text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Traduction des sens — Muhammad Hamidullah · QuranEnc
+                <p className="mt-4 flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Traduction des sens — Muhammad Hamidullah
+                  <SourceInfo
+                    sourceTitle="Traduction française des sens du Coran"
+                    sourceAuthor="Muhammad Hamidullah"
+                    editorialSource="QuranEnc"
+                    nature="Traduction publiée, réutilisée telle quelle."
+                  />
                 </p>
               </>
             ) : (
@@ -188,8 +203,9 @@ function EtudePage() {
                     <div className="border-t border-border/40 px-5 py-4">
                       {key === "tafsir" && <TafsirSection surah={surah} ayah={ayah} />}
                       {key === "asbab_nuzul" && <ContentList items={contexteItems} />}
+                      {key === "lesson" && <ContentList items={lessonItems} />}
                       {key === "tadabbur" && <ContentList items={meditateItems} />}
-                      {key === "tawjihat" && <ContentList items={orienterItems} />}
+                      {key === "today" && <ContentList items={todayItems} />}
                       {key === "amal" && <AgirSection items={agirItems} />}
                     </div>
                   )}
@@ -204,10 +220,12 @@ function EtudePage() {
 }
 
 /**
- * [Al-Mukhtasar] [Al-Muyassar] [As-Sa'di] [Ibn Kathir] — français en
- * priorité. Al-Mukhtasar est la seule à disposer d'une traduction
- * française déjà publiée (Markaz Tafsîr, needs_review côté droits de
- * réutilisation) ; les autres n'offrent que l'arabe vérifié pour l'instant.
+ * [Al-Mukhtasar] [Al-Muyassar] [As-Sa'di] [Ibn Kathir] — chaque tafsir
+ * reste indépendant, jamais fusionné. Al-Mukhtasar dispose d'une
+ * traduction française déjà publiée ; les trois autres n'ont que
+ * l'arabe vérifié pour l'instant (aucune traduction française publiée
+ * et réutilisable identifiée) — affiché directement en arabe avec bouton
+ * de bascule, sans grand panneau vide annonçant une attente.
  */
 function TafsirSection({ surah, ayah }: { surah: number; ayah: number }) {
   const [choice, setChoice] = useState<"mokhtasar" | "muyassar" | "saadi" | "ibnkathir">(
@@ -219,7 +237,9 @@ function TafsirSection({ surah, ayah }: { surah: number; ayah: number }) {
       ? "ar-tafsir-as-saadi"
       : choice === "ibnkathir"
         ? "ar-tafsir-ibn-kathir"
-        : null;
+        : choice === "muyassar"
+          ? "ar-tafsir-muyassar"
+          : null;
 
   const { data: arabicText, isPending: arabicPending } = useQuery({
     queryKey: ["tafsir-etude", arSlug, surah, ayah],
@@ -267,9 +287,13 @@ function TafsirSection({ surah, ayah }: { surah: number; ayah: number }) {
         ) : mokhtasarText ? (
           <div>
             <p className="text-[0.95rem] leading-[1.85] text-foreground/90">{mokhtasarText}</p>
-            <p className="mt-3 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
-              Traduction française — Al-Mukhtasar fî at-tafsîr, Markaz Tafsîr · à valider (droits de
-              réutilisation non confirmés)
+            <p className="mt-3 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+              Al-Mukhtasar fî at-tafsîr, Markaz Tafsîr
+              <SourceInfo
+                sourceTitle="Al-Mukhtasar fî at-tafsîr al-Qur'ân al-karîm"
+                editorialSource="Markaz Tafsîr"
+                nature="Traduction française publiée, réutilisée telle quelle."
+              />
             </p>
           </div>
         ) : (
@@ -277,43 +301,46 @@ function TafsirSection({ surah, ayah }: { surah: number; ayah: number }) {
             Pas de contenu disponible pour cette ayah.
           </p>
         )
-      ) : (
-        <>
-          <Empty text={`Version française en cours de validation pour ${labels[choice]}.`} />
-          {arSlug &&
-            (arabicPending ? (
-              <Loading />
-            ) : arabicText ? (
-              <div>
-                <button
-                  onClick={() => setShowArabic((v) => !v)}
-                  className="text-xs font-semibold text-primary"
-                >
-                  {showArabic ? "Masquer l'original" : "العربية · Voir l'original arabe (vérifié)"}
-                </button>
-                {showArabic && (
-                  <p
-                    lang="ar"
-                    dir="rtl"
-                    className="mt-2 font-arabic text-right text-[1.05rem] leading-[2.1] text-foreground"
-                  >
-                    {arabicText}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Pas de contenu disponible pour cette ayah.
+      ) : arSlug ? (
+        arabicPending ? (
+          <Loading />
+        ) : arabicText ? (
+          <div>
+            <div className="mb-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+              {labels[choice]} — texte arabe vérifié
+              <SourceInfo
+                sourceTitle={labels[choice]}
+                nature="Texte arabe source, aucune traduction française publiée identifiée pour l'instant."
+              />
+            </div>
+            <button
+              onClick={() => setShowArabic((v) => !v)}
+              className="text-xs font-semibold text-primary"
+            >
+              {showArabic ? "Masquer l'original" : "العربية · Voir le texte arabe"}
+            </button>
+            {showArabic && (
+              <p
+                lang="ar"
+                dir="rtl"
+                className="mt-2 font-arabic text-right text-[1.05rem] leading-[2.1] text-foreground"
+              >
+                {arabicText}
               </p>
-            ))}
-        </>
-      )}
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Pas de contenu disponible pour cette ayah.
+          </p>
+        )
+      ) : null}
     </div>
   );
 }
 
-/** Méditer / S'orienter / Contexte — affichage honnête, portée, statut, original arabe. */
-function ContentList({ items }: { items: EtudeContent[] }) {
+/** Contexte / Leçons / Méditer / Dans ma vie — portée, provenance via ⓘ. */
+export function ContentList({ items }: { items: EtudeContent[] }) {
   return (
     <div className="space-y-3">
       {items.map((item) => (
@@ -335,17 +362,21 @@ function ContentCard({ item }: { item: EtudeContent }) {
       {item.reflectionQuestionFr && (
         <p className="mt-2.5 text-sm italic text-muted-foreground">{item.reflectionQuestionFr}</p>
       )}
-      <p className="mt-3 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
-        Source : {item.sourceAuthor ?? item.editorialSource ?? item.sourceTitle}
-        {item.sourceAuthor && item.editorialSource ? ` (via ${item.editorialSource})` : ""}
-        {item.sourceReference ? ` — ${item.sourceReference}` : ""}
-        {item.sourceStatus === "needs_review" ? " · à valider" : ""}
+      <p className="mt-3 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+        {item.sourceAuthor ?? item.editorialSource ?? item.sourceTitle}
+        <SourceInfo
+          sourceTitle={item.sourceTitle}
+          sourceAuthor={item.sourceAuthor}
+          editorialSource={item.editorialSource}
+          sourceReference={item.sourceReference}
+          scope={scope}
+          nature={
+            item.contentOrigin === "pedagogical_synthesis"
+              ? "Synthèse pédagogique construite à partir des sources listées."
+              : "Traduction de travail réalisée pour l'application, non officielle."
+          }
+        />
       </p>
-      {item.translationFr && (
-        <p className="mt-1 text-[10px] text-muted-foreground">
-          Traduction de l'application, non officielle — à valider.
-        </p>
-      )}
       {item.textAr && (
         <div className="mt-1.5">
           <button
@@ -370,7 +401,7 @@ function ContentCard({ item }: { item: EtudeContent }) {
 }
 
 /** Agir — cases à cocher « Je l'ai mise en pratique », sans score ni classement. */
-function AgirSection({ items }: { items: EtudeContent[] }) {
+export function AgirSection({ items }: { items: EtudeContent[] }) {
   const { isCompleted, toggle } = useActionsProgress();
   return (
     <div className="space-y-3">
@@ -412,13 +443,15 @@ function AgirCard({
           {item.translationFr}
         </span>
       </label>
-      <p className="mt-3 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
-        Source : {item.editorialSource ?? item.sourceTitle}
-        {item.sourceReference ? ` — ${item.sourceReference}` : ""}
-        {item.sourceStatus === "needs_review" ? " · à valider" : ""}
-      </p>
-      <p className="mt-1 text-[10px] text-muted-foreground">
-        Traduction de l'application, non officielle — à valider.
+      <p className="mt-3 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+        {item.editorialSource ?? item.sourceTitle}
+        <SourceInfo
+          sourceTitle={item.sourceTitle}
+          editorialSource={item.editorialSource}
+          sourceReference={item.sourceReference}
+          scope={scope}
+          nature="Traduction de travail réalisée pour l'application, non officielle."
+        />
       </p>
       {item.textAr && (
         <div className="mt-1.5">
