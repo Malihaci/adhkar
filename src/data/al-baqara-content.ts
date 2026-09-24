@@ -1,10 +1,12 @@
 /**
- * Contenus d'étude pour la sourate Al-Baqara — DÉBUT PARTIEL (2:1-2:5,
- * 2:17-2:24).
+ * Contenus d'étude pour la sourate Al-Baqara — EXTRACTION PARTIELLE
+ * (Mushaf pages 2, 4, 6, 12 : 2:1-2:5, 2:17-2:24, 2:30-2:37, 2:77-2:83).
  *
- * Transcrits directement des pages 2 et 4 de `sources/01.pdf` (Juz 1,
- * القرآن تدبر وعمل — مركز المنهاج), avec la même rigueur que le pilote
- * Al-Fatiha.
+ * Transcrits directement de `sources/1-10.pdf` (Juz 1, القرآن تدبر وعمل —
+ * مركز المنهاج), pages 2/4 depuis `sources/01.pdf` (doublon confirmé des
+ * mêmes pages, voir scripts/pdf-page-mapping.json), pages 6/12 lues à la
+ * page PDF réelle via la cartographie vérifiée (mushafPage = pdfPage - 9
+ * sur 1-10.pdf, ex. mushafPage 12 = pdfPage 21).
  *
  * IMPORTANT — portée réelle de ce fichier (voir aussi
  * scripts/processing-checkpoint.json et scripts/pdf-page-mapping.json,
@@ -12,18 +14,22 @@
  * Al-Baqara compte 286 ayat. Le corpus source (3 PDF uniques, pagination
  * continue du Mushaf 1-604) couvre RÉELLEMENT l'intégralité des 30 juz' —
  * ce n'est pas une limite de disponibilité de la source. Seule
- * l'EXTRACTION reste très partielle : SEULES les pages Mushaf 2 et 4
- * (2:1-2:5 et 2:17-2:24) ont été transcrites et traduites avec la
- * rigueur requise à ce jour. Les ~600 autres pages du Mushaf restent à
- * traiter — chacune nécessite une lecture visuelle individuelle (PDF
- * scannés, aucun texte extractible), non automatisable par OCR classique.
- * Ne jamais présenter Al-Baqara — ni aucune autre sourate au-delà
- * d'Al-Fatiha — comme "terminée" sur la seule base de ce fichier.
+ * l'EXTRACTION reste partielle : SEULES les pages Mushaf 2, 4, 6 et 12
+ * ont été transcrites et traduites avec la rigueur requise à ce jour. Les
+ * ~600 autres pages du Mushaf restent à traiter — chacune nécessite une
+ * lecture visuelle individuelle (PDF scannés, aucun texte extractible),
+ * non automatisable par OCR classique. Ne jamais présenter Al-Baqara — ni
+ * aucune autre sourate au-delà d'Al-Fatiha — comme "terminée" sur la
+ * seule base de ce fichier.
  *
  * Les items العمل بالآيات / التوجيهات de la page 2 ne citent aucune ayah
  * entre crochets ﴿﴾ dans la source : leur portée réelle est donc la PAGE
  * éditoriale (scopeType: "page"), jamais une ayah précise inventée par
- * déduction. Les items de la page 4 citent bien des ayat explicites.
+ * déduction. Les items des pages 4, 6 et 12 citent des ayat explicites,
+ * SAUF un العمل بالآيات de la page 6 (baqara-a9) qui cite littéralement
+ * 7:23 (une invocation) au sein d'un item thématiquement rattaché à 2:37 —
+ * conservé en scopeType "page" plutôt que rattaché de force à 2:37, pour
+ * ne jamais forcer une portée que la source elle-même ne cite pas.
  */
 
 import type { EtudeContent } from "@/lib/etude-content";
@@ -31,6 +37,8 @@ import type { EtudeContent } from "@/lib/etude-content";
 const EDITORIAL_SOURCE = "القرآن تدبر وعمل";
 const SOURCE_TITLE = "القرآن تدبر وعمل — مركز المنهاج للإشراف والتدريب التربوي";
 const MUSHAF_PAGE = 2;
+const MUSHAF_PAGE_6 = 6;
+const MUSHAF_PAGE_12 = 12;
 
 export const AL_BAQARA_CONTENT: EtudeContent[] = [
   // --- الوقفات التدبرية (Méditer) ---
@@ -571,6 +579,496 @@ export const AL_BAQARA_CONTENT: EtudeContent[] = [
       "Dans ma vie : je peux lire aujourd'hui une parabole du Coran en cherchant à la comprendre, et demander à Allah, comme le suggèrent les sources citées, de mettre de la lumière dans mon cœur, mon ouïe et ma vue.",
     sourceTitle: SOURCE_TITLE,
     editorialSource: EDITORIAL_SOURCE,
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+
+  // ================================================================
+  // Page 6 du Mushaf (1-10.pdf, pdfPage 15 ; ayat 2:30-2:37)
+  // ================================================================
+
+  // --- الوقفات التدبرية (Méditer) ---
+  {
+    id: "baqara-w15",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:30",
+    contentOrigin: "source_quote",
+    textAr:
+      "هذه الآية أصل في نصب إمام وخليفة يُسمع له ويُطاع؛ لتجتمع به الكلمة، وتنفذ به أحكام الخليفة، ولا خلاف في وجوب ذلك بين الأمة ولا بين الأئمة.",
+    translationFr:
+      "Cette ayah est le fondement de l'institution d'un imam/calife à qui l'on obéit, afin que la communauté soit unie autour de lui et que ses décisions soient appliquées ; il n'y a aucune divergence, ni parmi la communauté ni parmi les imams, sur l'obligation de cela.",
+    reflectionQuestionAr: "بقاء الأمة بلا إمام ذنب يأثمون به لكثرة المفاسد، وضح ذلك من الآية.",
+    reflectionQuestionFr:
+      "L'absence d'imam pour la communauté est un péché en raison des maux qui en découlent ; explique cela à partir de l'ayah.",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "القرطبي",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٣٩٥/١",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w16",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:30",
+    contentOrigin: "source_quote",
+    textAr: "فهذان السببان اللذان ذكرتهما الملائكة هما اللذان كتب الله بهما على بني إسرائيل القتل.",
+    translationFr:
+      "Ces deux causes mentionnées par les anges sont celles pour lesquelles Allah a décrété le châtiment du meurtre chez les Enfants d'Israël.",
+    reflectionQuestionAr: "ما السببان المؤديان إلى هلاك الأمم إذا انتشرا فيها؟",
+    reflectionQuestionFr:
+      "Quelles sont les deux causes qui mènent à la perte des nations lorsqu'elles s'y répandent ?",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "ابن تيمية",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "١٩٢/١",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w17",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:30",
+    contentOrigin: "source_quote",
+    textAr:
+      "وقول الملائكة هذا ليس على وجه الاعتراض على الله، ولا على وجه الحسد لبني آدم... وإنما هو سؤال استعلام واستكشاف عن الحكمة في ذلك.",
+    translationFr:
+      "Cette parole des anges n'est ni une objection envers Allah, ni de la jalousie envers les fils d'Adam... ce n'est qu'une question pour s'informer et découvrir la sagesse [derrière ce décret].",
+    reflectionQuestionAr: "لِمَ عاتب الله سبحانه إبليس على سؤاله، ولم يعاتب الملائكة على سؤالهم؟",
+    reflectionQuestionFr:
+      "Pourquoi Allah a-t-Il blâmé Iblis pour sa question, sans blâmer les anges pour la leur ?",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "ابن كثير",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٦٧/١",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w18",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:30",
+    contentOrigin: "source_quote",
+    textAr:
+      "(أتجعل فيها من يفسد فيها) بالمعاصي، (ويسفك الدماء) وهذا تخصيص بعد تعميم؛ لبيان شدة مفسدة القتل.",
+    translationFr:
+      "« Y placeras-Tu quelqu'un qui y sèmera la corruption » par les péchés, « et y versera le sang » — une mention particulière après une mention générale, pour souligner la gravité du méfait du meurtre.",
+    reflectionQuestionAr: "لماذا خُصَّ سفك الدماء بالذكر مع أنه داخل في الإفساد؟",
+    reflectionQuestionFr:
+      "Pourquoi le fait de verser le sang est-il mentionné à part, alors qu'il fait déjà partie de la corruption ?",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "السعدي",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٤٨",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w19",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:32",
+    contentOrigin: "source_quote",
+    textAr:
+      "الواجب على من سُئل عن علم إن لم يعلم أن يقول: الله أعلم، ولا أدري؛ اقتداء بالملائكة والأنبياء والفضلاء من العلماء، لكن أخبر الصادق أن بموت العلماء يُقبض العلم، فيبقى ناس جهال يُستفتَون؛ فيُفتون برأيهم؛ فيَضلون ويُضلون.",
+    translationFr:
+      "Celui à qui l'on pose une question sur un savoir qu'il ne possède pas doit dire : « Allah sait mieux » ou « je ne sais pas », à l'exemple des anges, des prophètes et des savants vertueux ; mais le Véridique a annoncé qu'à la mort des savants le savoir se retire, si bien que des ignorants, consultés, répondent selon leur propre avis : ils s'égarent et égarent autrui.",
+    reflectionQuestionAr: "ماذا نفيد من قول الملائكة: (سبحانك لا علم لنا إلا ما علمتنا)؟",
+    reflectionQuestionFr:
+      "Que retenir de la parole des anges : « Gloire à Toi ! Nous n'avons de savoir que ce que Tu nous as enseigné » ?",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "القرطبي",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٤٢٥/١",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w20",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:35",
+    contentOrigin: "source_quote",
+    textAr:
+      "النهي عن القرب يقتضي النهي عن الأكل بطريق الأولى؛ وإنما نهى عن القرب سدا للذريعة، فهذا أصل في سد الذرائع.",
+    translationFr:
+      "L'interdiction de s'approcher implique, à plus forte raison, l'interdiction d'en manger ; s'Il a interdit de s'en approcher, c'est pour fermer la voie [au péché] — c'est là un fondement du principe consistant à barrer les moyens menant à l'interdit.",
+    reflectionQuestionAr: "ما الطريقة المثالية في الحذر من المعاصي؟",
+    reflectionQuestionFr: "Quelle est la méthode idéale pour se prémunir des péchés ?",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "ابن جزي",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٦٢/١",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w21",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:37",
+    contentOrigin: "source_quote",
+    textAr:
+      "سبقت رحمته غضبه؛ فيرحم عبده في عين غضبه، كما جعل هبوط آدم سبب ارتفاعه، ويعده سبب قربه، فسبحانه من تواب على من أكرمه، ومن رحيم ما أعظمه.",
+    translationFr:
+      "Sa miséricorde précède Sa colère : Il fait miséricorde à Son serviteur au cœur même de Sa colère, tout comme Il a fait de la descente d'Adam une cause de son élévation, et Il lui promet qu'elle sera une cause de son rapprochement — gloire à Lui, quel Accueillant au repentir envers celui qu'Il honore, et quel Miséricordieux Il est !",
+    reflectionQuestionAr: "بعد قصة آدم -عليه السلام- لا نيأس من رحمة الله سبحانه، وضح ذلك.",
+    reflectionQuestionFr:
+      "Après le récit d'Adam (sur lui la paix), nous ne désespérons pas de la miséricorde d'Allah ; explique cela.",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "الألوسي",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٢٣٨/١",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+
+  // --- العمل بالآيات (Agir) ---
+  {
+    id: "baqara-a7",
+    category: "amal",
+    scopeType: "verse",
+    verseKey: "2:31",
+    contentOrigin: "source_quote",
+    textAr:
+      "ضع لنفسك جدولا تتعلم فيه أهم المسائل التي تحتاجها، ﴿وَعَلَّمَ آدَمَ الْأَسْمَاءَ كُلَّهَا﴾.",
+    translationFr:
+      "Établis-toi un programme pour apprendre les questions [de savoir religieux] les plus importantes dont tu as besoin.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "cf. 2:31",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-a8",
+    category: "amal",
+    scopeType: "verse",
+    verseKey: "2:35",
+    contentOrigin: "source_quote",
+    textAr:
+      "اقرأ قصة آدم عليه الصلاة والسلام من كتب التفسير وقصص الأنبياء، ثم استخرج ثلاث فوائد تهمك في حياتك، ﴿وَلَا تَقْرَبَا هَذِهِ الشَّجَرَةَ فَتَكُونَا مِنَ الظَّالِمِينَ﴾.",
+    translationFr:
+      "Lis le récit d'Adam (sur lui la paix) dans les livres de tafsir et les récits des prophètes, puis dégages-en trois enseignements utiles pour ta vie.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "cf. 2:35",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-a9",
+    category: "amal",
+    // La source cite littéralement 7:23 (une invocation) au sein d'un item
+    // thématiquement rattaché au repentir d'Adam (2:37) — jamais rattaché de
+    // force à 2:37, portée réelle = la page éditoriale.
+    scopeType: "page",
+    pageNumber: MUSHAF_PAGE_6,
+    contentOrigin: "source_quote",
+    textAr:
+      "تذكر ما وقع منك أو من أسرتك من ذنب، ثم قل: ﴿رَبَّنَا ظَلَمْنَا أَنفُسَنَا وَإِن لَّمْ تَغْفِرْ لَنَا وَتَرْحَمْنَا لَنَكُونَنَّ مِنَ الْخَاسِرِينَ﴾.",
+    translationFr:
+      "Souviens-toi d'un péché commis par toi ou par ta famille, puis dis : « Notre Seigneur, nous nous sommes fait du tort à nous-mêmes ; si Tu ne nous pardonnes pas et ne nous fais pas miséricorde, nous serons certainement du nombre des perdants. »",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "invocation citée : 7:23 (thème du repentir d'Adam, 2:37)",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+
+  // --- التوجيهات (S'orienter) ---
+  {
+    id: "baqara-t7",
+    category: "tawjihat",
+    scopeType: "verse",
+    verseKey: "2:34",
+    contentOrigin: "source_quote",
+    textAr:
+      "اعرف قدر أهل العلم، وتأدب معهم، فقد أمر الله تعالى الملائكة بالسجود لآدم بسبب علمه، ﴿وَإِذْ قُلْنَا لِلْمَلَائِكَةِ اسْجُدُوا لِآدَمَ فَسَجَدُوا﴾.",
+    translationFr:
+      "Reconnais la valeur des gens de savoir et sois poli avec eux : Allah a ordonné aux anges de se prosterner devant Adam en raison de son savoir.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "cf. 2:34",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-t8",
+    category: "tawjihat",
+    scopeType: "verse",
+    verseKey: "2:30",
+    contentOrigin: "source_quote",
+    textAr:
+      "التسبيح من صفات الملائكة؛ فتشبَّه بهم، ﴿وَنَحْنُ نُسَبِّحُ بِحَمْدِكَ وَنُقَدِّسُ لَكَ﴾.",
+    translationFr:
+      "La glorification d'Allah est l'une des qualités des anges ; efforce-toi de leur ressembler.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "cf. 2:30",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-t9",
+    category: "tawjihat",
+    scopeType: "verse",
+    verseKey: "2:32",
+    contentOrigin: "source_quote",
+    textAr:
+      "تواضع لله تعالى مهما بلغت من درجات العلم، واطلب منه سبحانه الزيادة، ﴿قَالُوا سُبْحَانَكَ لَا عِلْمَ لَنَا إِلَّا مَا عَلَّمْتَنَا إِنَّكَ أَنْتَ الْعَلِيمُ الْحَكِيمُ﴾.",
+    translationFr:
+      "Sois humble envers Allah, quel que soit ton niveau de savoir, et demande-Lui, exalté soit-Il, de l'accroître.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "cf. 2:32",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+
+  // ================================================================
+  // Page 12 du Mushaf (1-10.pdf, pdfPage 21 ; ayat 2:77-2:83)
+  // ================================================================
+
+  // --- الوقفات التدبرية (Méditer) ---
+  {
+    id: "baqara-w22",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:78",
+    contentOrigin: "source_quote",
+    textAr: "(إلا أماني): تلاوة بغير فهم.",
+    translationFr: "« Sauf des chimères » : c'est-à-dire une simple récitation sans compréhension.",
+    reflectionQuestionAr: "كيف تفهم من هذه الآية الذم لمن يقرأ القرآن بغير فهم؟",
+    reflectionQuestionFr:
+      "Comment comprends-tu, à partir de cette ayah, le blâme adressé à celui qui lit le Coran sans le comprendre ?",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "ابن جزي",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٧٢/١",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w23",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:78",
+    contentOrigin: "source_quote",
+    textAr:
+      "هذه صفة من لا يفقه كلام الله، ويعمل به، وإنما يقتصر على مجرد تلاوته، كما قال الحسن البصري: نزل القرآن ليعمل به؛ فاتخذوا تلاوته عملا.",
+    translationFr:
+      "Ceci décrit celui qui ne comprend pas la parole d'Allah et ne la met pas en pratique, se limitant à sa simple récitation ; comme l'a dit Al-Hasan al-Basri : « Le Coran a été révélé pour qu'on le mette en pratique, et l'on a fait de sa récitation une pratique [suffisante en soi] ».",
+    reflectionQuestionAr: "ترك تدبر القرآن الكريم والعمل به مذموم في القرآن الكريم؛ بيّن ذلك.",
+    reflectionQuestionFr:
+      "Délaisser la méditation du noble Coran et sa mise en pratique est blâmé dans le Coran lui-même ; montre-le.",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "ابن تيمية",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٢٤٧/١",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w24",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:79",
+    contentOrigin: "source_quote",
+    textAr:
+      "وإنما فعلوا ذلك مع علمهم (ليشتروا به ثمنا قليلا)، والدنيا كلها من أولها إلى آخرها ثمن قليل، فجعلوا لباطلهم شركا يصطادون به ما في أيدي الناس، فظلموهم من وجهين: من جهة تلبيس دينهم عليهم، ومن جهة أخذ أموالهم بغير حق، بل بأبطل الباطل، وذلك أعظم ممن يأخذها غصبا وسرقة ونحوهما.",
+    translationFr:
+      "Ils ont agi ainsi tout en sachant que c'était « pour en tirer un vil prix » — alors que ce bas monde tout entier, du début à la fin, n'est qu'un vil prix ; ils ont fait de leur fausseté un piège pour s'emparer des biens des gens, leur faisant ainsi du tort de deux façons : en dénaturant leur religion, et en prenant leurs biens indûment, de la pire manière, plus grave encore que celui qui les prend par la spoliation ou le vol.",
+    reflectionQuestionAr: "من حرف نص الكتاب أو معناه فهو ظالم من جهتين؛ بيّنهما.",
+    reflectionQuestionFr:
+      "Quiconque falsifie le texte du Livre ou son sens commet une injustice sous deux aspects ; précise-les.",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "السعدي",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٥٦",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w25",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:83",
+    contentOrigin: "source_quote",
+    textAr:
+      "وقرن الله عز وجل في هذه الآية حق الوالدين بالتوحيد؛ لأن النشأة الأولى من عند الله، والنشء الثاني -وهو التربية- من جهة الوالدين، ولهذا قرن تعالى بشكره لهما شكره.",
+    translationFr:
+      "Allah, exalté soit-Il, a associé dans cette ayah le droit des parents à l'unicité divine, car la première formation [de l'être] vient d'Allah, tandis que la seconde — l'éducation — vient des parents ; c'est pourquoi Il a associé la reconnaissance envers eux à Sa propre reconnaissance.",
+    reflectionQuestionAr: "لماذا قرن الله سبحانه بين حقه وحق الوالدين؟",
+    reflectionQuestionFr:
+      "Pourquoi Allah, exalté soit-Il, a-t-Il associé Son droit à celui des parents ?",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "القرطبي",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٢٢٩/٢",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w26",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:83",
+    contentOrigin: "source_quote",
+    textAr:
+      "وناسب أن يقولوا للناس حسنا بعد ما أمرهم بالإحسان إليهم؛ فجمع بين طريق الإحسان الفعلي والقولي.",
+    translationFr:
+      "Il convenait de leur ordonner de dire de bonnes paroles aux gens après leur avoir ordonné de bien agir envers eux : Il a ainsi réuni la voie de la bienfaisance en actes et en paroles.",
+    reflectionQuestionAr: "لماذا ذكر القول الحسن بعد ذكر الإحسان؟",
+    reflectionQuestionFr:
+      "Pourquoi la bonne parole est-elle mentionnée après la bienfaisance [en actes] ?",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "ابن كثير",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "١١٥/١",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w27",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:83",
+    contentOrigin: "source_quote",
+    textAr:
+      "وجعل الإحسان لسائر الناس بالقول؛ لأنه القدر الذي يمكن معاملة جميع الناس به، وذلك أن أصل القول أن يكون عن حسن اعتقاد، فهم إذا قالوا للناس حسنا فقد أضمروا لهم خيرا.",
+    translationFr:
+      "Il a fait de la bonne parole la forme de bienfaisance envers tous les gens, car c'est la mesure par laquelle on peut traiter tout le monde ; en effet, la bonne parole procède d'ordinaire d'une bonne intention, de sorte que dire de bonnes paroles aux gens révèle qu'on leur veut du bien.",
+    reflectionQuestionAr: "لماذا جعل الله تعالى الإحسان لسائر الناس بالقول؟",
+    reflectionQuestionFr:
+      "Pourquoi Allah a-t-Il fait de la parole la forme de bienfaisance envers l'ensemble des gens ?",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "ابن عاشور",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٥٨٣/١",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-w28",
+    category: "tadabbur",
+    scopeType: "verse",
+    verseKey: "2:83",
+    contentOrigin: "source_quote",
+    textAr: "هو اللين في القول، والمعاشرة بحسن الخلق.",
+    translationFr:
+      "C'est la douceur dans la parole, et le fait de fréquenter [les gens] avec un bon caractère.",
+    reflectionQuestionAr: "بيّن فضل الإحسان في القول ومكانته في الدين.",
+    reflectionQuestionFr:
+      "Explique le mérite de la bienfaisance dans la parole et sa place dans la religion.",
+    sourceTitle: SOURCE_TITLE,
+    sourceAuthor: "البغوي",
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "٧٢/١",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+
+  // --- العمل بالآيات (Agir) ---
+  {
+    id: "baqara-a10",
+    category: "amal",
+    scopeType: "verse",
+    verseKey: "2:77",
+    contentOrigin: "source_quote",
+    textAr:
+      "أرسل رسالة عن أهمية إصلاح السريرة من خلال هذه الآية الكريمة، ﴿أَوَلَا يَعْلَمُونَ أَنَّ اللَّهَ يَعْلَمُ مَا يُسِرُّونَ وَمَا يُعْلِنُونَ﴾.",
+    translationFr:
+      "Envoie un message sur l'importance de rectifier son for intérieur, en t'appuyant sur cette noble ayah.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "cf. 2:77",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-a11",
+    category: "amal",
+    scopeType: "verse",
+    verseKey: "2:78",
+    contentOrigin: "source_quote",
+    textAr:
+      "ابدأ اليوم ببرنامج لفهم آيات القرآن من خلال قراءة أحد التفاسير الميسرة؛ لتكون ممن فهم كلام الله تعالى، ﴿وَمِنْهُمْ أُمِّيُّونَ لَا يَعْلَمُونَ الْكِتَابَ إِلَّا أَمَانِيَّ وَإِنْ هُمْ إِلَّا يَظُنُّونَ﴾.",
+    translationFr:
+      "Commence aujourd'hui un programme pour comprendre les versets du Coran en lisant l'un des tafsirs accessibles, afin d'être de ceux qui comprennent la parole d'Allah.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "cf. 2:78",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-a12",
+    category: "amal",
+    scopeType: "verse",
+    verseKey: "2:83",
+    contentOrigin: "source_quote",
+    textAr:
+      "اختر إحدى هذه العبادات، ونفذها اليوم حتى تكون عاملا بالقرآن، وانظر كيف تجد قلبك بعد ذلك، ﴿لَا تَعْبُدُونَ إِلَّا اللَّهَ وَبِالْوَالِدَيْنِ إِحْسَانًا وَذِي الْقُرْبَى وَالْيَتَامَى وَالْمَسَاكِينِ﴾.",
+    translationFr:
+      "Choisis l'un de ces actes d'adoration et accomplis-le aujourd'hui pour mettre le Coran en pratique, puis observe l'état de ton cœur ensuite.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "cf. 2:83",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+
+  // --- التوجيهات (S'orienter) ---
+  {
+    id: "baqara-t10",
+    category: "tawjihat",
+    scopeType: "verse",
+    verseKey: "2:77",
+    contentOrigin: "source_quote",
+    textAr:
+      "تذكر أن الله يعلم ما تسر وما تعلن؛ فلا يرينك في سرك وعلانيتك إلا على خير، ﴿أَوَلَا يَعْلَمُونَ أَنَّ اللَّهَ يَعْلَمُ مَا يُسِرُّونَ وَمَا يُعْلِنُونَ﴾.",
+    translationFr:
+      "Souviens-toi qu'Allah sait ce que tu caches et ce que tu divulgues ; qu'Il ne te voie, en secret comme en public, que dans le bien.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "cf. 2:77",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-t11",
+    category: "tawjihat",
+    scopeType: "verse",
+    verseKey: "2:80",
+    contentOrigin: "source_quote",
+    textAr:
+      "لا تتهاون بعذاب؛ فذلك يفضي إلى القسوة ومزيد من المعاصي، ﴿وَقَالُوا لَنْ تَمَسَّنَا النَّارُ إِلَّا أَيَّامًا مَعْدُودَةً قُلْ أَتَّخَذْتُمْ عِنْدَ اللَّهِ عَهْدًا﴾.",
+    translationFr:
+      "Ne prends pas le châtiment à la légère : cela mène à la dureté du cœur et à davantage de péchés.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "cf. 2:80",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-t12",
+    category: "tawjihat",
+    scopeType: "verse",
+    verseKey: "2:83",
+    contentOrigin: "source_quote",
+    textAr:
+      "قرن الله حق الوالدين بحقه؛ فلا تتساهل في حق والديك، ﴿لَا تَعْبُدُونَ إِلَّا اللَّهَ وَبِالْوَالِدَيْنِ إِحْسَانًا﴾.",
+    translationFr:
+      "Allah a associé le droit des parents à Son propre droit ; ne néglige donc pas le droit de tes parents.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceReference: "cf. 2:83",
     sourceStatus: "needs_review",
     translationStatus: "draft",
   },

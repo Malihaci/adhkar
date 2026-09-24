@@ -18,15 +18,23 @@
     "surah2_baqara": {
       "status": "partial",
       "primarySourceFile": "1-10.pdf",
-      "mushafPagesDone": [2, 4],
-      "mushafPagesRemaining_thisJuz": [3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
-      "versesDone": ["2:1-2:5", "2:17-2:24"],
+      "mushafPagesDone": [2, 4, 6, 12],
+      "mushafPagesRemaining_thisJuz": [3, 5, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+      "versesDone": ["2:1-2:5", "2:17-2:24", "2:30-2:37", "2:77-2:83"],
       "dataFile": "src/data/al-baqara-content.ts",
-      "note": "Prochaine étape logique : mushafPage 3 (pdfPage 12 dans 1-10.pdf) — déjà lue visuellement lors d'une session précédente (voir historique) mais pas encore structurée/traduite dans le fichier de données."
+      "note": "2026-09-24 : pages 6 (pdfPage 15) et 12 (pdfPage 21) lues visuellement (rendu PNG via pdftoppm, cf. méthode ci-dessous) et structurées — 14 Waqafat, 6 Amal, 6 Tawjihat ajoutés (baqara-w15..w28, a7..a12, t7..t12). Un item (baqara-a9, page 6) cite littéralement 7:23 au lieu d'une ayah de la page : conservé en scopeType page plutôt que forcé sur 2:37 — voir commentaire en tête de al-baqara-content.ts. Prochaine étape logique : mushafPage 3 (pdfPage 12) puis 5 (pdfPage 14), pour compléter le bloc déjà entamé avant de sauter plus loin dans le juz."
     },
-    "mushafPages5to604": {
+    "extractionMethod": {
+      "note": "Les PDF (jusqu'à 520 Mo) dépassent la limite de lecture directe (100 Mo) : rendre la page ciblée en PNG avant lecture visuelle.",
+      "mapping": "mushafPage -> pdfPage via scripts/pdf-page-mapping.json (formules par fichier)",
+      "command": "pdftoppm.exe -f <pdfPage> -l <pdfPage> -r 200 -png <fichier>.pdf <sortie>",
+      "popplerPath": "C:\\Users\\LAP-022\\AppData\\Local\\Microsoft\\WinGet\\Packages\\oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe\\poppler-25.07.0\\Library\\bin\\pdftoppm.exe",
+      "thenRead": "Lire le PNG produit avec l'outil Read (image), jamais le PDF source directement.",
+      "verifiedAcrossAllThreeFiles": "Format identique confirmé par échantillonnage visuel sur 1-10.pdf (pages 6, 12), 11-20.pdf (pdfPage 1 = mushafPage 202, Sourate At-Tawbah Juz 11) et 21-30.pdf (pdfPage 1 = mushafPage 402, Sourate Al-Ankabut Juz 21) : même mise en page rouge/blanc, 7 الوقفات التدبرية + 3 العمل بالآيات + 3 التوجيهات par page — mais aucune donnée structurée extraite au-delà d'Al-Baqara à ce jour."
+    },
+    "mushafPagesRemaining": {
       "status": "not_started",
-      "note": "Couverts par la source (voir pdf-page-mapping.json) mais AUCUNE page lue/structurée à ce jour au-delà de mushafPage 1, 2 et 4. Chaque page nécessite une lecture visuelle individuelle (PDF scanné, aucun texte extractible) — volume de ~600 pages restantes, non automatisable sans lecture page par page."
+      "note": "~598 pages du Mushaf restent à traiter (toutes couvertes par la source, voir pdf-page-mapping.json). Chaque page nécessite une lecture visuelle individuelle (PDF scanné, aucun texte extractible) — non automatisable sans lecture page par page. Le format s'est confirmé identique sur les 3 fichiers, donc la même méthode s'applique partout."
     }
   },
   "mukhtasarIntros": {
