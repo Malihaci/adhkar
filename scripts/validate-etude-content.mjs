@@ -5,7 +5,15 @@ import { AL_FATIHA_CONTENT } from "../src/data/al-fatiha-content.ts";
 import { AL_BAQARA_CONTENT } from "../src/data/al-baqara-content.ts";
 
 const ALL = [...AL_FATIHA_CONTENT, ...AL_BAQARA_CONTENT];
-const CATEGORIES = new Set(["tadabbur", "amal", "tawjihat", "asbab_nuzul", "lesson", "today"]);
+const CATEGORIES = new Set([
+  "tadabbur",
+  "amal",
+  "tawjihat",
+  "asbab_nuzul",
+  "hadith",
+  "lesson",
+  "today",
+]);
 const SCOPES = new Set(["verse", "verse_range", "passage", "page", "surah"]);
 const ORIGINS = new Set([
   "source_quote",
@@ -91,6 +99,25 @@ for (const item of ALL) {
   if (item.contentOrigin === "pedagogical_synthesis") {
     if (!Array.isArray(item.sourceIds) || item.sourceIds.length === 0) {
       flag(item, "pedagogical_synthesis sans sourceIds[] (synthèse non traçable)");
+    }
+  }
+
+  // Un hadith n'a de valeur que sourcé, référencé et de statut connu —
+  // jamais présenté comme authentique par défaut.
+  if (item.category === "hadith") {
+    if (!item.collection) flag(item, "hadith sans collection (recueil)");
+    if (!item.sourceReference) flag(item, "hadith sans sourceReference");
+    if (!item.authenticity) flag(item, "hadith sans authenticity (statut non vérifiable)");
+  }
+  // Un sabab an-nuzul dont la solidité est signalée douteuse ne doit jamais
+  // être affiché comme établi.
+  if (item.category === "asbab_nuzul" && item.authenticity) {
+    const weak = /faible|douteux|non\s*établi|discuté/i.test(item.authenticity);
+    if (weak) {
+      flag(
+        item,
+        `asbab_nuzul à la solidité signalée faible ("${item.authenticity}") : ne doit pas être présenté comme un sabab établi`,
+      );
     }
   }
 }

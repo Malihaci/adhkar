@@ -148,7 +148,7 @@ function EtudePage() {
                     {hamidullah.footnotes}
                   </p>
                 )}
-                <p className="mt-4 flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                <div className="mt-4 flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
                   Traduction des sens — Muhammad Hamidullah
                   <SourceInfo
                     sourceTitle="Traduction française des sens du Coran"
@@ -156,7 +156,7 @@ function EtudePage() {
                     editorialSource="QuranEnc"
                     nature="Traduction publiée, réutilisée telle quelle."
                   />
-                </p>
+                </div>
               </>
             ) : (
               <Empty text="Traduction indisponible pour le moment." />
@@ -287,14 +287,14 @@ function TafsirSection({ surah, ayah }: { surah: number; ayah: number }) {
         ) : mokhtasarText ? (
           <div>
             <p className="text-[0.95rem] leading-[1.85] text-foreground/90">{mokhtasarText}</p>
-            <p className="mt-3 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+            <div className="mt-3 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
               Al-Mukhtasar fî at-tafsîr, Markaz Tafsîr
               <SourceInfo
                 sourceTitle="Al-Mukhtasar fî at-tafsîr al-Qur'ân al-karîm"
                 editorialSource="Markaz Tafsîr"
                 nature="Traduction française publiée, réutilisée telle quelle."
               />
-            </p>
+            </div>
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
@@ -362,7 +362,7 @@ function ContentCard({ item }: { item: EtudeContent }) {
       {item.reflectionQuestionFr && (
         <p className="mt-2.5 text-sm italic text-muted-foreground">{item.reflectionQuestionFr}</p>
       )}
-      <p className="mt-3 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+      <div className="mt-3 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
         {item.sourceAuthor ?? item.editorialSource ?? item.sourceTitle}
         <SourceInfo
           sourceTitle={item.sourceTitle}
@@ -370,13 +370,14 @@ function ContentCard({ item }: { item: EtudeContent }) {
           editorialSource={item.editorialSource}
           sourceReference={item.sourceReference}
           scope={scope}
+          authenticity={item.authenticity}
           nature={
             item.contentOrigin === "pedagogical_synthesis"
               ? "Synthèse pédagogique construite à partir des sources listées."
               : "Traduction de travail réalisée pour l'application, non officielle."
           }
         />
-      </p>
+      </div>
       {item.textAr && (
         <div className="mt-1.5">
           <button
@@ -443,7 +444,7 @@ function AgirCard({
           {item.translationFr}
         </span>
       </label>
-      <p className="mt-3 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+      <div className="mt-3 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
         {item.editorialSource ?? item.sourceTitle}
         <SourceInfo
           sourceTitle={item.sourceTitle}
@@ -452,7 +453,7 @@ function AgirCard({
           scope={scope}
           nature="Traduction de travail réalisée pour l'application, non officielle."
         />
-      </p>
+      </div>
       {item.textAr && (
         <div className="mt-1.5">
           <button

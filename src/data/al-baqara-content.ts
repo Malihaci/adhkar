@@ -265,6 +265,41 @@ export const AL_BAQARA_CONTENT: EtudeContent[] = [
     translationStatus: "draft",
   },
 
+  // --- ✨ Leçons à retenir / 🌍 Dans ma vie (page 2) — synthèses
+  // pédagogiques fidèles condensées à partir des items ci-dessus.
+  {
+    id: "baqara-l1",
+    category: "lesson",
+    scopeType: "verse",
+    verseKey: "2:3",
+    contentOrigin: "pedagogical_synthesis",
+    sourceIds: ["baqara-w3"],
+    textAr:
+      "الإيمان بالغيب حظ القلب، وإقامة الصلاة حظ البدن، و(ومما رزقناهم ينفقون) حظ المال، وهذا ظاهر.",
+    translationFr:
+      "On peut retenir que la piété véritable se vit dans trois dimensions concrètes : la foi intérieure (le cœur), la prière (le corps) et la dépense dans le bien (les biens).",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-today1",
+    category: "today",
+    scopeType: "page",
+    pageNumber: MUSHAF_PAGE,
+    contentOrigin: "pedagogical_synthesis",
+    sourceIds: ["baqara-a1", "baqara-t1"],
+    textAr:
+      "مبنى التقوى على مخالفة شرع الله لهوى نفسك اختباراً لإيمانك، فحدد أمراً في حياتك ترى أنك تقدّم فيه هوى نفسك على شرع الله سبحانه وتراجع عنه مستغفراً ربك.",
+    translationFr:
+      "Dans ma vie : je peux identifier une situation concrète où je fais passer mon désir avant ce qu'Allah demande, y renoncer et Lui en demander pardon — selon les sources citées, c'est là le fondement de la piété.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+
   // ================================================================
   // Page 4 du PDF (Mushaf p.4, ayat 2:17-2:24)
   // ================================================================
@@ -502,6 +537,40 @@ export const AL_BAQARA_CONTENT: EtudeContent[] = [
     sourceTitle: SOURCE_TITLE,
     editorialSource: EDITORIAL_SOURCE,
     sourceReference: "cf. 2:22",
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+
+  // --- ✨ Leçons à retenir / 🌍 Dans ma vie (page 4) ---
+  {
+    id: "baqara-l2",
+    category: "lesson",
+    scopeType: "verse",
+    verseKey: "2:22",
+    contentOrigin: "pedagogical_synthesis",
+    sourceIds: ["baqara-w12", "baqara-t5"],
+    textAr:
+      "هذه الآية من المحكم الذي اتفقت عليه الشرائع واجتمعت عليه الكتب، وهو عمود الخشوع، وعليه مدار الذل والخضوع.",
+    translationFr:
+      "On peut retenir que méditer sur la création d'Allah — la terre, le ciel, la pluie, les fruits — renforce la certitude et la foi dans le cœur, et rappelle que Lui seul mérite d'être adoré sans associé.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "baqara-today2",
+    category: "today",
+    scopeType: "verse",
+    verseKey: "2:17",
+    contentOrigin: "pedagogical_synthesis",
+    sourceIds: ["baqara-a4", "baqara-a5"],
+    textAr:
+      "اقرأ اليوم مثلاً واحداً من أمثلة القرآن، واجتهد في فهمه... ونور القلب بيد الله سبحانه، فادعُ الله بقولك: «اللهم اجعل في قلبي نوراً، وفي سمعي نوراً، وفي بصري نوراً».",
+    translationFr:
+      "Dans ma vie : je peux lire aujourd'hui une parabole du Coran en cherchant à la comprendre, et demander à Allah, comme le suggèrent les sources citées, de mettre de la lumière dans mon cœur, mon ouïe et ma vue.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
     sourceStatus: "needs_review",
     translationStatus: "draft",
   },

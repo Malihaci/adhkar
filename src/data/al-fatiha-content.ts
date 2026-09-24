@@ -242,6 +242,57 @@ export const AL_FATIHA_CONTENT: EtudeContent[] = [
     sourceStatus: "needs_review",
     translationStatus: "draft",
   },
+  // --- ✨ Leçons à retenir / 🌍 Dans ma vie — synthèses pédagogiques
+  // fidèles, condensées à partir des الوقفات/العمل/التوجيهات ci-dessus.
+  // L'IA condense et reformule ; elle n'ajoute aucune conclusion
+  // religieuse absente des sources citées (sourceIds).
+  {
+    id: "fatiha-l1",
+    category: "lesson",
+    scopeType: "verse_range",
+    verseRange: "1:2-1:6",
+    contentOrigin: "pedagogical_synthesis",
+    sourceIds: ["fatiha-w2"],
+    textAr:
+      "توسل إليه بأسمائه وصفاته، وتوسل إليه بعبوديته. وهاتان الوسيلتان لا يكاد يرد معهما الدعاء.",
+    translationFr:
+      "On peut retenir de ces versets que la demande de guidance s'appuie sur deux piliers : louer Allah par Ses noms et Ses attributs, et L'adorer avec sincérité — deux moyens par lesquels, selon la source citée, une invocation obtient difficilement de rester sans réponse.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "fatiha-l2",
+    category: "lesson",
+    scopeType: "verse",
+    verseKey: "1:6",
+    contentOrigin: "pedagogical_synthesis",
+    sourceIds: ["fatiha-w6"],
+    textAr:
+      "الحاجة إلى الهدى أعظم من الحاجة إلى النصر والرزق؛ بل لا نسبة بينهما؛ لأنه إذا هُدي كان من المتقين، ومن يتق الله يجعل له مخرجا ويرزقه من حيث لا يحتسب.",
+    translationFr:
+      "Le besoin d'être guidé dépasse le besoin de réussite ou de subsistance : qui est guidé rejoint les pieux, et pour qui craint Allah, Il ouvre une issue et pourvoit par des voies inattendues.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
+  {
+    id: "fatiha-today1",
+    category: "today",
+    scopeType: "verse",
+    verseKey: "1:5",
+    contentOrigin: "pedagogical_synthesis",
+    sourceIds: ["fatiha-t2", "fatiha-a1"],
+    textAr: "لن تعبد الله حق العبادة حتى يعينك الله على ذلك.",
+    translationFr:
+      "Dans ma vie : avant de demander quoi que ce soit à Allah, je peux commencer mon invocation par Sa louange comme le fait la Fâtiha, puis Lui demander de m'aider à L'adorer comme il se doit — car selon les sources citées, nul n'adore vraiment Allah sans Son secours.",
+    sourceTitle: SOURCE_TITLE,
+    editorialSource: EDITORIAL_SOURCE,
+    sourceStatus: "needs_review",
+    translationStatus: "draft",
+  },
   {
     id: "fatiha-a3",
     category: "amal",

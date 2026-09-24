@@ -23,6 +23,7 @@ export type EtudeCategory =
   | "amal"
   | "tawjihat"
   | "asbab_nuzul"
+  | "hadith" // Hadith authentique dont le rapport avec l'ayah est réellement établi
   | "lesson" // ✨ Leçons à retenir — synthèse fidèle sourcée, jamais une conclusion nouvelle
   | "today"; // 🌍 Dans ma vie / Dès aujourd'hui — synthèse pédagogique sourcée uniquement
 
@@ -78,6 +79,20 @@ export interface EtudeContent {
    * affichée comme fiable (voir `validate-etude-content.mjs`).
    */
   sourceIds?: string[];
+
+  /**
+   * Modèle prêt pour `category: "asbab_nuzul"` et `category: "hadith"` —
+   * AUCUNE entrée n'existe encore avec ces champs remplis (zéro sabab an-
+   * nuzul et zéro hadith suffisamment vérifiés dans le projet à ce jour).
+   * Ne jamais déduire un degré d'authenticité : le renseigner uniquement
+   * lorsqu'une source reconnue l'établit explicitement.
+   */
+  /** Recueil du hadith (ex. "Sahih al-Bukhari"), distinct de `editorialSource`. */
+  collection?: string;
+  /** Degré d'authenticité établi par une source reconnue (hadith ou solidité d'un sabab an-nuzul) — jamais déduit. */
+  authenticity?: string;
+  /** Ayat concernées par un hadith, quand elles ne forment pas une plage contiguë (contrairement à `verseRange`). */
+  relatedVerseKeys?: string[];
 }
 
 const ALL_CONTENT: EtudeContent[] = [...AL_FATIHA_CONTENT, ...AL_BAQARA_CONTENT];
