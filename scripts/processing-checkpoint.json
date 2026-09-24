@@ -32,22 +32,32 @@
       "thenRead": "Lire le PNG produit avec l'outil Read (image), jamais le PDF source directement.",
       "verifiedAcrossAllThreeFiles": "Format identique confirmé par échantillonnage visuel sur 1-10.pdf (pages 6, 12), 11-20.pdf (pdfPage 1 = mushafPage 202, Sourate At-Tawbah Juz 11) et 21-30.pdf (pdfPage 1 = mushafPage 402, Sourate Al-Ankabut Juz 21) : même mise en page rouge/blanc, 7 الوقفات التدبرية + 3 العمل بالآيات + 3 التوجيهات par page — mais aucune donnée structurée extraite au-delà d'Al-Baqara à ce jour."
     },
-    "mushafPagesRemaining": {
-      "status": "not_started",
-      "note": "~598 pages du Mushaf restent à traiter (toutes couvertes par la source, voir pdf-page-mapping.json). Le format s'est confirmé identique sur les 3 fichiers, donc la même méthode de rendu s'applique partout — voir ocrFeasibility ci-dessous pour la conclusion sur l'automatisation du contenu lui-même."
-    },
     "ocrFeasibility": {
       "testedAt": "2026-09-24",
-      "tool": "tesseract.js v7 (modèle 'ara'), testé en isolation (jamais ajouté aux dépendances du projet)",
-      "conclusion": "NON FIABLE pour extraire directement le texte religieux (ayat citées + explications + références). Confiance mesurée 53-68% sur un item déjà connu et vérifié (page 6, Waqfa 1) : erreurs de lettres sur le texte coranique cité (police ornementée), ET erreur sur la référence elle-même (398/1 lu au lieu de 395/1 — une référence de source fausse est exactement le type d'erreur inacceptable ici). Une résolution plus élevée (400 dpi) a DÉGRADÉ le résultat (confiance 53%), pas amélioré.",
-      "whatDoesWork": "Les grands titres de rubrique non vocalisés (الوقفات التدبرية / العمل بالآيات / التوجيهات) sont lus correctement par l'OCR — utilisable pour un futur inventaire automatique de PRÉSENCE des rubriques par page (sans le contenu), mais pas testé à l'échelle des 604 pages faute de valeur ajoutée suffisante pour ce chantier (l'inventaire seul ne produit pas de contenu affichable).",
-      "installBlocked": "L'installeur Tesseract natif (winget et .exe silencieux) nécessite une élévation UAC indisponible dans cet environnement non interactif — contournement via tesseract.js (WASM, aucune installation système) pour le test, sans jamais nécessiter les droits admin.",
-      "recommendation": "Pas d'automatisation fiable disponible dans cet environnement pour le CONTENU. Les options restantes : (1) lecture visuelle continuée page par page — explicitement écartée comme méthode principale par consigne utilisateur ; (2) une API OCR tierce spécialisée arabe/tashkeel (ex. Google Cloud Vision) nécessitant un compte et des identifiants que je n'ai pas et ne dois pas créer sans validation explicite ; (3) rester à 4/604 pages fiables jusqu'à décision de l'utilisateur sur (1) ou (2)."
+      "conclusion": "OCR local (tesseract.js) testé et rejeté avant tout traitement de masse : 53-68% de confiance, erreur sur une référence de source (398/1 au lieu de 395/1). Abandonné au profit de la source ci-dessous, trouvée ensuite."
     },
     "renderTooling": {
       "script": "scripts/render-mushaf-page.mjs",
       "usage": "node --experimental-strip-types scripts/render-mushaf-page.mjs <mushafPage 1-604> [dpi=200]",
-      "note": "Seule brique réellement industrialisée ce chantier : résout mushafPage -> PDF/pdfPage via les formules vérifiées et rend la page en PNG (scripts/_pages/, gitignored). Zéro lecture, zéro structuration — prépare seulement la page pour revue/extraction, quelle que soit la méthode retenue ensuite."
+      "note": "Toujours utile pour une revue visuelle ponctuelle (contrôle qualité) : résout mushafPage -> PDF/pdfPage et rend la page en PNG (scripts/_pages/, gitignored)."
+    },
+    "arabicExtraction": {
+      "status": "TERMINÉ — 604/604 pages",
+      "date": "2026-09-25",
+      "source": "https://archive.altadabbur.com — archive officielle en ligne du même corpus القرآن تدبر وعمل que nos PDF (contenu vérifié identique mot pour mot sur plusieurs pages avant extraction de masse : mêmes textes, mêmes références السعدي/القرطبي/ابن كثير/etc.)",
+      "method": "Endpoint interne propre découvert par inspection réseau : GET /interface.php?ui=pc&do=tarjama&tafsir=tadabor&page={N} — renvoie du JSON contenant du HTML structuré (un <div id=\"{sourate}_{ayah}__trans\"> par Waqfa, blocs séparés pour التوجيهات/العمل بالآيات). Aucun OCR, aucune image : extraction de texte propre.",
+      "script": "scripts/extract-tadabbur-corpus.mjs (idempotent, checkpointé, 350ms entre requêtes)",
+      "outputFile": "scripts/tadabbur-corpus-raw.json (5 Mo, ARABE UNIQUEMENT — aucune traduction)",
+      "results": {
+        "pagesExtracted": 604,
+        "errors": 0,
+        "waqafat": 4231,
+        "amal": 1812,
+        "tawjihat": 1812,
+        "scopeConfidence": "Amal: 1656 verse + 56 verse_range + 100 page (fallback honnête) ; Tawjihat: 1640 verse + 89 verse_range + 83 page (fallback honnête). Portée jamais forcée : repli sur 'page' quand la citation ne correspond pas clairement à une ayah unique de la page."
+      },
+      "scopeMethod": "Pour les Waqafat : l'id du <div> donne l'ayah de départ, les marqueurs ﴿N﴾ intégrés dans le texte cité donnent l'étendue réelle (vérifié identique à la transcription manuelle sur les pages 1, 2, 4, 6, 12). Pour Amal/Tawjihat (citations en <span class=\"ayah\">) : comparaison du fragment normalisé (sans tashkeel) au texte réel de chaque ayah de la page (api.quran.com) ; portée 'page' si aucune correspondance fiable unique.",
+      "notYetDone": "AUCUNE traduction française. Le fichier raw ne contient que l'arabe (textAr, explanationAr, sourceAuthor, sourceReference, reflectionQuestionAr) + la portée déterminée. Intégrer dans l'app nécessite de traduire fidèlement chaque item et de l'ajouter à src/data/*-content.ts — travail séparé, non automatisable, à faire progressivement (actuellement 46/7855 items traduits et intégrés, pages 2/4/6/12 + Al-Fatiha)."
     }
   },
   "mukhtasarIntros": {
