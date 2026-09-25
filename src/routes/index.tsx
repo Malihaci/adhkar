@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import {
+  Bell,
   BookMarked,
   BookOpen,
   DoorOpen,
@@ -16,6 +17,7 @@ import { AppShell } from "@/components/AppShell";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { useDailyProgress, useLocalState } from "@/lib/storage";
 import { cn } from "@/lib/utils";
+import { HomeSuggestion } from "@/components/HomeSuggestion";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -61,6 +63,8 @@ function Index() {
   return (
     <AppShell title="As-salâmu 'alaykum" subtitle="Que votre journée soit remplie de dhikr.">
       <div className="space-y-5">
+        <HomeSuggestion lastPage={lastPage} counts={progress.counts} />
+
         {/* 4 portes principales, même taille, même famille visuelle */}
         <div className="grid grid-cols-2 gap-4">
           <GateButton
@@ -92,6 +96,30 @@ function Index() {
             tone="primary"
             icon={<Heart className="size-6" />}
           />
+        </div>
+
+        {/* Outils personnels — discrets, secondaires par rapport aux 4 portes */}
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            to="/rappels"
+            className="surface-card flex items-center gap-2.5 rounded-2xl px-4 py-3 text-left transition hover:-translate-y-0.5"
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+              <Bell className="size-4" />
+            </span>
+            <span className="min-w-0 truncate text-sm font-medium text-foreground">
+              Mes rappels
+            </span>
+          </Link>
+          <Link
+            to="/wird"
+            className="surface-card flex items-center gap-2.5 rounded-2xl px-4 py-3 text-left transition hover:-translate-y-0.5"
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-gold/15 text-gold">
+              <BookMarked className="size-4" />
+            </span>
+            <span className="min-w-0 truncate text-sm font-medium text-foreground">Mon Wird</span>
+          </Link>
         </div>
 
         {/* Écoute Al-Afâsy — masquée pour l'instant, code conservé */}
@@ -227,6 +255,9 @@ function AdhkarChooser({
             <X className="size-4" />
           </button>
         </div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Quotidien
+        </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Link
             to="/matin"
@@ -255,14 +286,26 @@ function AdhkarChooser({
         </div>
 
         <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Autres occasions
+          Occasions
         </p>
         <div className="space-y-1.5">
+          <OccasionRow
+            to="/reveil"
+            icon={<Sunrise className="size-4" />}
+            label="Réveil"
+            arabic="أذكار الاستيقاظ"
+          />
           <OccasionRow
             to="/coucher"
             icon={<Moon className="size-4" />}
             label="Avant de dormir"
             arabic="أذكار النوم"
+          />
+          <OccasionRow
+            to="/apres-priere"
+            icon={<Sparkles className="size-4" />}
+            label="Après la prière"
+            arabic="أذكار بعد الصلاة"
           />
           <OccasionRow
             to="/sortie"
@@ -276,12 +319,6 @@ function AdhkarChooser({
             label="Voyage"
             arabic="أذكار السفر"
           />
-          <OccasionRow
-            to="/khatma"
-            icon={<BookOpen className="size-4" />}
-            label="Fin de lecture du Coran"
-            arabic="ختم القرآن"
-          />
         </div>
       </div>
     </div>
@@ -294,7 +331,7 @@ function OccasionRow({
   label,
   arabic,
 }: {
-  to: "/coucher" | "/sortie" | "/voyage" | "/khatma";
+  to: "/reveil" | "/coucher" | "/apres-priere" | "/sortie" | "/voyage";
   icon: ReactNode;
   label: string;
   arabic: string;

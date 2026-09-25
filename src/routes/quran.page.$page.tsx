@@ -36,8 +36,11 @@ import {
   keysToEndOfQuran,
   normalizeArabicForSearch,
   parseQuranQuery,
+  parseTajweedSegments,
   searchQuranArabic,
   searchQuranFallback,
+  TAJWEED_COLORS,
+  TAJWEED_LEGEND,
   verseAudioUrl,
   type Chapter,
   type PageVerse,
@@ -547,6 +550,9 @@ function MushafPage() {
   const sheetRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState(26);
   const [zoom, setZoom] = useLocalState("adhkar:mushaf-zoom", 1);
+  /** Couche visuelle uniquement (couleurs) — jamais de reflow, jamais de
+   * changement de line_number/texte/ordre. Voir src/lib/mushaf.ts. */
+  const [tajweedMode, setTajweedMode] = useLocalState("adhkar:tajweed-mode", false);
   const ZOOM_LEVELS = [0.85, 1, 1.15, 1.3] as const;
 
   useLayoutEffect(() => {
@@ -1005,7 +1011,20 @@ function MushafPage() {
                             w.end && "text-gold",
                           )}
                         >
-                          {w.end ? `\u06DD${toArabic(w.ayah)}` : w.text}
+                          {w.end
+                            ? `\u06DD${toArabic(w.ayah)}`
+                            : tajweedMode && w.tajweed
+                              ? parseTajweedSegments(w.tajweed).map((seg, si) => (
+                                  <span
+                                    key={si}
+                                    style={
+                                      seg.rule ? { color: TAJWEED_COLORS[seg.rule] } : undefined
+                                    }
+                                  >
+                                    {seg.text}
+                                  </span>
+                                ))
+                              : w.text}
                         </span>
                       );
                     })}
@@ -1302,6 +1321,48 @@ function MushafPage() {
                   A+
                 </button>
               </div>
+
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Affichage
+              </p>
+              <div className="mb-1 flex gap-1 rounded-full border border-border p-1">
+                {(
+                  [
+                    { v: false, l: "Normal" },
+                    { v: true, l: "Tajwīd" },
+                  ] as const
+                ).map((o) => (
+                  <button
+                    key={String(o.v)}
+                    onClick={() => setTajweedMode(o.v)}
+                    aria-pressed={tajweedMode === o.v}
+                    className={cn(
+                      "flex-1 rounded-full py-2 text-sm font-semibold transition",
+                      tajweedMode === o.v
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {o.l}
+                  </button>
+                ))}
+              </div>
+              {tajweedMode && (
+                <div className="mb-4 grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-2xl border border-border bg-background p-3">
+                  {TAJWEED_LEGEND.map((item) => (
+                    <div
+                      key={item.rule}
+                      className="flex items-center gap-1.5 text-[11px] text-foreground"
+                    >
+                      <span
+                        className="size-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: TAJWEED_COLORS[item.rule] }}
+                      />
+                      {item.label}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Footer sticky : une seule action pour appliquer la config et lancer. */}

@@ -75,6 +75,13 @@ export interface LayoutWord {
   end: boolean;
   /** premier mot du verset */
   first: boolean;
+  /**
+   * Texte du même mot avec balises `<rule class=X>...</rule>` — fourni
+   * directement par api.quran.com (Hafs 'an 'Asim, alignement mot à mot
+   * garanti par l'API elle-même). Purement une couche visuelle : jamais
+   * utilisé pour la composition des lignes ni la sélection/navigation.
+   */
+  tajweed?: string;
 }
 
 export interface MushafLine {
@@ -94,7 +101,7 @@ export interface PageLayout {
  */
 export async function fetchPageLayout(page: number): Promise<PageLayout> {
   const res = await fetch(
-    `${API}/verses/by_page/${clampPage(page)}?words=true&word_fields=text_uthmani,line_number&fields=text_uthmani&per_page=50`,
+    `${API}/verses/by_page/${clampPage(page)}?words=true&word_fields=text_uthmani,line_number,text_uthmani_tajweed&fields=text_uthmani&per_page=50`,
   );
   if (!res.ok) throw new Error("Page indisponible");
   const json = await res.json();
@@ -122,6 +129,7 @@ export async function fetchPageLayout(page: number): Promise<PageLayout> {
         text: w.text_uthmani ?? w.text ?? "",
         end: w.char_type_name === "end",
         first: i === 0,
+        tajweed: typeof w.text_uthmani_tajweed === "string" ? w.text_uthmani_tajweed : undefined,
       });
       byLine.set(line, arr);
     });
@@ -131,6 +139,78 @@ export async function fetchPageLayout(page: number): Promise<PageLayout> {
     .map(([n, words]) => ({ n, words }));
   return { verses, lines };
 }
+
+/**
+ * Tajwīd (Ḥafṣ ʿan ʿĀṣim) — couche VISUELLE uniquement, appliquée sur les
+ * mots déjà composés par le fitting existant (aucun impact sur
+ * line_number/ordre/texte). Les règles elles-mêmes proviennent
+ * exclusivement de `word.tajweed` (api.quran.com, aligné mot à mot) —
+ * jamais déterminées ici. Seule la couleur associée à chaque catégorie de
+ * règle est un choix d'affichage (convention usuelle des Mushaf Tajwīd
+ * imprimés), pas une décision religieuse.
+ */
+export interface TajweedSegment {
+  text: string;
+  rule: string | null;
+}
+
+const TAJWEED_TOKEN_RE = /<rule class=([a-z0-9_-]+)>|<\/rule>|[^<]+/gi;
+
+/**
+ * Découpe le texte balisé en segments {text, rule}. Gère les balises
+ * imbriquées (ex. `<rule class=madda_normal><rule class=custom-...>ٰ</rule></rule>`,
+ * observées en pratique sur certains mots) via une pile : le texte à
+ * l'intérieur prend la couleur de la règle la plus EXTÉRIEURE — jamais une
+ * catégorie inventée pour la sous-balise interne. Jamais de reflow : la
+ * concaténation des `text` reconstitue exactement le mot d'origine.
+ */
+export function parseTajweedSegments(tagged: string): TajweedSegment[] {
+  const segments: TajweedSegment[] = [];
+  const stack: string[] = [];
+  TAJWEED_TOKEN_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = TAJWEED_TOKEN_RE.exec(tagged))) {
+    const token = m[0];
+    if (token === "</rule>") {
+      stack.pop();
+    } else if (token.startsWith("<rule")) {
+      stack.push(m[1]);
+    } else {
+      segments.push({ text: token, rule: stack[0] ?? null });
+    }
+  }
+  return segments;
+}
+
+/** Couleur par catégorie de règle — convention usuelle des Mushaf Tajwīd
+ * imprimés, pas une invention de règle (voir commentaire ci-dessus). */
+export const TAJWEED_COLORS: Record<string, string> = {
+  ham_wasl: "#9CA3AF",
+  laam_shamsiyah: "#9CA3AF",
+  slnt: "#9CA3AF",
+  madda_normal: "#F59E0B",
+  madda_permissible: "#F59E0B",
+  madda_necessary: "#DC2626",
+  madda_obligatory_monfasel: "#DC2626",
+  madda_obligatory_mottasel: "#DC2626",
+  ghunnah: "#0D9488",
+  idgham_ghunnah: "#16A34A",
+  idgham_wo_ghunnah: "#0891B2",
+  ikhafa: "#EA580C",
+  qalaqah: "#7C3AED",
+};
+
+/** Libellés discrets pour la légende (Options du Mushaf). */
+export const TAJWEED_LEGEND: { rule: string; label: string }[] = [
+  { rule: "ghunnah", label: "Ghunnah (nasalisation)" },
+  { rule: "idgham_ghunnah", label: "Idghām avec ghunnah" },
+  { rule: "idgham_wo_ghunnah", label: "Idghām sans ghunnah" },
+  { rule: "ikhafa", label: "Ikhfā'" },
+  { rule: "qalaqah", label: "Qalqalah" },
+  { rule: "madda_necessary", label: "Madd obligatoire (4-6 temps)" },
+  { rule: "madda_permissible", label: "Madd permis (2-4-6 temps)" },
+  { rule: "ham_wasl", label: "Hamzat al-waṣl / lettre non prononcée" },
+];
 
 /** Versets d'une sourate (clés uniquement) pour la lecture continue. */
 export async function fetchSurahVerseKeys(surah: number): Promise<string[]> {

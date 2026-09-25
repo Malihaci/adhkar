@@ -514,3 +514,91 @@ export const voyageAdhkar: Dhikr[] = [
     validationStatus: "verified_source",
   },
 ];
+
+export const reveilAdhkar: Dhikr[] = [
+  {
+    id: "reveil-1",
+    category: "reveil",
+    title: "Alhamdulillah alladhi ahyana",
+    titleAr: "الحمد لله الذي أحيانا",
+    arabic: "الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ",
+    phonetic: "Al-hamdu li-llâhi-lladhî ahyânâ ba'da mâ amâtanâ wa ilayhi-n-nushûr",
+    translation:
+      "Louange à Allah qui nous a rendu la vie après nous avoir fait mourir (le sommeil), et c'est vers Lui la résurrection.",
+    repetitions: 1,
+    explanation:
+      "D'après Hudhayfa (qu'Allah l'agrée) : à son réveil, le Prophète ﷺ disait cette invocation (la même narration donne aussi celle du coucher, « Bismika Allâhumma amûtu wa ahyâ »).",
+    merits: "",
+    reference: "Source : Sahih al-Bukhari 6324 ⓘ",
+    context: "Au réveil",
+    propheticEvidenceType: "A",
+    primarySource: "Sahih al-Bukhari",
+    collection: "Sahih al-Bukhari",
+    hadithNumber: "6324",
+    narrator: "Hudhayfa ibn al-Yaman (رضي الله عنه)",
+    authenticityGrade: "Sahih (recueil authentique par consensus)",
+    authenticityGrader: "Al-Bukhari",
+    evidenceSummaryFr:
+      "Pratique personnelle et régulière du Prophète ﷺ rapportée directement (type A).",
+    validationStatus: "verified_source",
+  },
+];
+
+export const apresPriereAdhkar: Dhikr[] = [
+  {
+    id: "apres-priere-1",
+    category: "apres_priere",
+    title: "Istighfar × 3 puis Allahumma anta as-Salam",
+    titleAr: "أستغفر الله ثلاثا ثم اللهم أنت السلام",
+    arabic:
+      "أَسْتَغْفِرُ اللَّهَ (×3) اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ",
+    phonetic:
+      "Astaghfiru-llâh (×3), Allâhumma anta-s-Salâm wa minka-s-salâm, tabârakta yâ Dhâ-l-Jalâli wa-l-Ikrâm",
+    translation:
+      "Je demande pardon à Allah (3 fois). Ô Allah, Tu es la Paix et de Toi vient la paix ; béni sois-Tu, ô Détenteur de la Majesté et de la Générosité.",
+    repetitions: 1,
+    explanation:
+      "Thawban (qu'Allah l'agrée) rapporte que lorsque le Messager d'Allah ﷺ terminait sa prière, il demandait pardon trois fois puis disait cette invocation.",
+    merits: "",
+    reference: "Source : Sahih Muslim 591 ⓘ",
+    context: "Juste après le salut de la prière obligatoire",
+    propheticEvidenceType: "A",
+    primarySource: "Sahih Muslim",
+    collection: "Sahih Muslim",
+    hadithNumber: "591",
+    narrator: "Thawban (رضي الله عنه)",
+    authenticityGrade: "Sahih (recueil authentique par consensus)",
+    authenticityGrader: "Muslim",
+    evidenceSummaryFr:
+      "Pratique régulière du Prophète ﷺ rapportée directement (type A), nombre 3 explicite.",
+    validationStatus: "verified_source",
+  },
+  {
+    id: "apres-priere-2",
+    category: "apres_priere",
+    title: "Tasbih 33 · Tahmid 33 · Takbir 33 + complément à 100",
+    titleAr: "تسبيح ٣٣ وتحميد ٣٣ وتكبير ٣٣ وتمام المائة",
+    arabic:
+      "سُبْحَانَ اللَّهِ (×33) الْحَمْدُ لِلَّهِ (×33) اللَّهُ أَكْبَرُ (×33) لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ",
+    phonetic:
+      "Subhâna-llâh (×33), Al-hamdu li-llâh (×33), Allâhu akbar (×33), puis : Lâ ilâha illa-llâhu wahdahu lâ sharîka lah, lahu-l-mulku wa lahu-l-hamdu wa huwa 'alâ kulli shay'in Qadîr",
+    translation:
+      "Gloire à Allah (33 fois). Louange à Allah (33 fois). Allah est le Plus Grand (33 fois) — cela fait 99 — puis, pour compléter cent : nulle divinité sauf Allah, seul et sans associé, à Lui la royauté, à Lui la louange, et Il est capable de toute chose.",
+    repetitions: 1,
+    explanation:
+      "Abu Hurayra (qu'Allah l'agrée) rapporte que le Messager d'Allah ﷺ a dit : « Quiconque glorifie Allah après chaque prière 33 fois, Le loue 33 fois, proclame Sa grandeur 33 fois — cela fait 99 — et dit, pour compléter cent : [la formule ci-dessus], ses péchés seront pardonnés, fussent-ils abondants comme l'écume de la mer. »",
+    merits: "Le pardon des péchés est explicitement mentionné dans cette narration.",
+    reference: "Source : Sahih Muslim 597a ⓘ",
+    context: "Après chaque prière obligatoire",
+    propheticEvidenceType: "A",
+    primarySource: "Sahih Muslim",
+    collection: "Sahih Muslim",
+    hadithNumber: "597a",
+    narrator: "Abu Hurayra (رضي الله عنه)",
+    authenticityGrade: "Sahih (recueil authentique par consensus)",
+    authenticityGrader: "Muslim",
+    evidenceSummaryFr:
+      "Parole directe du Prophète ﷺ (type A) ; les nombres 33/33/33 et la formule de complément à 100 sont explicites dans le texte du hadith.",
+    validationStatus: "verified_source",
+  },
+];

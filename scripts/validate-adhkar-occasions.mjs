@@ -2,10 +2,22 @@
 // / khatma) — jamais un hadith faible présenté comme authentique, jamais
 // un nombre de répétitions sans preuve, jamais une pratique de Compagnon
 // présentée comme parole du Prophète ﷺ. Signale seulement, ne corrige rien.
-import { coucherAdhkar, sortieAdhkar, voyageAdhkar } from "../src/data/adhkar-occasions.ts";
+import {
+  coucherAdhkar,
+  sortieAdhkar,
+  voyageAdhkar,
+  reveilAdhkar,
+  apresPriereAdhkar,
+} from "../src/data/adhkar-occasions.ts";
 import { anasKhatmaPractice } from "../src/data/khatma.ts";
 
-const ALL = [...coucherAdhkar, ...sortieAdhkar, ...voyageAdhkar];
+const ALL = [
+  ...coucherAdhkar,
+  ...sortieAdhkar,
+  ...voyageAdhkar,
+  ...reveilAdhkar,
+  ...apresPriereAdhkar,
+];
 const EVIDENCE_TYPES = new Set(["A", "B", "C", "D", "E"]);
 const WEAK_MARKERS = /faible|da[ée]if|fabriqu|munkar|matr[ou]uk|mawd[ou]'?/i;
 
@@ -98,7 +110,7 @@ if (/le proph[eè]te.*(disait|faisait)/i.test(anasKhatmaPractice.translationFr))
 }
 
 console.log(
-  `\n${ALL.length} adhkār vérifiés (${coucherAdhkar.length} coucher, ${sortieAdhkar.length} sortie, ${voyageAdhkar.length} voyage) + 1 pratique Khatma.`,
+  `\n${ALL.length} adhkār vérifiés (${coucherAdhkar.length} coucher, ${sortieAdhkar.length} sortie, ${voyageAdhkar.length} voyage, ${reveilAdhkar.length} réveil, ${apresPriereAdhkar.length} après-prière) + 1 pratique Khatma.`,
 );
 console.log(issues === 0 ? "Aucune anomalie détectée." : `${issues} anomalie(s) détectée(s).`);
 process.exit(issues === 0 ? 0 : 1);
