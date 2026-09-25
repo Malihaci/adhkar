@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import type { DhikrCategory } from "@/data/adhkar";
 
 const isBrowser = typeof window !== "undefined";
 
@@ -118,7 +119,7 @@ export function useDailyProgress() {
     [setProgress],
   );
 
-  const setLastRead = useCallback((id: string, category: "morning" | "evening", index?: number) => {
+  const setLastRead = useCallback((id: string, category: DhikrCategory, index?: number) => {
     writeJSON("adhkar:last-read", { id, category, index, at: Date.now() });
   }, []);
 
@@ -127,12 +128,12 @@ export function useDailyProgress() {
 
 export interface LastRead {
   id?: string;
-  category?: "morning" | "evening";
+  category?: DhikrCategory;
   index?: number;
   at?: number;
 }
 
-export function getLastReadIndex(category: "morning" | "evening"): number | null {
+export function getLastReadIndex(category: DhikrCategory): number | null {
   const raw = readJSON<LastRead | null>("adhkar:last-read", null);
   if (!raw || raw.category !== category) return null;
   return typeof raw.index === "number" ? raw.index : null;

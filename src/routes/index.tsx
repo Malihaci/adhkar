@@ -3,8 +3,10 @@ import { useState, type ReactNode } from "react";
 import {
   BookMarked,
   BookOpen,
+  DoorOpen,
   Headphones,
   Heart,
+  Luggage,
   Moon,
   Sparkles,
   Sunrise,
@@ -21,8 +23,7 @@ export const Route = createFileRoute("/")({
       { title: "Accueil — Adhkâr du Matin et du Soir" },
       {
         name: "description",
-        content:
-          "Adhkâr du matin, du soir, lecture du Coran et Tadabbur.",
+        content: "Adhkâr du matin, du soir, lecture du Coran et Tadabbur.",
       },
       { property: "og:title", content: "Adhkâr — Accueil" },
       {
@@ -41,12 +42,12 @@ export const Route = createFileRoute("/")({
  */
 const SHOW_ECOUTE_ENTRY = false;
 
-function computeProgress(list: { id: string; repetitions: number }[], counts: Record<string, number>) {
+function computeProgress(
+  list: { id: string; repetitions: number }[],
+  counts: Record<string, number>,
+) {
   const total = list.reduce((n, d) => n + d.repetitions, 0);
-  const done = list.reduce(
-    (n, d) => n + Math.min(counts[d.id] ?? 0, d.repetitions),
-    0,
-  );
+  const done = list.reduce((n, d) => n + Math.min(counts[d.id] ?? 0, d.repetitions), 0);
   return { total, done, pct: total ? Math.round((done / total) * 100) : 0 };
 }
 
@@ -58,10 +59,7 @@ function Index() {
   const [adhkarChooserOpen, setAdhkarChooserOpen] = useState(false);
 
   return (
-    <AppShell
-      title="As-salâmu 'alaykum"
-      subtitle="Que votre journée soit remplie de dhikr."
-    >
+    <AppShell title="As-salâmu 'alaykum" subtitle="Que votre journée soit remplie de dhikr.">
       <div className="space-y-5">
         {/* 4 portes principales, même taille, même famille visuelle */}
         <div className="grid grid-cols-2 gap-4">
@@ -109,9 +107,7 @@ function Index() {
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Récitation Al-‘Afâsy
               </p>
-              <p className="truncate font-medium">
-                Écoutez et suivez le texte synchronisé
-              </p>
+              <p className="truncate font-medium">Écoutez et suivez le texte synchronisé</p>
             </div>
           </Link>
         )}
@@ -132,13 +128,7 @@ function Index() {
 const GATE_CLASS =
   "surface-card group flex aspect-square flex-col items-center justify-center gap-2.5 rounded-3xl p-4 text-center transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-elevated)] active:scale-[0.98]";
 
-function GateIcon({
-  tone,
-  children,
-}: {
-  tone: "primary" | "gold";
-  children: ReactNode;
-}) {
+function GateIcon({ tone, children }: { tone: "primary" | "gold"; children: ReactNode }) {
   return (
     <span
       className={cn(
@@ -228,9 +218,7 @@ function AdhkarChooser({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="font-display text-lg font-semibold">
-            Quel Adhkâr souhaitez-vous lire ?
-          </h2>
+          <h2 className="font-display text-lg font-semibold">Quel Adhkâr souhaitez-vous lire ?</h2>
           <button
             onClick={onClose}
             aria-label="Fermer"
@@ -249,9 +237,7 @@ function AdhkarChooser({
             </span>
             <div className="min-w-0 flex-1">
               <p className="font-medium text-foreground">Adhkâr du matin</p>
-              <p className="text-xs text-muted-foreground">
-                {morningPct}% complété aujourd'hui
-              </p>
+              <p className="text-xs text-muted-foreground">{morningPct}% complété aujourd'hui</p>
             </div>
           </Link>
           <Link
@@ -263,13 +249,68 @@ function AdhkarChooser({
             </span>
             <div className="min-w-0 flex-1">
               <p className="font-medium text-foreground">Adhkâr du soir</p>
-              <p className="text-xs text-muted-foreground">
-                {eveningPct}% complété aujourd'hui
-              </p>
+              <p className="text-xs text-muted-foreground">{eveningPct}% complété aujourd'hui</p>
             </div>
           </Link>
         </div>
+
+        <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Autres occasions
+        </p>
+        <div className="space-y-1.5">
+          <OccasionRow
+            to="/coucher"
+            icon={<Moon className="size-4" />}
+            label="Avant de dormir"
+            arabic="أذكار النوم"
+          />
+          <OccasionRow
+            to="/sortie"
+            icon={<DoorOpen className="size-4" />}
+            label="Sortir de la maison"
+            arabic="الخروج من المنزل"
+          />
+          <OccasionRow
+            to="/voyage"
+            icon={<Luggage className="size-4" />}
+            label="Voyage"
+            arabic="أذكار السفر"
+          />
+          <OccasionRow
+            to="/khatma"
+            icon={<BookOpen className="size-4" />}
+            label="Fin de lecture du Coran"
+            arabic="ختم القرآن"
+          />
+        </div>
       </div>
     </div>
+  );
+}
+
+function OccasionRow({
+  to,
+  icon,
+  label,
+  arabic,
+}: {
+  to: "/coucher" | "/sortie" | "/voyage" | "/khatma";
+  icon: ReactNode;
+  label: string;
+  arabic: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-muted"
+    >
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{label}</span>
+      <span lang="ar" dir="rtl" className="font-arabic text-xs text-muted-foreground">
+        {arabic}
+      </span>
+    </Link>
   );
 }

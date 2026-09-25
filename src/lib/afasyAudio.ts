@@ -1,22 +1,22 @@
-import type { Dhikr, DhikrCategory } from "@/data/adhkar";
+import type { Dhikr } from "@/data/adhkar";
 
 // Récitations authentiques de Cheikh Mishary Rashid Al-Afasy
 // Sources publiques hébergées sur archive.org (CORS activé, Range supporté)
 // `startOffset` : durée de l'introduction (ambiance, chant du coq, ta'awwudh)
 // à sauter pour démarrer directement sur Âyat al-Kursî.
+// Uniquement matin/soir — moteur audio non étendu aux nouvelles catégories
+// (coucher/sortie/voyage) dans ce chantier.
 export const AFASY_AUDIO: Record<
-  DhikrCategory,
+  "morning" | "evening",
   { src: string; duration: number; startOffset: number }
 > = {
   morning: {
-    src:
-      "https://ia800900.us.archive.org/26/items/sheikh-mishary-rashid-alafasy-azkar/Sheikh%20Mishary%20Rashid%20Alafasy%20-%20%D8%A3%D8%B0%D9%83%D8%A7%D8%B1%20%D8%A7%D9%84%D8%B5%D8%A8%D8%A7%D8%AD.mp3",
+    src: "https://ia800900.us.archive.org/26/items/sheikh-mishary-rashid-alafasy-azkar/Sheikh%20Mishary%20Rashid%20Alafasy%20-%20%D8%A3%D8%B0%D9%83%D8%A7%D8%B1%20%D8%A7%D9%84%D8%B5%D8%A8%D8%A7%D8%AD.mp3",
     duration: 1408.55,
     startOffset: 41,
   },
   evening: {
-    src:
-      "https://ia800900.us.archive.org/26/items/sheikh-mishary-rashid-alafasy-azkar/Sheikh%20Mishary%20Rashid%20Alafasy%20-%20%D8%A3%D8%B0%D9%83%D8%A7%D8%B1%20%D8%A7%D9%84%D9%85%D8%B3%D8%A7%D8%A1.mp3",
+    src: "https://ia800900.us.archive.org/26/items/sheikh-mishary-rashid-alafasy-azkar/Sheikh%20Mishary%20Rashid%20Alafasy%20-%20%D8%A3%D8%B0%D9%83%D8%A7%D8%B1%20%D8%A7%D9%84%D9%85%D8%B3%D8%A7%D8%A1.mp3",
     duration: 1662.59,
     startOffset: 41,
   },
@@ -37,11 +37,7 @@ function weight(d: Dhikr): number {
  * continue d'Al-Afasy, en ignorant l'introduction (`startOffset`) et en
  * distribuant le reste proportionnellement à la longueur pondérée.
  */
-export function buildTimeMap(
-  list: Dhikr[],
-  duration: number,
-  startOffset = 0,
-): number[] {
+export function buildTimeMap(list: Dhikr[], duration: number, startOffset = 0): number[] {
   const usable = Math.max(1, duration - startOffset);
   const weights = list.map(weight);
   const total = weights.reduce((a, b) => a + b, 0);
@@ -69,7 +65,5 @@ export function calibrateTimeMap(
   const anchor = map[index];
   if (anchor === undefined) return map;
   const delta = time - anchor;
-  return map.map((t, i) =>
-    Math.min(duration - 1, Math.max(i === 0 ? startOffset : 0, t + delta)),
-  );
+  return map.map((t, i) => Math.min(duration - 1, Math.max(i === 0 ? startOffset : 0, t + delta)));
 }

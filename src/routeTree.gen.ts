@@ -10,13 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CoucherRouteImport } from './routes/coucher'
 import { Route as EcouteRouteImport } from './routes/ecoute'
 import { Route as FavorisRouteImport } from './routes/favoris'
 import { Route as FavorisLectureRouteImport } from './routes/favoris-lecture'
+import { Route as KhatmaRouteImport } from './routes/khatma'
 import { Route as MatinRouteImport } from './routes/matin'
 import { Route as RechercheRouteImport } from './routes/recherche'
 import { Route as SoirRouteImport } from './routes/soir'
+import { Route as SortieRouteImport } from './routes/sortie'
 import { Route as TadabburRouteImport } from './routes/tadabbur'
+import { Route as VoyageRouteImport } from './routes/voyage'
 import { Route as SourateSurahRouteImport } from './routes/sourate.$surah'
 import { Route as EtudeSurahAyahRouteImport } from './routes/etude.$surah.$ayah'
 import { Route as QuranPagePageRouteImport } from './routes/quran.page.$page'
@@ -24,6 +28,11 @@ import { Route as QuranPagePageRouteImport } from './routes/quran.page.$page'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoucherRoute = CoucherRouteImport.update({
+  id: '/coucher',
+  path: '/coucher',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EcouteRoute = EcouteRouteImport.update({
@@ -41,6 +50,11 @@ const FavorisLectureRoute = FavorisLectureRouteImport.update({
   path: '/favoris-lecture',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KhatmaRoute = KhatmaRouteImport.update({
+  id: '/khatma',
+  path: '/khatma',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MatinRoute = MatinRouteImport.update({
   id: '/matin',
   path: '/matin',
@@ -56,9 +70,19 @@ const SoirRoute = SoirRouteImport.update({
   path: '/soir',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SortieRoute = SortieRouteImport.update({
+  id: '/sortie',
+  path: '/sortie',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TadabburRoute = TadabburRouteImport.update({
   id: '/tadabbur',
   path: '/tadabbur',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VoyageRoute = VoyageRouteImport.update({
+  id: '/voyage',
+  path: '/voyage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SourateSurahRoute = SourateSurahRouteImport.update({
@@ -79,26 +103,34 @@ const QuranPagePageRoute = QuranPagePageRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/coucher': typeof CoucherRoute
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
+  '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/recherche': typeof RechercheRoute
   '/soir': typeof SoirRoute
+  '/sortie': typeof SortieRoute
   '/tadabbur': typeof TadabburRoute
+  '/voyage': typeof VoyageRoute
   '/sourate/$surah': typeof SourateSurahRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/coucher': typeof CoucherRoute
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
+  '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/recherche': typeof RechercheRoute
   '/soir': typeof SoirRoute
+  '/sortie': typeof SortieRoute
   '/tadabbur': typeof TadabburRoute
+  '/voyage': typeof VoyageRoute
   '/sourate/$surah': typeof SourateSurahRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
@@ -106,13 +138,17 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/coucher': typeof CoucherRoute
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
+  '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/recherche': typeof RechercheRoute
   '/soir': typeof SoirRoute
+  '/sortie': typeof SortieRoute
   '/tadabbur': typeof TadabburRoute
+  '/voyage': typeof VoyageRoute
   '/sourate/$surah': typeof SourateSurahRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
@@ -121,39 +157,51 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/coucher'
     | '/ecoute'
     | '/favoris'
     | '/favoris-lecture'
+    | '/khatma'
     | '/matin'
     | '/recherche'
     | '/soir'
+    | '/sortie'
     | '/tadabbur'
+    | '/voyage'
     | '/sourate/$surah'
     | '/etude/$surah/$ayah'
     | '/quran/page/$page'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/coucher'
     | '/ecoute'
     | '/favoris'
     | '/favoris-lecture'
+    | '/khatma'
     | '/matin'
     | '/recherche'
     | '/soir'
+    | '/sortie'
     | '/tadabbur'
+    | '/voyage'
     | '/sourate/$surah'
     | '/etude/$surah/$ayah'
     | '/quran/page/$page'
   id:
     | '__root__'
     | '/'
+    | '/coucher'
     | '/ecoute'
     | '/favoris'
     | '/favoris-lecture'
+    | '/khatma'
     | '/matin'
     | '/recherche'
     | '/soir'
+    | '/sortie'
     | '/tadabbur'
+    | '/voyage'
     | '/sourate/$surah'
     | '/etude/$surah/$ayah'
     | '/quran/page/$page'
@@ -161,13 +209,17 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CoucherRoute: typeof CoucherRoute
   EcouteRoute: typeof EcouteRoute
   FavorisRoute: typeof FavorisRoute
   FavorisLectureRoute: typeof FavorisLectureRoute
+  KhatmaRoute: typeof KhatmaRoute
   MatinRoute: typeof MatinRoute
   RechercheRoute: typeof RechercheRoute
   SoirRoute: typeof SoirRoute
+  SortieRoute: typeof SortieRoute
   TadabburRoute: typeof TadabburRoute
+  VoyageRoute: typeof VoyageRoute
   SourateSurahRoute: typeof SourateSurahRoute
   EtudeSurahAyahRoute: typeof EtudeSurahAyahRoute
   QuranPagePageRoute: typeof QuranPagePageRoute
@@ -180,6 +232,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/coucher': {
+      id: '/coucher'
+      path: '/coucher'
+      fullPath: '/coucher'
+      preLoaderRoute: typeof CoucherRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ecoute': {
@@ -203,6 +262,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FavorisLectureRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/khatma': {
+      id: '/khatma'
+      path: '/khatma'
+      fullPath: '/khatma'
+      preLoaderRoute: typeof KhatmaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/matin': {
       id: '/matin'
       path: '/matin'
@@ -224,11 +290,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SoirRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sortie': {
+      id: '/sortie'
+      path: '/sortie'
+      fullPath: '/sortie'
+      preLoaderRoute: typeof SortieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tadabbur': {
       id: '/tadabbur'
       path: '/tadabbur'
       fullPath: '/tadabbur'
       preLoaderRoute: typeof TadabburRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/voyage': {
+      id: '/voyage'
+      path: '/voyage'
+      fullPath: '/voyage'
+      preLoaderRoute: typeof VoyageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sourate/$surah': {
@@ -257,13 +337,17 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CoucherRoute: CoucherRoute,
   EcouteRoute: EcouteRoute,
   FavorisRoute: FavorisRoute,
   FavorisLectureRoute: FavorisLectureRoute,
+  KhatmaRoute: KhatmaRoute,
   MatinRoute: MatinRoute,
   RechercheRoute: RechercheRoute,
   SoirRoute: SoirRoute,
+  SortieRoute: SortieRoute,
   TadabburRoute: TadabburRoute,
+  VoyageRoute: VoyageRoute,
   SourateSurahRoute: SourateSurahRoute,
   EtudeSurahAyahRoute: EtudeSurahAyahRoute,
   QuranPagePageRoute: QuranPagePageRoute,

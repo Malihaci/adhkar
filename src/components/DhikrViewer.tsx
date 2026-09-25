@@ -12,14 +12,10 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { AyahText } from "@/components/AyahText";
+import { SourceInfo } from "@/components/SourceInfo";
 
 import type { Dhikr } from "@/data/adhkar";
-import {
-  useDailyProgress,
-  useFavorites,
-  getLastReadIndex,
-  useLocalState,
-} from "@/lib/storage";
+import { useDailyProgress, useFavorites, getLastReadIndex, useLocalState } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
 type FontSize = "normal" | "large" | "xlarge";
@@ -59,14 +55,8 @@ export function DhikrViewer({
   const { isFavorite, toggle } = useFavorites();
   const category = list[0]?.category ?? "morning";
   const [idx, setIdx] = useState(initialIndex ?? 0);
-  const [showPhonetic, setShowPhonetic] = useLocalState<boolean>(
-    "adhkar:phonetic",
-    false,
-  );
-  const [fontSize, setFontSize] = useLocalState<FontSize>(
-    "adhkar:font-size",
-    "large",
-  );
+  const [showPhonetic, setShowPhonetic] = useLocalState<boolean>("adhkar:phonetic", false);
+  const [fontSize, setFontSize] = useLocalState<FontSize>("adhkar:font-size", "large");
   const [sizeOpen, setSizeOpen] = useState(false);
   const [liveOpen, setLiveOpen] = useState(false);
   const [warnOpen, setWarnOpen] = useState(false);
@@ -92,7 +82,6 @@ export function DhikrViewer({
     if (persist && dhikr) setLastRead(dhikr.id, dhikr.category, idx);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx]);
-
 
   if (!dhikr) return null;
 
@@ -149,10 +138,7 @@ export function DhikrViewer({
         <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-3 py-2.5 sm:px-4">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {label ??
-                (category === "morning"
-                  ? "Adhkâr du matin"
-                  : "Adhkâr du soir")}
+              {label ?? (category === "morning" ? "Adhkâr du matin" : "Adhkâr du soir")}
               <span
                 className={cn(
                   "ml-2 font-bold tabular-nums",
@@ -209,18 +195,14 @@ export function DhikrViewer({
               aria-pressed={fav}
               className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-gold"
             >
-              <Heart
-                className={cn("size-6 transition", fav && "fill-gold text-gold")}
-              />
+              <Heart className={cn("size-6 transition", fav && "fill-gold text-gold")} />
             </button>
           </div>
         </header>
 
         {/* Phonétique toggle */}
         <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2 sm:px-4">
-          <span className="text-sm font-medium text-muted-foreground">
-            Phonétique
-          </span>
+          <span className="text-sm font-medium text-muted-foreground">Phonétique</span>
           <button
             onClick={() => setShowPhonetic(!showPhonetic)}
             role="switch"
@@ -284,11 +266,29 @@ export function DhikrViewer({
             </button>
             {liveOpen && (
               <div className="space-y-3 border-t border-border px-4 py-3 text-sm leading-relaxed text-foreground">
+                {dhikr.context && (
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                    {dhikr.context}
+                  </p>
+                )}
                 <p>{dhikr.explanation}</p>
-                <p>{dhikr.merits}</p>
-                <p className="text-xs text-muted-foreground">
-                  {dhikr.reference}
-                </p>
+                {dhikr.merits && <p>{dhikr.merits}</p>}
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <span>{dhikr.reference}</span>
+                  {dhikr.collection && (
+                    <SourceInfo
+                      sourceTitle={dhikr.collection}
+                      sourceReference={dhikr.hadithNumber}
+                      sourceAuthor={dhikr.narrator}
+                      authenticity={
+                        dhikr.authenticityGrade
+                          ? `${dhikr.authenticityGrade}${dhikr.authenticityGrader ? " — " + dhikr.authenticityGrader : ""}`
+                          : undefined
+                      }
+                      nature={dhikr.evidenceSummaryFr}
+                    />
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -302,11 +302,7 @@ export function DhikrViewer({
               aria-label={backTo === "/favoris" ? "Retour aux favoris" : "Accueil"}
               className="grid size-12 shrink-0 place-items-center rounded-2xl bg-destructive/15 text-destructive transition active:scale-95"
             >
-              {backTo === "/favoris" ? (
-                <Heart className="size-5" />
-              ) : (
-                <Home className="size-5" />
-              )}
+              {backTo === "/favoris" ? <Heart className="size-5" /> : <Home className="size-5" />}
             </Link>
             <button
               onClick={() => go(-1)}
@@ -378,21 +374,13 @@ export function DhikrViewer({
         {warnOpen && (
           <div className="absolute inset-0 z-20 grid place-items-center bg-background/80 p-5 backdrop-blur-sm">
             <div className="surface-card w-full max-w-sm space-y-4 p-5 text-center">
-              <h4 className="font-display text-lg font-bold text-foreground">
-                Dhikr incomplet
-              </h4>
+              <h4 className="font-display text-lg font-bold text-foreground">Dhikr incomplet</h4>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Vous ne l'avez récité que{" "}
-                <span className="font-bold text-foreground">{count}</span> fois
-                sur{" "}
-                <span className="font-bold text-primary">
-                  {dhikr.repetitions} fois
-                </span>
-                . Il faut le lire{" "}
-                <span className="font-bold text-primary">
-                  {dhikr.repetitions} fois
-                </span>{" "}
-                comme l'a enseigné le Prophète ﷺ.
+                Vous ne l'avez récité que <span className="font-bold text-foreground">{count}</span>{" "}
+                fois sur <span className="font-bold text-primary">{dhikr.repetitions} fois</span>.
+                Il faut le lire{" "}
+                <span className="font-bold text-primary">{dhikr.repetitions} fois</span> comme l'a
+                enseigné le Prophète ﷺ.
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <button

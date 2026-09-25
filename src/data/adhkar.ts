@@ -1,9 +1,22 @@
-export type DhikrCategory = "morning" | "evening";
+export type DhikrCategory = "morning" | "evening" | "coucher" | "sortie" | "voyage";
+
+/**
+ * Ce que la preuve établit réellement (chantier adhkār authentiques) —
+ * jamais transformer B/C/D/E en "Le Prophète ﷺ disait...".
+ * A : le Prophète ﷺ le disait/faisait lui-même.
+ * B : le Prophète ﷺ l'a enseigné/recommandé à quelqu'un (ou confirmé).
+ * C : un Compagnon le pratiquait.
+ * D : une pratique rapportée d'un Salaf (hors Compagnons directs du Prophète).
+ * E : invocation générale permise, sans formule prophétique spécifique.
+ */
+export type PropheticEvidenceType = "A" | "B" | "C" | "D" | "E";
 
 export interface Dhikr {
   id: string;
   category: DhikrCategory;
   title: string;
+  /** Titre arabe — optionnel, seulement pour les nouvelles catégories sourcées. */
+  titleAr?: string;
   arabic: string;
   phonetic: string;
   translation: string;
@@ -11,6 +24,24 @@ export interface Dhikr {
   explanation: string;
   merits: string;
   reference: string;
+
+  /**
+   * Champs de provenance stricte (chantier adhkār authentiques : coucher,
+   * sortie, voyage). Optionnels pour ne rien casser sur matin/soir
+   * existants. Quand présents, affichés via le ⓘ (SourceInfo) plutôt que
+   * dans le corps du texte — transparence sans polluer la lecture.
+   */
+  context?: string;
+  propheticEvidenceType?: PropheticEvidenceType;
+  primarySource?: string;
+  collection?: string;
+  hadithNumber?: string;
+  narrator?: string;
+  authenticityGrade?: string;
+  authenticityGrader?: string;
+  evidenceSummaryFr?: string;
+  sourceIds?: string[];
+  validationStatus?: "verified_source" | "needs_review";
 }
 
 // Textes arabes partagés (Coran & formules identiques matin/soir)
@@ -80,8 +111,7 @@ const KALIMAT_FR =
 
 const SALAT_NABI_AR = "اللَّهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَىٰ نَبِيِّنَا مُحَمَّدٍ.";
 const SALAT_NABI_PH = "Allâhumma salli wa sallim wa bârik 'alâ nabiyyinâ Muhammad.";
-const SALAT_NABI_FR =
-  "Ô Allah, prie sur notre Prophète Muhammad, accorde-lui la paix et bénis-le.";
+const SALAT_NABI_FR = "Ô Allah, prie sur notre Prophète Muhammad, accorde-lui la paix et bénis-le.";
 
 const SHIRK_AR =
   "اللَّهُمَّ إِنَّا نَعُوذُ بِكَ مِنْ أَنْ نُشْرِكَ بِكَ شَيْئًا نَعْلَمُهُ، وَنَسْتَغْفِرُكَ لِمَا لَا نَعْلَمُهُ.";
@@ -104,7 +134,8 @@ const ISTIGHFAR3_PH =
 const ISTIGHFAR3_FR =
   "Je demande pardon à Allah, l'Immense, Celui en dehors de qui il n'y a pas de divinité, le Vivant, le Subsistant, et je me repens à Lui.";
 
-const YA_RABBI_AR = "يَا رَبِّ لَكَ الْحَمْدُ كَمَا يَنْبَغِي لِجَلَالِ وَجْهِكَ وَلِعَظِيمِ سُلْطَانِكَ.";
+const YA_RABBI_AR =
+  "يَا رَبِّ لَكَ الْحَمْدُ كَمَا يَنْبَغِي لِجَلَالِ وَجْهِكَ وَلِعَظِيمِ سُلْطَانِكَ.";
 const YA_RABBI_PH = "Yâ Rabbi, laka-l-hamdu kamâ yanbaghî li jalâli wajhika wa li 'azîmi sultânik.";
 const YA_RABBI_FR =
   "Ô mon Seigneur, à Toi la louange comme il sied à la majesté de Ta Face et à l'immensité de Ton pouvoir.";
@@ -180,7 +211,8 @@ const morning: Dhikr[] = [
     category: "morning",
     title: "2. Sourate Al-Ikhlâs",
     arabic: IKHLAS,
-    phonetic: "Qul Huwa-llâhu Ahad, Allâhu-s-Samad, lam yalid wa lam yûlad, wa lam yakun lahu kufuwan Ahad.",
+    phonetic:
+      "Qul Huwa-llâhu Ahad, Allâhu-s-Samad, lam yalid wa lam yûlad, wa lam yakun lahu kufuwan Ahad.",
     translation:
       "« Dis : Lui, Allah est Un. Allah, le Soutien universel. Il n'a pas engendré et n'a pas été engendré, et nul n'est égal à Lui. »",
     repetitions: 3,
@@ -240,7 +272,8 @@ const morning: Dhikr[] = [
     phonetic: SAYYID_PH,
     translation: SAYYID_FR,
     repetitions: 1,
-    explanation: "« Le maître des demandes de pardon » — la formulation la plus complète du repentir.",
+    explanation:
+      "« Le maître des demandes de pardon » — la formulation la plus complète du repentir.",
     merits:
       "Qui le dit avec certitude le matin et meurt avant le soir entre au Paradis ; de même pour le soir.",
     reference: "Sahîh al-Bukhârî 6306.",
@@ -254,7 +287,8 @@ const morning: Dhikr[] = [
     translation: RADHITU_FR,
     repetitions: 3,
     explanation: "Renouveler chaque matin son agrément envers Allah, l'Islam et son Prophète ﷺ.",
-    merits: "Il incombe à Allah de satisfaire, au Jour du Jugement, quiconque le dit trois fois matin et soir.",
+    merits:
+      "Il incombe à Allah de satisfaire, au Jour du Jugement, quiconque le dit trois fois matin et soir.",
     reference: "Abû Dâwud 5072, At-Tirmidhî 3389 — authentique.",
   },
   {
@@ -295,7 +329,8 @@ const morning: Dhikr[] = [
     phonetic: HASBI_PH,
     translation: HASBI_FR,
     repetitions: 7,
-    explanation: "Confiance totale : Allah suffit contre toute inquiétude de la vie et de l'au-delà.",
+    explanation:
+      "Confiance totale : Allah suffit contre toute inquiétude de la vie et de l'au-delà.",
     merits: "Qui le dit sept fois matin et soir, Allah lui suffit contre tout ce qui l'afflige.",
     reference: "Abû Dâwud 5081 — hasan selon Ibn Bâz.",
   },
@@ -349,7 +384,8 @@ const morning: Dhikr[] = [
     phonetic: SUBHAN_ADAD_PH,
     translation: SUBHAN_ADAD_FR,
     repetitions: 3,
-    explanation: "Formule brève et immense en récompense, comparée par le Prophète ﷺ à des heures de dhikr.",
+    explanation:
+      "Formule brève et immense en récompense, comparée par le Prophète ﷺ à des heures de dhikr.",
     merits: "Trois fois le matin égalent des milliers de tasbîh en récompense.",
     reference: "Sahîh Muslim 2726.",
   },
@@ -397,7 +433,8 @@ const morning: Dhikr[] = [
     phonetic: YA_HAYYU_PH,
     translation: YA_HAYYU_FR,
     repetitions: 3,
-    explanation: "Appel aux deux plus grands Noms — al-Hayy al-Qayyûm — pour la rectification totale.",
+    explanation:
+      "Appel aux deux plus grands Noms — al-Hayy al-Qayyûm — pour la rectification totale.",
     merits: "Invocation puissante recommandée par le Prophète ﷺ à Fâtima.",
     reference: "An-Nasâ'î dans As-Sunan al-Kubrâ, Al-Hâkim — authentifié par Al-Albânî.",
   },
@@ -424,7 +461,8 @@ const morning: Dhikr[] = [
     phonetic: ALIM_GHAYB_PH,
     translation: ALIM_GHAYB_FR,
     repetitions: 1,
-    explanation: "Reconnaissance de la seigneurie totale d'Allah et refuge contre les péchés du cœur.",
+    explanation:
+      "Reconnaissance de la seigneurie totale d'Allah et refuge contre les péchés du cœur.",
     merits: "Enseigné par le Prophète ﷺ à Abû Bakr pour matin, soir et coucher.",
     reference: "Abû Dâwud 5067, At-Tirmidhî 3392 — authentique.",
   },
@@ -449,7 +487,8 @@ const morning: Dhikr[] = [
     translation: SALAT_NABI_FR,
     repetitions: 10,
     explanation: "Multiplier la salât 'ala-n-Nabî ﷺ matin et soir.",
-    merits: "Qui prie sur lui dix fois matin et soir bénéficiera de son intercession au Jour de la Résurrection.",
+    merits:
+      "Qui prie sur lui dix fois matin et soir bénéficiera de son intercession au Jour de la Résurrection.",
     reference: "At-Tabarânî — hasan selon Al-Albânî.",
   },
   {
@@ -504,8 +543,10 @@ const morning: Dhikr[] = [
     id: "m-27-ilm-nafi",
     category: "morning",
     title: "27. Demande de science, subsistance et œuvre",
-    arabic: "اللَّهُمَّ إِنِّي أَسْأَلُكَ عِلْمًا نَافِعًا، وَرِزْقًا طَيِّبًا، وَعَمَلًا مُتَقَبَّلًا.",
-    phonetic: "Allâhumma innî as'aluka 'ilman nâfi'an, wa rizqan tayyiban, wa 'amalan mutaqabbalan.",
+    arabic:
+      "اللَّهُمَّ إِنِّي أَسْأَلُكَ عِلْمًا نَافِعًا، وَرِزْقًا طَيِّبًا، وَعَمَلًا مُتَقَبَّلًا.",
+    phonetic:
+      "Allâhumma innî as'aluka 'ilman nâfi'an, wa rizqan tayyiban, wa 'amalan mutaqabbalan.",
     translation:
       "Ô Allah, je Te demande une science utile, une subsistance licite et bonne, et une œuvre agréée.",
     repetitions: 1,
@@ -559,7 +600,8 @@ const morning: Dhikr[] = [
     translation: "Je demande pardon à Allah et me repens à Lui.",
     repetitions: 100,
     explanation: "L'istighfâr quotidien du Prophète ﷺ, plus de cent fois par jour.",
-    merits: "Cent bonnes actions écrites, cent mauvaises effacées, protection contre Shaytân jusqu'au soir.",
+    merits:
+      "Cent bonnes actions écrites, cent mauvaises effacées, protection contre Shaytân jusqu'au soir.",
     reference: "Sahîh al-Bukhârî 6307, Sahîh Muslim 2702.",
   },
 ];
@@ -573,7 +615,8 @@ const evening: Dhikr[] = [
     phonetic: AYAT_KURSI_PH,
     translation: AYAT_KURSI_FR,
     repetitions: 1,
-    explanation: "Le plus grand verset du Coran, à réciter aussi le soir pour être protégé jusqu'au matin.",
+    explanation:
+      "Le plus grand verset du Coran, à réciter aussi le soir pour être protégé jusqu'au matin.",
     merits: "Un ange est chargé de garder celui qui le récite avant de dormir jusqu'à son réveil.",
     reference: "Sahîh al-Bukhârî 2311.",
   },
@@ -583,8 +626,7 @@ const evening: Dhikr[] = [
     title: "2. Les deux derniers versets d'Al-Baqara",
     arabic:
       "آمَنَ الرَّسُولُ بِمَا أُنْزِلَ إِلَيْهِ مِنْ رَبِّهِ وَالْمُؤْمِنُونَ ۚ كُلٌّ آمَنَ بِاللَّهِ وَمَلَائِكَتِهِ وَكُتُبِهِ وَرُسُلِهِ لَا نُفَرِّقُ بَيْنَ أَحَدٍ مِنْ رُسُلِهِ ۚ وَقَالُوا سَمِعْنَا وَأَطَعْنَا ۖ غُفْرَانَكَ رَبَّنَا وَإِلَيْكَ الْمَصِيرُ. لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا ۚ لَهَا مَا كَسَبَتْ وَعَلَيْهَا مَا اكْتَسَبَتْ ۗ رَبَّنَا لَا تُؤَاخِذْنَا إِنْ نَسِينَا أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَا إِصْرًا كَمَا حَمَلْتَهُ عَلَى الَّذِينَ مِنْ قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِ ۖ وَاعْفُ عَنَّا وَاغْفِرْ لَنَا وَارْحَمْنَا ۚ أَنْتَ مَوْلَانَا فَانْصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ.",
-    phonetic:
-      "Âmana-r-Rasûlu bimâ unzila ilayhi min Rabbihi wal-mu'minûn… (Al-Baqara 285-286).",
+    phonetic: "Âmana-r-Rasûlu bimâ unzila ilayhi min Rabbihi wal-mu'minûn… (Al-Baqara 285-286).",
     translation:
       "« Le Messager a cru en ce que l'on a fait descendre vers lui de la part de son Seigneur, et aussi les croyants… Notre Seigneur, ne nous châtie pas si nous oublions ou tombons dans l'erreur… Efface nos péchés, pardonne-nous et fais-nous miséricorde. »",
     repetitions: 1,
@@ -597,10 +639,12 @@ const evening: Dhikr[] = [
     category: "evening",
     title: "3. Sourate Al-Ikhlâs",
     arabic: IKHLAS,
-    phonetic: "Qul Huwa-llâhu Ahad, Allâhu-s-Samad, lam yalid wa lam yûlad, wa lam yakun lahu kufuwan Ahad.",
+    phonetic:
+      "Qul Huwa-llâhu Ahad, Allâhu-s-Samad, lam yalid wa lam yûlad, wa lam yakun lahu kufuwan Ahad.",
     translation: "Sourate de la Pure Unicité — voir matin n°2.",
     repetitions: 3,
-    explanation: "Le Prophète ﷺ soufflait dans ses mains après les avoir récitées, avant de dormir.",
+    explanation:
+      "Le Prophète ﷺ soufflait dans ses mains après les avoir récitées, avant de dormir.",
     merits: "Refuge complet jusqu'au matin.",
     reference: "Sahîh al-Bukhârî 5017, Abû Dâwud 5082.",
   },
@@ -795,7 +839,8 @@ const evening: Dhikr[] = [
     phonetic: AFWU_PH,
     translation: AFWU_FR,
     repetitions: 1,
-    explanation: "Protection de la personne, de la religion, de la famille et des biens pour la nuit.",
+    explanation:
+      "Protection de la personne, de la religion, de la famille et des biens pour la nuit.",
     merits: "Le Prophète ﷺ ne la délaissait jamais soir et matin.",
     reference: "Abû Dâwud 5074, Ibn Mâjah 3871 — authentique.",
   },
@@ -918,7 +963,8 @@ const evening: Dhikr[] = [
     phonetic: LAILAHA_UNIT_PH,
     translation: LAILAHA_UNIT_FR,
     repetitions: 100,
-    explanation: "L'affirmation du tawhîd, à répéter cent fois — équivalente à l'affranchissement d'esclaves.",
+    explanation:
+      "L'affirmation du tawhîd, à répéter cent fois — équivalente à l'affranchissement d'esclaves.",
     merits:
       "Dix esclaves affranchis, cent bonnes actions, cent péchés effacés, protection contre Shaytân toute la nuit.",
     reference: "Sahîh al-Bukhârî 3293, Sahîh Muslim 2691.",
