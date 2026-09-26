@@ -22,7 +22,6 @@ import {
 import {
   MIN_FALLBACK_QUERY_LENGTH,
   RECITERS,
-  TOTAL_PAGES,
   clampPage,
   fetchChapters,
   fetchFullQuranText,
@@ -600,9 +599,21 @@ function MushafPage() {
       // Mushaf jusqu'aux bords — proportions de page et espacement des mots
       // restent naturels, comme une vraie page de Mushaf centrée.
       const LANDSCAPE_MAX_WIDTH_PX = 960;
+      // `box.clientWidth` INCLUT le padding horizontal de `box` (px-1.5) —
+      // ce n'est pas la largeur réellement disponible pour son contenu.
+      // Cause du bug de contenu coupé (ex. page 3) : la boîte virtuelle
+      // héritait de la largeur totale (padding compris), débordait donc de
+      // exactement ce padding hors du cadre réel de `box`, et se faisait
+      // rogner par son `overflow-hidden` — un mot/diacritique entier pouvait
+      // disparaître à droite selon la ligne. Retirer le padding réel (lu
+      // dynamiquement, jamais une valeur codée en dur) avant de calculer la
+      // largeur effective corrige la cause exacte, pour toutes les pages.
+      const boxStyle = window.getComputedStyle(box);
+      const boxPaddingX = parseFloat(boxStyle.paddingLeft) + parseFloat(boxStyle.paddingRight);
+      const boxContentWidth = box.clientWidth - boxPaddingX;
       const effectiveWidth = isLandscape
-        ? Math.min(box.clientWidth, LANDSCAPE_MAX_WIDTH_PX)
-        : Math.min(box.clientWidth, PORTRAIT_MAX_WIDTH_PX);
+        ? Math.min(boxContentWidth, LANDSCAPE_MAX_WIDTH_PX)
+        : Math.min(boxContentWidth, PORTRAIT_MAX_WIDTH_PX);
       fitBox.style.width = `${effectiveWidth / zoom}px`;
       fitBox.style.height = `${box.clientHeight / zoom}px`;
       let lo = 8;
@@ -910,7 +921,12 @@ function MushafPage() {
               ""
             )}
             Page {page}
-            <span className="text-muted-foreground"> / {TOTAL_PAGES}</span>
+            {verses?.[0] && (
+              <span className="text-muted-foreground">
+                {" "}
+                · Juz {verses[0].juz} · Hizb {verses[0].hizb}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setPageLifeOpen(true)}
@@ -1008,7 +1024,7 @@ function MushafPage() {
                     data-mushaf-line
                     lang="ar"
                     dir="rtl"
-                    className="flex items-baseline justify-between gap-[0.12em] whitespace-nowrap font-arabic font-bold leading-[1.9] text-foreground"
+                    className="flex items-baseline justify-between gap-[0.12em] whitespace-nowrap px-[0.15em] font-arabic font-bold leading-[1.9] text-foreground"
                   >
                     {line.words.map((w, wi) => {
                       const isSel = selected.includes(w.key);

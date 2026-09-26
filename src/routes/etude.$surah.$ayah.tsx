@@ -1,11 +1,23 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, ChevronDown, ChevronLeft, Compass, Sparkles, Sun } from "lucide-react";
-import { fetchChapters, fetchVerseDetail } from "@/lib/mushaf";
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Compass,
+  Heart,
+  Pause,
+  Play,
+  Share2,
+  Sparkles,
+  Sun,
+} from "lucide-react";
+import { fetchChapters, fetchVerseDetail, verseAudioUrl, defaultReciter } from "@/lib/mushaf";
 import { fetchTafsir, type TafsirSlug } from "@/lib/quran";
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
-import { useActionsProgress } from "@/lib/storage";
+import { useActionsProgress, useFavorites } from "@/lib/storage";
 import { formatVerseScope, getEtudeContent, type EtudeContent } from "@/lib/etude-content";
 import { SourceInfo } from "@/components/SourceInfo";
 import { Card, Empty, Loading } from "@/routes/tadabbur";
@@ -76,6 +88,46 @@ function EtudePage() {
 
   const chapterMeta = chapters?.find((c) => c.id === surah);
 
+  const { isFavorite, toggle: toggleFavorite } = useFavorites();
+  const fav = isFavorite("ayah", verseKey);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const toggleAudio = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (playing) {
+      el.pause();
+    } else {
+      if (!el.src) el.src = verseAudioUrl(defaultReciter, verseKey);
+      el.play().catch(() => setPlaying(false));
+    }
+  };
+  const shareAyah = async () => {
+    if (!verse) return;
+    const url = new URL(`/quran/page/${verse.page}`, window.location.origin);
+    url.searchParams.set("sel", verseKey);
+    const label = chapterMeta ? `${chapterMeta.nameFrench} — ${verseKey}` : verseKey;
+    const text = [verse.arabic, hamidullah?.translation, label, url.toString()]
+      .filter(Boolean)
+      .join("\n\n");
+    try {
+      if (navigator.share) await navigator.share({ text, url: url.toString() });
+      else await navigator.clipboard.writeText(text);
+    } catch {
+      /* annulé */
+    }
+  };
+
+  const goToAyah = (delta: number) => {
+    const next = ayah + delta;
+    if (next < 1 || (chapterMeta && next > chapterMeta.versesCount)) return;
+    navigate({
+      to: "/etude/$surah/$ayah",
+      params: { surah: String(surah), ayah: String(next) },
+      search,
+    });
+  };
+
   // Contenus locaux (synchrones) — vides tant qu'aucune donnée n'est vérifiée
   // pour cette ayah. Aucune rubrique n'est affichée si elle est vide : une
   // rubrique absente est toujours préférable à un contenu religieux
@@ -86,13 +138,15 @@ function EtudePage() {
   const agirItems = getEtudeContent(verseKey, "amal", verse?.page);
   const todayItems = getEtudeContent(verseKey, "today", verse?.page);
 
+  // Ordre conceptuel : Comprendre → Ce que cette ayah m'apporte → Méditer →
+  // Agir → Circonstances de révélation (§4.3/4.4 chantier accueil/mobile).
   const sections: Section[] = [
-    ...(contexteItems.length ? (["asbab_nuzul"] as const) : []),
     "tafsir",
     ...(lessonItems.length ? (["lesson"] as const) : []),
     ...(meditateItems.length ? (["tadabbur"] as const) : []),
     ...(agirItems.length ? (["amal"] as const) : []),
     ...(todayItems.length ? (["today"] as const) : []),
+    ...(contexteItems.length ? (["asbab_nuzul"] as const) : []),
   ];
 
   const backToMushaf = () => {
@@ -105,7 +159,14 @@ function EtudePage() {
 
   return (
     <div className="flex h-[100dvh] flex-col bg-background">
-      <header className="shrink-0 border-b border-border/40 bg-card/80 px-3 py-2.5 backdrop-blur-xl">
+      <audio
+        ref={audioRef}
+        preload="none"
+        onEnded={() => setPlaying(false)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+      />
+      <header className="shrink-0 border-b border-border/40 bg-card/80 px-3 py-2 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center gap-2">
           <button
             onClick={backToMushaf}
@@ -114,16 +175,26 @@ function EtudePage() {
           >
             <ChevronLeft className="size-5" />
           </button>
-          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
-            {chapterMeta?.nameFrench ?? `Sourate ${surah}`} — {verseKey}
-          </p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-foreground">
+              {chapterMeta?.nameFrench ?? `Sourate ${surah}`}{" "}
+              {chapterMeta && (
+                <span lang="ar" className="font-arabic text-xs text-muted-foreground">
+                  {chapterMeta.nameArabic}
+                </span>
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Ayah {ayah} · {verseKey}
+            </p>
+          </div>
         </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl space-y-4 px-4 py-5">
+        <div className="mx-auto max-w-2xl space-y-3 px-4 py-4">
           {/* Ayah + traduction Hamidullah */}
-          <div className="rounded-[28px] border border-border/40 bg-card px-5 py-7 text-center">
+          <div className="rounded-[28px] border border-border/40 bg-card px-5 py-5 text-center">
             {versePending ? (
               <Loading />
             ) : (
@@ -135,7 +206,7 @@ function EtudePage() {
                 {verse?.arabic}
               </p>
             )}
-            <div className="my-5 h-px bg-[linear-gradient(90deg,transparent,color-mix(in_oklab,var(--gold)_45%,transparent),transparent)]" />
+            <div className="my-4 h-px bg-[linear-gradient(90deg,transparent,color-mix(in_oklab,var(--gold)_45%,transparent),transparent)]" />
             {hamidullahPending ? (
               <Loading />
             ) : hamidullah ? (
@@ -148,7 +219,7 @@ function EtudePage() {
                     {hamidullah.footnotes}
                   </p>
                 )}
-                <div className="mt-4 flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                <div className="mt-3 flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
                   Traduction des sens — Muhammad Hamidullah
                   <SourceInfo
                     sourceTitle="Traduction française des sens du Coran"
@@ -161,6 +232,32 @@ function EtudePage() {
             ) : (
               <Empty text="Traduction indisponible pour le moment." />
             )}
+
+            {/* Actions compactes — jamais un gros bouton Étudier (déjà ici) */}
+            <div className="mt-4 flex items-center justify-center gap-2 border-t border-border/40 pt-3">
+              <button
+                onClick={toggleAudio}
+                className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3.5 text-xs font-semibold text-foreground transition hover:border-primary/40"
+              >
+                {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+                Écouter
+              </button>
+              <button
+                onClick={() => toggleFavorite("ayah", verseKey)}
+                aria-pressed={fav}
+                className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3.5 text-xs font-semibold text-foreground transition hover:border-gold/50"
+              >
+                <Heart className={cn("size-3.5", fav && "fill-gold text-gold")} />
+                Favori
+              </button>
+              <button
+                onClick={shareAyah}
+                className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3.5 text-xs font-semibold text-foreground transition hover:border-primary/40"
+              >
+                <Share2 className="size-3.5" />
+                Partager
+              </button>
+            </div>
           </div>
 
           {/* Rubriques — une seule ouverte à la fois, jamais de rubrique vide */}
@@ -213,6 +310,29 @@ function EtudePage() {
               );
             })}
           </div>
+        </div>
+      </div>
+
+      {/* Navigation contextuelle — compacte, utilisable au pouce */}
+      <div className="shrink-0 border-t border-border/40 bg-card/80 px-4 py-2 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-2xl items-center justify-between">
+          <button
+            onClick={() => goToAyah(-1)}
+            disabled={ayah <= 1}
+            aria-label="Ayah précédente"
+            className="grid size-9 place-items-center rounded-full text-muted-foreground transition disabled:opacity-30"
+          >
+            <ChevronLeft className="size-5" />
+          </button>
+          <span className="text-xs font-semibold tabular-nums text-foreground">{verseKey}</span>
+          <button
+            onClick={() => goToAyah(1)}
+            disabled={!!chapterMeta && ayah >= chapterMeta.versesCount}
+            aria-label="Ayah suivante"
+            className="grid size-9 place-items-center rounded-full text-muted-foreground transition disabled:opacity-30"
+          >
+            <ChevronRight className="size-5" />
+          </button>
         </div>
       </div>
     </div>

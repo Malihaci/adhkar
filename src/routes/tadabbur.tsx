@@ -578,7 +578,7 @@ function QuickCard({ text, onStudy }: { text: string; onStudy?: () => void }) {
   return (
     <section className="animate-fade-in rounded-3xl border border-primary/25 bg-primary/[0.06] px-5 py-4">
       <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-primary">
-        <Sparkles className="size-3.5" /> Comprendre rapidement
+        <Sparkles className="size-3.5" /> Comprendre
       </h2>
       <p className="mt-2.5 text-[0.95rem] leading-[1.8] text-foreground/90">{text}</p>
       {onStudy && (

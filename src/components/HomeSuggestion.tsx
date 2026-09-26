@@ -4,105 +4,121 @@ import { ChevronRight, X } from "lucide-react";
 import { useLocalState } from "@/lib/storage";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { effectiveSchedule, type WirdState } from "@/lib/khatma";
-import { AL_KAHF_PAGE } from "@/lib/reminders";
 
 /**
- * Une seule suggestion contextuelle prioritaire — jamais un tableau de
- * bord. Toujours ignorable. Ordre de priorité : Wird en cours → vendredi
- * (Al-Kahf) → Adhkâr du moment → reprendre la lecture.
+ * Actions contextuelles de l'accueil — jamais des cartes permanentes.
+ * 0, 1, 2 ou 3 lignes compactes selon ce qui est réellement inachevé et
+ * pertinent maintenant ; rien n'est réservé quand une ligne disparaît.
  *
- * `lastPage`/`counts` sont reçus en props (déjà chargés par la page
- * d'accueil) plutôt que re-souscrits ici : deux instances indépendantes de
- * `useLocalState`/`useDailyProgress` pour les mêmes clés déclenchaient un
- * avertissement React ("setState pendant le rendu d'un autre composant").
+ * §1.5 (mission accueil contextuel) : l'app n'a aujourd'hui aucune source
+ * fiable d'horaire de la prière d'ʿAsr. Faute de cette donnée, la
+ * suggestion "Adhkār du soir" retombe sur l'heure fixe déjà utilisée avant
+ * ce chantier (16h) — une approximation PRÉEXISTANTE, pas une invention de
+ * cette passe, et clairement documentée comme limite dans le rapport final.
+ * `ASR_FALLBACK_HOUR` est le seul endroit à changer le jour où une vraie
+ * source d'horaires de prière (asrTime) sera branchée.
  */
-export function HomeSuggestion({
-  lastPage,
-  counts,
-}: {
-  lastPage: number;
-  counts: Record<string, number>;
-}) {
-  const [dismissed, setDismissed] = useState(false);
+const ASR_FALLBACK_HOUR = 16;
+
+interface Item {
+  key: string;
+  label: string;
+  sub?: string;
+  to: "/matin" | "/soir" | "/quran/page/$page";
+  params?: { page: string };
+}
+
+export function HomeSuggestion({ counts }: { counts: Record<string, number> }) {
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [wird] = useLocalState<WirdState | null>("adhkar:wird", null);
 
-  if (dismissed) return null;
-
-  const suggestion = computeSuggestion(wird, lastPage, counts);
-  if (!suggestion) return null;
+  const items = computeItems(wird, counts).filter((i) => !dismissed.has(i.key));
+  if (!items.length) return null;
 
   return (
-    <div className="surface-card flex items-center gap-3 rounded-2xl border-primary/20 bg-primary/5 px-4 py-3">
-      <Link
-        to={suggestion.to}
-        params={suggestion.params}
-        className="flex min-w-0 flex-1 items-center gap-2"
-      >
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-          {suggestion.label}
-        </span>
-        <ChevronRight className="size-4 shrink-0 text-primary" />
-      </Link>
-      <button
-        onClick={() => setDismissed(true)}
-        aria-label="Ignorer la suggestion"
-        className="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted"
-      >
-        <X className="size-3.5" />
-      </button>
+    <div className="space-y-2">
+      {items.map((item) => (
+        <div
+          key={item.key}
+          className="surface-card flex items-center gap-3 rounded-2xl border-primary/20 bg-primary/5 px-4 py-3"
+        >
+          <Link
+            to={item.to}
+            params={item.params}
+            className="flex min-w-0 flex-1 items-center gap-2"
+          >
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+              {item.label}
+              {item.sub && (
+                <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                  {item.sub}
+                </span>
+              )}
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-primary" />
+          </Link>
+          <button
+            onClick={() => setDismissed((prev) => new Set(prev).add(item.key))}
+            aria-label="Ignorer la suggestion"
+            className="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
 
-function computeSuggestion(
-  wird: WirdState | null,
-  lastPage: number,
-  counts: Record<string, number>,
-): {
-  label: string;
-  to: "/wird" | "/quran/page/$page" | "/matin" | "/soir";
-  params?: Record<string, string>;
-} | null {
+function computeItems(wird: WirdState | null, counts: Record<string, number>): Item[] {
+  const items: Item[] = [];
+  const hour = new Date().getHours();
+
+  const morningProgress = adhkarProgress(morningAdhkar, counts);
+  if (hour < 13 && !morningProgress.done) {
+    items.push({
+      key: "morning",
+      label: "Continuer mes Adhkār du matin",
+      sub: morningProgress.total ? `${morningProgress.completed}/${morningProgress.total}` : undefined,
+      to: "/matin",
+    });
+  }
+
+  const eveningProgress = adhkarProgress(eveningAdhkar, counts);
+  if (hour >= ASR_FALLBACK_HOUR && !eveningProgress.done) {
+    items.push({
+      key: "evening",
+      label: "Continuer mes Adhkār du soir",
+      sub: eveningProgress.total ? `${eveningProgress.completed}/${eveningProgress.total}` : undefined,
+      to: "/soir",
+    });
+  }
+
   if (wird) {
     const schedule = effectiveSchedule(wird);
     const total = schedule.length;
     if (wird.lastCompletedDay < total) {
       const day = schedule.find((d) => d.day === wird.lastCompletedDay + 1);
       if (day) {
-        return {
-          label: `Continuer mon Wird — pages ${day.startPage}–${day.endPage}`,
-          to: "/wird",
-        };
+        items.push({
+          key: "wird",
+          label: "Continuer mon Wird",
+          sub: `Pages ${day.startPage} → ${day.endPage}`,
+          to: "/quran/page/$page",
+          params: { page: String(day.startPage) },
+        });
       }
     }
   }
 
-  const now = new Date();
-  if (now.getDay() === 5) {
-    return {
-      label: "Vendredi — lire sourate Al-Kahf",
-      to: "/quran/page/$page",
-      params: { page: String(AL_KAHF_PAGE) },
-    };
-  }
+  return items;
+}
 
-  const hour = now.getHours();
-  const morningDone = morningAdhkar.every((d) => (counts[d.id] ?? 0) >= d.repetitions);
-  const eveningDone = eveningAdhkar.every((d) => (counts[d.id] ?? 0) >= d.repetitions);
-  if (hour >= 4 && hour < 12 && !morningDone) {
-    return { label: "Adhkâr du matin", to: "/matin" };
-  }
-  if (hour >= 16 && hour < 24 && !eveningDone) {
-    return { label: "Adhkâr du soir", to: "/soir" };
-  }
-
-  if (lastPage > 1) {
-    return {
-      label: `Reprendre la lecture — page ${lastPage}`,
-      to: "/quran/page/$page",
-      params: { page: String(lastPage) },
-    };
-  }
-
-  return null;
+function adhkarProgress(
+  list: { id: string; repetitions: number }[],
+  counts: Record<string, number>,
+): { done: boolean; completed: number; total: number } {
+  const total = list.reduce((n, d) => n + d.repetitions, 0);
+  const completed = list.reduce((n, d) => n + Math.min(counts[d.id] ?? 0, d.repetitions), 0);
+  return { done: total > 0 && completed >= total, completed, total };
 }

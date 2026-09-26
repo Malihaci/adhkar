@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { BookOpen, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
@@ -47,7 +47,7 @@ function Index() {
   return (
     <AppShell title="Accueil" homeHeader>
       <div className="space-y-5">
-        <HomeSuggestion lastPage={lastPage} counts={progress.counts} />
+        <HomeSuggestion counts={progress.counts} />
 
         {/* 2 portes principales (§3) — Tadabbur et Favoris restent accessibles
             depuis leurs points d'entrée naturels (sheet Coran / bottom nav Plus). */}
@@ -67,17 +67,6 @@ function Index() {
             icon={<BookOpen className="size-6" />}
           />
         </div>
-
-        {/* Mes outils — discrets, secondaires par rapport aux 2 portes */}
-        <div>
-          <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Mes outils
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <ToolLink to="/rappels" label="Mes rappels" iconLabel="🔔" />
-            <ToolLink to="/wird" label="Mon Wird" iconLabel="📖" />
-          </div>
-        </div>
       </div>
 
       {adhkarChooserOpen && (
@@ -91,28 +80,6 @@ function Index() {
         <CoranSheet lastPage={lastPage} onClose={() => setCoranChooserOpen(false)} />
       )}
     </AppShell>
-  );
-}
-
-function ToolLink({
-  to,
-  label,
-  iconLabel,
-}: {
-  to: "/rappels" | "/wird";
-  label: string;
-  iconLabel: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="surface-card flex items-center gap-2.5 rounded-2xl px-4 py-3 text-left transition hover:-translate-y-0.5"
-    >
-      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-base">
-        {iconLabel}
-      </span>
-      <span className="min-w-0 truncate text-sm font-medium text-foreground">{label}</span>
-    </Link>
   );
 }
 
