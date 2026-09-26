@@ -1,10 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, BookMarked, Heart, Search, Settings, X } from "lucide-react";
+import { Bell, BookMarked, Clock, Heart, Search, Settings, X } from "lucide-react";
 
 /** "Plus" — point d'accès unique aux contenus/réglages secondaires (§5/§I mission). */
 export function PlusSheet({ onClose }: { onClose: () => void }) {
   const items = [
     { to: "/favoris" as const, label: "Favoris", icon: Heart },
+    { to: "/horaires" as const, label: "Horaires de prière", icon: Clock },
     { to: "/rappels" as const, label: "Mes rappels", icon: Bell },
     { to: "/wird" as const, label: "Mon Wird / Khatma", icon: BookMarked },
     { to: "/recherche" as const, label: "Recherche", icon: Search },

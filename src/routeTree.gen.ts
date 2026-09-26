@@ -15,6 +15,7 @@ import { Route as CoucherRouteImport } from './routes/coucher'
 import { Route as EcouteRouteImport } from './routes/ecoute'
 import { Route as FavorisRouteImport } from './routes/favoris'
 import { Route as FavorisLectureRouteImport } from './routes/favoris-lecture'
+import { Route as HorairesRouteImport } from './routes/horaires'
 import { Route as KhatmaRouteImport } from './routes/khatma'
 import { Route as MatinRouteImport } from './routes/matin'
 import { Route as RappelsRouteImport } from './routes/rappels'
@@ -28,6 +29,7 @@ import { Route as WirdRouteImport } from './routes/wird'
 import { Route as ParametresApparenceRouteImport } from './routes/parametres.apparence'
 import { Route as SourateSurahRouteImport } from './routes/sourate.$surah'
 import { Route as EtudeSurahAyahRouteImport } from './routes/etude.$surah.$ayah'
+import { Route as QuranLireSurahRouteImport } from './routes/quran.lire.$surah'
 import { Route as QuranPagePageRouteImport } from './routes/quran.page.$page'
 
 const IndexRoute = IndexRouteImport.update({
@@ -58,6 +60,11 @@ const FavorisRoute = FavorisRouteImport.update({
 const FavorisLectureRoute = FavorisLectureRouteImport.update({
   id: '/favoris-lecture',
   path: '/favoris-lecture',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HorairesRoute = HorairesRouteImport.update({
+  id: '/horaires',
+  path: '/horaires',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KhatmaRoute = KhatmaRouteImport.update({
@@ -125,6 +132,11 @@ const EtudeSurahAyahRoute = EtudeSurahAyahRouteImport.update({
   path: '/etude/$surah/$ayah',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QuranLireSurahRoute = QuranLireSurahRouteImport.update({
+  id: '/quran/lire/$surah',
+  path: '/quran/lire/$surah',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QuranPagePageRoute = QuranPagePageRouteImport.update({
   id: '/quran/page/$page',
   path: '/quran/page/$page',
@@ -138,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
+  '/horaires': typeof HorairesRoute
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/rappels': typeof RappelsRoute
@@ -151,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/parametres/apparence': typeof ParametresApparenceRoute
   '/sourate/$surah': typeof SourateSurahRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
+  '/quran/lire/$surah': typeof QuranLireSurahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
 }
 export interface FileRoutesByTo {
@@ -160,6 +174,7 @@ export interface FileRoutesByTo {
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
+  '/horaires': typeof HorairesRoute
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/rappels': typeof RappelsRoute
@@ -173,6 +188,7 @@ export interface FileRoutesByTo {
   '/parametres/apparence': typeof ParametresApparenceRoute
   '/sourate/$surah': typeof SourateSurahRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
+  '/quran/lire/$surah': typeof QuranLireSurahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
 }
 export interface FileRoutesById {
@@ -183,6 +199,7 @@ export interface FileRoutesById {
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
+  '/horaires': typeof HorairesRoute
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/rappels': typeof RappelsRoute
@@ -196,6 +213,7 @@ export interface FileRoutesById {
   '/parametres/apparence': typeof ParametresApparenceRoute
   '/sourate/$surah': typeof SourateSurahRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
+  '/quran/lire/$surah': typeof QuranLireSurahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
 }
 export interface FileRouteTypes {
@@ -207,6 +225,7 @@ export interface FileRouteTypes {
     | '/ecoute'
     | '/favoris'
     | '/favoris-lecture'
+    | '/horaires'
     | '/khatma'
     | '/matin'
     | '/rappels'
@@ -220,6 +239,7 @@ export interface FileRouteTypes {
     | '/parametres/apparence'
     | '/sourate/$surah'
     | '/etude/$surah/$ayah'
+    | '/quran/lire/$surah'
     | '/quran/page/$page'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -229,6 +249,7 @@ export interface FileRouteTypes {
     | '/ecoute'
     | '/favoris'
     | '/favoris-lecture'
+    | '/horaires'
     | '/khatma'
     | '/matin'
     | '/rappels'
@@ -242,6 +263,7 @@ export interface FileRouteTypes {
     | '/parametres/apparence'
     | '/sourate/$surah'
     | '/etude/$surah/$ayah'
+    | '/quran/lire/$surah'
     | '/quran/page/$page'
   id:
     | '__root__'
@@ -251,6 +273,7 @@ export interface FileRouteTypes {
     | '/ecoute'
     | '/favoris'
     | '/favoris-lecture'
+    | '/horaires'
     | '/khatma'
     | '/matin'
     | '/rappels'
@@ -264,6 +287,7 @@ export interface FileRouteTypes {
     | '/parametres/apparence'
     | '/sourate/$surah'
     | '/etude/$surah/$ayah'
+    | '/quran/lire/$surah'
     | '/quran/page/$page'
   fileRoutesById: FileRoutesById
 }
@@ -274,6 +298,7 @@ export interface RootRouteChildren {
   EcouteRoute: typeof EcouteRoute
   FavorisRoute: typeof FavorisRoute
   FavorisLectureRoute: typeof FavorisLectureRoute
+  HorairesRoute: typeof HorairesRoute
   KhatmaRoute: typeof KhatmaRoute
   MatinRoute: typeof MatinRoute
   RappelsRoute: typeof RappelsRoute
@@ -287,6 +312,7 @@ export interface RootRouteChildren {
   ParametresApparenceRoute: typeof ParametresApparenceRoute
   SourateSurahRoute: typeof SourateSurahRoute
   EtudeSurahAyahRoute: typeof EtudeSurahAyahRoute
+  QuranLireSurahRoute: typeof QuranLireSurahRoute
   QuranPagePageRoute: typeof QuranPagePageRoute
 }
 
@@ -332,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/favoris-lecture'
       fullPath: '/favoris-lecture'
       preLoaderRoute: typeof FavorisLectureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/horaires': {
+      id: '/horaires'
+      path: '/horaires'
+      fullPath: '/horaires'
+      preLoaderRoute: typeof HorairesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/khatma': {
@@ -425,6 +458,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EtudeSurahAyahRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/quran/lire/$surah': {
+      id: '/quran/lire/$surah'
+      path: '/quran/lire/$surah'
+      fullPath: '/quran/lire/$surah'
+      preLoaderRoute: typeof QuranLireSurahRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/quran/page/$page': {
       id: '/quran/page/$page'
       path: '/quran/page/$page'
@@ -442,6 +482,7 @@ const rootRouteChildren: RootRouteChildren = {
   EcouteRoute: EcouteRoute,
   FavorisRoute: FavorisRoute,
   FavorisLectureRoute: FavorisLectureRoute,
+  HorairesRoute: HorairesRoute,
   KhatmaRoute: KhatmaRoute,
   MatinRoute: MatinRoute,
   RappelsRoute: RappelsRoute,
@@ -455,6 +496,7 @@ const rootRouteChildren: RootRouteChildren = {
   ParametresApparenceRoute: ParametresApparenceRoute,
   SourateSurahRoute: SourateSurahRoute,
   EtudeSurahAyahRoute: EtudeSurahAyahRoute,
+  QuranLireSurahRoute: QuranLireSurahRoute,
   QuranPagePageRoute: QuranPagePageRoute,
 }
 export const routeTree = rootRouteImport

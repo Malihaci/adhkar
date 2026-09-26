@@ -9,6 +9,7 @@ import {
   Type,
   Leaf,
   ChevronDown,
+  Play,
   Share2,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -62,6 +63,7 @@ export function DhikrViewer({
   const [sizeOpen, setSizeOpen] = useState(false);
   const [liveOpen, setLiveOpen] = useState(false);
   const [warnOpen, setWarnOpen] = useState(false);
+  const [audioUnavailable, setAudioUnavailable] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -197,6 +199,16 @@ export function DhikrViewer({
               )}
             </div>
             <button
+              onClick={() => {
+                setAudioUnavailable(true);
+                window.setTimeout(() => setAudioUnavailable(false), 2500);
+              }}
+              aria-label="Écouter ce dhikr"
+              className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
+            >
+              <Play className="size-5" />
+            </button>
+            <button
               onClick={() => shareDhikr(dhikr, idx)}
               aria-label="Partager"
               className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
@@ -213,6 +225,12 @@ export function DhikrViewer({
             </button>
           </div>
         </header>
+
+        {audioUnavailable && (
+          <p className="bg-muted/40 px-3 py-1.5 text-center text-[11px] text-muted-foreground">
+            Audio indisponible pour ce dhikr.
+          </p>
+        )}
 
         {/* Phonétique toggle */}
         <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2 sm:px-4">

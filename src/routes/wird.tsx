@@ -300,6 +300,12 @@ function ActiveWird({
   const today = schedule.find((d) => d.day === currentDayNum) ?? schedule[schedule.length - 1];
   const elapsed = daysElapsedSince(wird.startDateISO);
   const isLate = elapsed > wird.lastCompletedDay && wird.lastCompletedDay < totalDays;
+  // Pages réellement en retard (jours prévus mais jamais marqués terminés,
+  // jamais silencieusement considérés comme lus) — §4.1 mission.
+  const missedDays = isLate
+    ? schedule.filter((d) => d.day > wird.lastCompletedDay && d.day <= Math.min(elapsed, totalDays))
+    : [];
+  const missedPages = missedDays.reduce((n, d) => n + (d.endPage - d.startPage + 1), 0);
   const isDone = wird.lastCompletedDay >= totalDays;
 
   const [showProgram, setShowProgram] = useState(false);
@@ -383,7 +389,9 @@ function ActiveWird({
 
         {isLate && !wird.redistributedFrom && (
           <div className="rounded-2xl border border-gold/30 bg-gold/10 p-3 text-xs text-foreground">
-            <p className="mb-2">Vous avez un peu de retard — sans souci.</p>
+            <p className="mb-2">
+              {missedPages} page{missedPages > 1 ? "s" : ""} à rattraper — sans souci.
+            </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 onClick={() => onUpdate({ ...wird })}

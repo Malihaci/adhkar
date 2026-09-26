@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Heart, RotateCcw, Minus, Plus, ChevronDown, Check, Share2 } from "lucide-react";
+import { Heart, RotateCcw, Minus, Plus, ChevronDown, Check, Play, Share2 } from "lucide-react";
 import type { Dhikr } from "@/data/adhkar";
 import { AyahText } from "@/components/AyahText";
 
@@ -17,6 +17,7 @@ export function DhikrCard({ dhikr, index }: Props) {
   const { isFavorite, toggle } = useFavorites();
   const [expanded, setExpanded] = useState(false);
   const [tab, setTab] = useState<"ar" | "ph" | "fr" | "all">("ar");
+  const [audioUnavailable, setAudioUnavailable] = useState(false);
 
   const count = progress.counts[dhikr.id] ?? 0;
   const done = count >= dhikr.repetitions;
@@ -50,6 +51,16 @@ export function DhikrCard({ dhikr, index }: Props) {
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <button
+            onClick={() => {
+              setAudioUnavailable(true);
+              window.setTimeout(() => setAudioUnavailable(false), 2500);
+            }}
+            aria-label="Écouter ce dhikr"
+            className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
+          >
+            <Play className="size-4" />
+          </button>
+          <button
             onClick={() => shareDhikr(dhikr, index)}
             aria-label="Partager"
             className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
@@ -68,6 +79,12 @@ export function DhikrCard({ dhikr, index }: Props) {
           </button>
         </div>
       </header>
+
+      {audioUnavailable && (
+        <p className="bg-muted/40 px-5 py-1.5 text-center text-[11px] text-muted-foreground">
+          Audio indisponible pour ce dhikr.
+        </p>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border px-3 py-2">

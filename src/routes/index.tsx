@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
-import { BookOpen, Sparkles } from "lucide-react";
+import { BookMarked, BookOpen, Heart, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AdhkarSheet } from "@/components/AdhkarSheet";
 import { CoranSheet } from "@/components/CoranSheet";
@@ -49,8 +49,7 @@ function Index() {
       <div className="space-y-5">
         <HomeSuggestion counts={progress.counts} />
 
-        {/* 2 portes principales (§3) — Tadabbur et Favoris restent accessibles
-            depuis leurs points d'entrée naturels (sheet Coran / bottom nav Plus). */}
+        {/* 2 portes principales — dominantes */}
         <div className="grid grid-cols-2 gap-4">
           <GateButton
             onClick={() => setAdhkarChooserOpen(true)}
@@ -66,6 +65,12 @@ function Index() {
             tone="gold"
             icon={<BookOpen className="size-6" />}
           />
+        </div>
+
+        {/* 2 accès secondaires — plus compacts, toujours permanents (§2) */}
+        <div className="grid grid-cols-2 gap-3">
+          <SecondaryGate to="/wird" label="Mon Wird" icon={<BookMarked className="size-5" />} />
+          <SecondaryGate to="/favoris" label="Favoris" icon={<Heart className="size-5" />} />
         </div>
       </div>
 
@@ -110,6 +115,28 @@ function GateLabel({ label, arabic }: { label: string; arabic: string }) {
         {arabic}
       </span>
     </span>
+  );
+}
+
+function SecondaryGate({
+  to,
+  label,
+  icon,
+}: {
+  to: "/wird" | "/favoris";
+  label: string;
+  icon: ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      className="surface-card flex items-center gap-2.5 rounded-2xl px-4 py-3.5 text-left transition hover:-translate-y-0.5 active:scale-[0.98]"
+    >
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-foreground">
+        {icon}
+      </span>
+      <span className="min-w-0 truncate text-sm font-semibold text-foreground">{label}</span>
+    </Link>
   );
 }
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { DoorOpen, Luggage, Moon, Sparkles, Sunrise, X } from "lucide-react";
+import { DoorOpen, Headphones, Luggage, Moon, Sparkles, Sunrise, X } from "lucide-react";
 
 /**
  * Choix Adhkār — Quotidien (Matin/Soir) + Occasions. Composant partagé entre
@@ -66,6 +66,20 @@ export function AdhkarSheet({
             </div>
           </Link>
         </div>
+
+        <Link
+          to="/ecoute"
+          onClick={onClose}
+          className="surface-card mt-3 flex items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
+            <Headphones className="size-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">Tout écouter (Matin/Soir)</p>
+            <p className="text-xs text-muted-foreground">Récitation Al-'Afâsy, texte synchronisé</p>
+          </div>
+        </Link>
 
         <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Occasions

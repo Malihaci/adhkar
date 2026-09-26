@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { useReminderEngine } from "@/lib/reminders";
 
 function NotFoundComponent() {
   return (
@@ -139,7 +140,19 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ReminderEngine />
       <Outlet />
     </QueryClientProvider>
   );
+}
+
+/**
+ * Moteur de rappels unique monté une seule fois à la racine (§24) — tourne
+ * tant que l'app est ouverte, quel que soit l'écran affiché. Voir
+ * `useReminderEngine` dans src/lib/reminders.ts pour le détail et les
+ * limites PWA réelles.
+ */
+function ReminderEngine() {
+  useReminderEngine();
+  return null;
 }

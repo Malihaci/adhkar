@@ -1,12 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { BookMarked, BookOpen, Headphones, X } from "lucide-react";
+import { BookMarked, BookOpen, Languages, X } from "lucide-react";
 
-/**
- * Coran → Lire · Écouter · Comprendre (§3 mission). Tadabbur reste
- * accessible ici plutôt que via une porte dédiée sur l'accueil.
- * "Écouter" masqué tant que SHOW_ECOUTE_ENTRY est false (voir index.tsx).
- */
-const SHOW_ECOUTE_ENTRY = false;
+/** Coran → Lire (Mushaf/Français/Ayah) · Écouter · Comprendre. */
 
 export function CoranSheet({ lastPage, onClose }: { lastPage: number; onClose: () => void }) {
   return (
@@ -44,6 +39,20 @@ export function CoranSheet({ lastPage, onClose }: { lastPage: number; onClose: (
             </div>
           </Link>
           <Link
+            to="/quran/lire/$surah"
+            params={{ surah: "1" }}
+            onClick={onClose}
+            className="surface-card flex items-center gap-3 rounded-2xl px-4 py-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
+              <Languages className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-foreground">Français / Ayah par ayah</p>
+              <p className="text-xs text-muted-foreground">Arabe, français, phonétique au choix</p>
+            </div>
+          </Link>
+          <Link
             to="/tadabbur"
             onClick={onClose}
             className="surface-card flex items-center gap-3 rounded-2xl px-4 py-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
@@ -56,21 +65,6 @@ export function CoranSheet({ lastPage, onClose }: { lastPage: number; onClose: (
               <p className="text-xs text-muted-foreground">Méditation et sens du Coran</p>
             </div>
           </Link>
-          {SHOW_ECOUTE_ENTRY && (
-            <Link
-              to="/ecoute"
-              onClick={onClose}
-              className="surface-card flex items-center gap-3 rounded-2xl px-4 py-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
-            >
-              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
-                <Headphones className="size-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-foreground">Écouter</p>
-                <p className="text-xs text-muted-foreground">Récitation Al-'Afâsy synchronisée</p>
-              </div>
-            </Link>
-          )}
         </div>
       </div>
     </div>

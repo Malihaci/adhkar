@@ -1,22 +1,24 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, X } from "lucide-react";
 import { useLocalState } from "@/lib/storage";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { effectiveSchedule, type WirdState } from "@/lib/khatma";
+import { fetchTodayTimings, getAsrDateFromTimings, getPrayerSettings } from "@/lib/prayerTimes";
 
 /**
  * Actions contextuelles de l'accueil — jamais des cartes permanentes.
  * 0, 1, 2 ou 3 lignes compactes selon ce qui est réellement inachevé et
  * pertinent maintenant ; rien n'est réservé quand une ligne disparaît.
  *
- * §1.5 (mission accueil contextuel) : l'app n'a aujourd'hui aucune source
- * fiable d'horaire de la prière d'ʿAsr. Faute de cette donnée, la
- * suggestion "Adhkār du soir" retombe sur l'heure fixe déjà utilisée avant
- * ce chantier (16h) — une approximation PRÉEXISTANTE, pas une invention de
- * cette passe, et clairement documentée comme limite dans le rapport final.
- * `ASR_FALLBACK_HOUR` est le seul endroit à changer le jour où une vraie
- * source d'horaires de prière (asrTime) sera branchée.
+ * Adhkār du soir : déclenché sur la vraie heure d'ʿAsr (Al Adhan API, voir
+ * src/lib/prayerTimes.ts) dès qu'elle est disponible. Si l'API est
+ * injoignable ou qu'aucune localisation n'est configurée, on retombe sur
+ * l'ancienne approximation horaire (16h) plutôt que de ne jamais afficher
+ * la suggestion — dégradation explicite, jamais un horaire de prière
+ * inventé et présenté comme réel (cette valeur n'est utilisée qu'en repli
+ * silencieux, jamais affichée comme un horaire de prière).
  */
 const ASR_FALLBACK_HOUR = 16;
 
@@ -31,8 +33,13 @@ interface Item {
 export function HomeSuggestion({ counts }: { counts: Record<string, number> }) {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [wird] = useLocalState<WirdState | null>("adhkar:wird", null);
+  const { data: timings } = useQuery({
+    queryKey: ["prayer-timings", getPrayerSettings()],
+    queryFn: () => fetchTodayTimings(getPrayerSettings()),
+    staleTime: 30 * 60_000,
+  });
 
-  const items = computeItems(wird, counts).filter((i) => !dismissed.has(i.key));
+  const items = computeItems(wird, counts, timings ?? null).filter((i) => !dismissed.has(i.key));
   if (!items.length) return null;
 
   return (
@@ -70,9 +77,14 @@ export function HomeSuggestion({ counts }: { counts: Record<string, number> }) {
   );
 }
 
-function computeItems(wird: WirdState | null, counts: Record<string, number>): Item[] {
+function computeItems(
+  wird: WirdState | null,
+  counts: Record<string, number>,
+  timings: import("@/lib/prayerTimes").PrayerTimings | null,
+): Item[] {
   const items: Item[] = [];
-  const hour = new Date().getHours();
+  const now = new Date();
+  const hour = now.getHours();
 
   const morningProgress = adhkarProgress(morningAdhkar, counts);
   if (hour < 13 && !morningProgress.done) {
@@ -84,8 +96,10 @@ function computeItems(wird: WirdState | null, counts: Record<string, number>): I
     });
   }
 
+  const asrDate = getAsrDateFromTimings(timings);
+  const pastAsr = asrDate ? now.getTime() >= asrDate.getTime() : hour >= ASR_FALLBACK_HOUR;
   const eveningProgress = adhkarProgress(eveningAdhkar, counts);
-  if (hour >= ASR_FALLBACK_HOUR && !eveningProgress.done) {
+  if (pastAsr && !eveningProgress.done) {
     items.push({
       key: "evening",
       label: "Continuer mes Adhkār du soir",

@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Bell, BellOff } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useLocalState } from "@/lib/storage";
 import {
   DEFAULT_REMINDERS,
-  checkDueReminders,
   notificationsSupported,
   requestNotificationPermission,
+  resolveReminderTime,
   type ReminderConfig,
-  type ReminderFireLog,
 } from "@/lib/reminders";
+import { fetchTodayTimings, getPrayerSettings } from "@/lib/prayerTimes";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/rappels")({
@@ -26,16 +27,13 @@ export const Route = createFileRoute("/rappels")({
   component: RappelsPage,
 });
 
+const OFFSET_CHOICES = [0, 5, 10, 15, 30];
+
 function RappelsPage() {
   const [reminders, setReminders] = useLocalState<ReminderConfig[]>(
     "adhkar:reminders",
     DEFAULT_REMINDERS,
   );
-  const [fireLog, setFireLog] = useLocalState<ReminderFireLog>("adhkar:reminders-firelog", {});
-  // `Notification` n'existe pas côté serveur (SSR) : rester sur "unsupported"
-  // au premier rendu (identique au serveur), puis ne lire le vrai état
-  // qu'après montage — jamais dans l'initialiseur de useState, pour éviter
-  // un mismatch d'hydratation (même règle que le fix précédent sur le Mushaf).
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
     "unsupported",
   );
@@ -43,34 +41,29 @@ function RappelsPage() {
     if (notificationsSupported()) setPermission(Notification.permission);
   }, []);
 
-  // Planification "au premier plan" — voir src/lib/reminders.ts pour les
-  // limites (pas d'alarme fiable hors application sur le Web sans push serveur).
-  useEffect(() => {
-    if (!notificationsSupported()) return;
-    const id = window.setInterval(() => {
-      setFireLog((log) =>
-        checkDueReminders(reminders, log, (r) => {
-          const n = new Notification(r.label, { body: "Toucher pour ouvrir", tag: r.id });
-          n.onclick = () => {
-            window.focus();
-            window.location.href = r.deepLink;
-          };
-        }),
-      );
-    }, 30_000);
-    return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reminders]);
+  // Le moteur de vérification tourne désormais une seule fois à la racine
+  // de l'app (`useReminderEngine`, monté dans __root.tsx) — voir §24 : avant
+  // ce correctif il ne tournait que pendant que cet écran était affiché.
+  const { data: timings } = useQuery({
+    queryKey: ["prayer-timings", getPrayerSettings()],
+    queryFn: () => fetchTodayTimings(getPrayerSettings()),
+    staleTime: 30 * 60_000,
+  });
 
   const toggle = (id: string) =>
     setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)));
   const setTime = (id: string, time: string) =>
     setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, time } : r)));
+  const setOffset = (id: string, offsetMinutes: number) =>
+    setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, offsetMinutes } : r)));
 
   const askPermission = async () => {
     const p = await requestNotificationPermission();
     setPermission(p);
   };
+
+  const fixedReminders = reminders.filter((r) => !r.prayerKey);
+  const prayerReminders = reminders.filter((r) => r.prayerKey);
 
   return (
     <AppShell title="Mes rappels" subtitle="تذكيرات">
@@ -97,7 +90,7 @@ function RappelsPage() {
         )}
 
         <div className="surface-card divide-y divide-border">
-          {reminders.map((r) => (
+          {fixedReminders.map((r) => (
             <div key={r.id} className="flex items-center gap-3 px-4 py-3.5">
               <button
                 onClick={() => toggle(r.id)}
@@ -128,6 +121,61 @@ function RappelsPage() {
               />
             </div>
           ))}
+        </div>
+
+        <div>
+          <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Prières — horaires réels (Al Adhan API)
+          </p>
+          <div className="surface-card divide-y divide-border">
+            {prayerReminders.map((r) => {
+              const effective = resolveReminderTime(r, timings ?? null);
+              return (
+                <div key={r.id} className="flex items-center gap-3 px-4 py-3.5">
+                  <button
+                    onClick={() => toggle(r.id)}
+                    role="switch"
+                    aria-checked={r.enabled}
+                    aria-label={r.enabled ? `Désactiver ${r.label}` : `Activer ${r.label}`}
+                    className={cn(
+                      "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                      r.enabled ? "bg-primary" : "bg-muted",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-1 size-5 rounded-full bg-background shadow transition-all",
+                        r.enabled ? "left-6" : "left-1",
+                      )}
+                    />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{r.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {effective ? `À ${effective}` : "Horaire indisponible"}
+                    </p>
+                  </div>
+                  <select
+                    value={r.offsetMinutes ?? 0}
+                    onChange={(e) => setOffset(r.id, Number(e.target.value))}
+                    disabled={!r.enabled}
+                    className="h-10 shrink-0 rounded-xl border border-border bg-background px-2 text-xs disabled:opacity-40"
+                  >
+                    {OFFSET_CHOICES.map((o) => (
+                      <option key={o} value={o}>
+                        {o === 0 ? "À l'heure" : `${o} min avant`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 px-1 text-[11px] leading-relaxed text-muted-foreground">
+            Horaire recalculé chaque jour à partir de vos réglages de localisation (Plus → Horaires
+            de prière). Adhan sonore non proposé pour l'instant — aucun fichier audio aux droits
+            clairs n'est disponible dans l'application.
+          </p>
         </div>
 
         <p className="text-center text-xs leading-relaxed text-muted-foreground">

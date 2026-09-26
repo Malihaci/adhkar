@@ -13,6 +13,7 @@ import {
   Share2,
   Sparkles,
   Sun,
+  Volume2,
 } from "lucide-react";
 import { fetchChapters, fetchVerseDetail, verseAudioUrl, defaultReciter } from "@/lib/mushaf";
 import { fetchTafsir, type TafsirSlug } from "@/lib/quran";
@@ -149,6 +150,35 @@ function EtudePage() {
     ...(contexteItems.length ? (["asbab_nuzul"] as const) : []),
   ];
 
+  // 🔊 Écouter l'explication (§15) : lecture vocale FRANÇAISE du texte
+  // pédagogique déjà affiché — jamais le Coran (récitation arabe = toggleAudio
+  // ci-dessus, moteur distinct). SpeechSynthesis lit exactement ces textes,
+  // il n'en génère aucun.
+  const [speaking, setSpeaking] = useState(false);
+  const speechSupported = typeof window !== "undefined" && "speechSynthesis" in window;
+  const explanationTexts = [
+    ...lessonItems.map((i) => i.translationFr),
+    ...meditateItems.map((i) => i.translationFr),
+    ...agirItems.map((i) => i.translationFr),
+    ...todayItems.map((i) => i.translationFr),
+    ...contexteItems.map((i) => i.translationFr),
+  ].filter((t): t is string => !!t);
+  const toggleExplanation = () => {
+    if (!speechSupported) return;
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    if (!explanationTexts.length) return;
+    const utterance = new SpeechSynthesisUtterance(explanationTexts.join(". "));
+    utterance.lang = "fr-FR";
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+    setSpeaking(true);
+  };
+
   const backToMushaf = () => {
     navigate({
       to: "/quran/page/$page",
@@ -258,6 +288,15 @@ function EtudePage() {
                 Partager
               </button>
             </div>
+            {speechSupported && explanationTexts.length > 0 && (
+              <button
+                onClick={toggleExplanation}
+                className="mx-auto mt-2 flex h-9 items-center gap-1.5 rounded-full bg-primary/10 px-3.5 text-xs font-semibold text-primary"
+              >
+                <Volume2 className="size-3.5" />
+                {speaking ? "Arrêter" : "Écouter l'explication"}
+              </button>
+            )}
           </div>
 
           {/* Rubriques — une seule ouverte à la fois, jamais de rubrique vide */}
