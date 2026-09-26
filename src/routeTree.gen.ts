@@ -25,6 +25,7 @@ import { Route as SortieRouteImport } from './routes/sortie'
 import { Route as TadabburRouteImport } from './routes/tadabbur'
 import { Route as VoyageRouteImport } from './routes/voyage'
 import { Route as WirdRouteImport } from './routes/wird'
+import { Route as ParametresApparenceRouteImport } from './routes/parametres.apparence'
 import { Route as SourateSurahRouteImport } from './routes/sourate.$surah'
 import { Route as EtudeSurahAyahRouteImport } from './routes/etude.$surah.$ayah'
 import { Route as QuranPagePageRouteImport } from './routes/quran.page.$page'
@@ -109,6 +110,11 @@ const WirdRoute = WirdRouteImport.update({
   path: '/wird',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ParametresApparenceRoute = ParametresApparenceRouteImport.update({
+  id: '/parametres/apparence',
+  path: '/parametres/apparence',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SourateSurahRoute = SourateSurahRouteImport.update({
   id: '/sourate/$surah',
   path: '/sourate/$surah',
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/tadabbur': typeof TadabburRoute
   '/voyage': typeof VoyageRoute
   '/wird': typeof WirdRoute
+  '/parametres/apparence': typeof ParametresApparenceRoute
   '/sourate/$surah': typeof SourateSurahRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/tadabbur': typeof TadabburRoute
   '/voyage': typeof VoyageRoute
   '/wird': typeof WirdRoute
+  '/parametres/apparence': typeof ParametresApparenceRoute
   '/sourate/$surah': typeof SourateSurahRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/tadabbur': typeof TadabburRoute
   '/voyage': typeof VoyageRoute
   '/wird': typeof WirdRoute
+  '/parametres/apparence': typeof ParametresApparenceRoute
   '/sourate/$surah': typeof SourateSurahRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/tadabbur'
     | '/voyage'
     | '/wird'
+    | '/parametres/apparence'
     | '/sourate/$surah'
     | '/etude/$surah/$ayah'
     | '/quran/page/$page'
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/tadabbur'
     | '/voyage'
     | '/wird'
+    | '/parametres/apparence'
     | '/sourate/$surah'
     | '/etude/$surah/$ayah'
     | '/quran/page/$page'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/tadabbur'
     | '/voyage'
     | '/wird'
+    | '/parametres/apparence'
     | '/sourate/$surah'
     | '/etude/$surah/$ayah'
     | '/quran/page/$page'
@@ -272,6 +284,7 @@ export interface RootRouteChildren {
   TadabburRoute: typeof TadabburRoute
   VoyageRoute: typeof VoyageRoute
   WirdRoute: typeof WirdRoute
+  ParametresApparenceRoute: typeof ParametresApparenceRoute
   SourateSurahRoute: typeof SourateSurahRoute
   EtudeSurahAyahRoute: typeof EtudeSurahAyahRoute
   QuranPagePageRoute: typeof QuranPagePageRoute
@@ -391,6 +404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WirdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parametres/apparence': {
+      id: '/parametres/apparence'
+      path: '/parametres/apparence'
+      fullPath: '/parametres/apparence'
+      preLoaderRoute: typeof ParametresApparenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sourate/$surah': {
       id: '/sourate/$surah'
       path: '/sourate/$surah'
@@ -432,6 +452,7 @@ const rootRouteChildren: RootRouteChildren = {
   TadabburRoute: TadabburRoute,
   VoyageRoute: VoyageRoute,
   WirdRoute: WirdRoute,
+  ParametresApparenceRoute: ParametresApparenceRoute,
   SourateSurahRoute: SourateSurahRoute,
   EtudeSurahAyahRoute: EtudeSurahAyahRoute,
   QuranPagePageRoute: QuranPagePageRoute,

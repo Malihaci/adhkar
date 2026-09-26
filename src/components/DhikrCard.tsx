@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Heart, RotateCcw, Minus, Plus, ChevronDown, Check } from "lucide-react";
+import { Heart, RotateCcw, Minus, Plus, ChevronDown, Check, Share2 } from "lucide-react";
 import type { Dhikr } from "@/data/adhkar";
 import { AyahText } from "@/components/AyahText";
 
 import { useDailyProgress, useFavorites } from "@/lib/storage";
+import { shareDhikr } from "@/lib/share";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -19,7 +20,7 @@ export function DhikrCard({ dhikr, index }: Props) {
 
   const count = progress.counts[dhikr.id] ?? 0;
   const done = count >= dhikr.repetitions;
-  const fav = isFavorite(dhikr.id);
+  const fav = isFavorite("dhikr", dhikr.id);
 
   const onCount = () => {
     if (done) return;
@@ -47,16 +48,25 @@ export function DhikrCard({ dhikr, index }: Props) {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => toggle(dhikr.id)}
-          aria-label={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
-          aria-pressed={fav}
-          className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-gold"
-        >
-          <Heart
-            className={cn("size-5 transition", fav && "fill-gold text-gold")}
-          />
-        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            onClick={() => shareDhikr(dhikr, index)}
+            aria-label="Partager"
+            className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
+          >
+            <Share2 className="size-4" />
+          </button>
+          <button
+            onClick={() => toggle("dhikr", dhikr.id)}
+            aria-label={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
+            aria-pressed={fav}
+            className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-gold"
+          >
+            <Heart
+              className={cn("size-5 transition", fav && "fill-gold text-gold")}
+            />
+          </button>
+        </div>
       </header>
 
       {/* Tabs */}

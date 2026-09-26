@@ -24,6 +24,7 @@ export const AL_KAHF_PAGE = 293;
 export const DEFAULT_REMINDERS: ReminderConfig[] = [
   { id: "matin", label: "Adhkār matin", time: "07:00", enabled: true, deepLink: "/matin" },
   { id: "soir", label: "Adhkār soir", time: "18:00", enabled: true, deepLink: "/soir" },
+  { id: "reveil", label: "Réveil", time: "06:00", enabled: false, deepLink: "/reveil" },
   { id: "coucher", label: "Coucher", time: "22:30", enabled: false, deepLink: "/coucher" },
   { id: "wird", label: "Mon Wird", time: "20:00", enabled: false, deepLink: "/wird" },
   {

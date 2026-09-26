@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { DhikrViewer } from "@/components/DhikrViewer";
-import { adhkar } from "@/data/adhkar";
+import { ALL_ADHKAR } from "@/data/adhkar-occasions";
 import { useFavorites } from "@/lib/storage";
 
 export const Route = createFileRoute("/favoris-lecture")({
@@ -29,8 +29,10 @@ function FavorisLecturePage() {
   const { id } = Route.useSearch();
   const { favorites, hydrated } = useFavorites();
 
-  // Parcours construit à partir des IDs favoris (jamais des positions générales)
-  const list = adhkar.filter((d) => favorites.includes(d.id));
+  // Parcours construit à partir des IDs favoris (jamais des positions générales),
+  // toutes catégories d'Adhkār confondues (pas seulement matin/soir).
+  const favIds = favorites.filter((f) => f.type === "dhikr").map((f) => f.id);
+  const list = ALL_ADHKAR.filter((d) => favIds.includes(d.id));
 
   if (!hydrated) return null;
   if (list.length === 0) return <Navigate to="/favoris" replace />;

@@ -139,19 +139,55 @@ export function getLastReadIndex(category: DhikrCategory): number | null {
   return typeof raw.index === "number" ? raw.index : null;
 }
 
+export type FavoriteType = "dhikr" | "ayah";
+
+export interface FavoriteEntry {
+  type: FavoriteType;
+  id: string;
+}
+
+/**
+ * Favoris universels (§ favoris transversaux) : un dhikr (ID stable, quelle
+ * que soit sa catégorie) ou une ayah (verseKey "sourate:ayah"), jamais une
+ * position dans une liste. Migration idempotente depuis l'ancien format
+ * (tableau d'IDs de dhikr uniquement) : aucune perte, aucun doublon — un
+ * ancien favori "morning-1" redevient { type: "dhikr", id: "morning-1" }.
+ */
+function normalizeFavorite(item: unknown): FavoriteEntry | null {
+  if (typeof item === "string") return { type: "dhikr", id: item };
+  if (item && typeof item === "object" && "id" in item && "type" in item) {
+    const t = (item as { type: unknown }).type;
+    const id = (item as { id: unknown }).id;
+    if ((t === "dhikr" || t === "ayah") && typeof id === "string") return { type: t, id };
+  }
+  return null;
+}
+
 export function useFavorites() {
-  const [favorites, setFavorites, hydrated] = useLocalState<string[]>("adhkar:favorites", []);
+  const [raw, setRaw, hydrated] = useLocalState<unknown[]>("adhkar:favorites", []);
+  const favorites = raw
+    .map(normalizeFavorite)
+    .filter((f): f is FavoriteEntry => f !== null);
+
   const toggle = useCallback(
-    (id: string) => {
-      setFavorites((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    (type: FavoriteType, id: string) => {
+      setRaw((prev) => {
+        const list = prev.map(normalizeFavorite).filter((f): f is FavoriteEntry => f !== null);
+        const exists = list.some((f) => f.type === type && f.id === id);
+        return exists
+          ? list.filter((f) => !(f.type === type && f.id === id))
+          : [...list, { type, id }];
+      });
     },
-    [setFavorites],
+    [setRaw],
   );
+
   return {
     favorites,
     toggle,
     hydrated,
-    isFavorite: (id: string) => favorites.includes(id),
+    isFavorite: (type: FavoriteType, id: string) =>
+      favorites.some((f) => f.type === type && f.id === id),
   };
 }
 
@@ -190,13 +226,40 @@ export function useActionsProgress() {
   };
 }
 
+export type ThemeMode = "auto" | "light" | "dark";
+
+/**
+ * "Automatique" (préférence système) est le mode par défaut — §6 de la
+ * mission. `resolvedTheme` est ce qui est réellement appliqué (jamais
+ * "auto"), à utiliser pour l'affichage d'une icône ou d'un libellé.
+ */
 export function useTheme() {
-  const [theme, setTheme] = useLocalState<"light" | "dark">("adhkar:theme", "light");
+  const [mode, setMode] = useLocalState<ThemeMode>("adhkar:theme", "auto");
+  const [systemDark, setSystemDark] = useState(false);
+
+  useEffect(() => {
+    if (!isBrowser) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setSystemDark(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const resolvedTheme: "light" | "dark" =
+    mode === "auto" ? (systemDark ? "dark" : "light") : mode;
+
   useEffect(() => {
     if (!isBrowser) return;
     const root = document.documentElement;
-    if (theme === "dark") root.classList.add("dark");
+    if (resolvedTheme === "dark") root.classList.add("dark");
     else root.classList.remove("dark");
-  }, [theme]);
-  return { theme, setTheme, toggle: () => setTheme(theme === "dark" ? "light" : "dark") };
+  }, [resolvedTheme]);
+
+  return {
+    mode,
+    setMode,
+    theme: resolvedTheme,
+    toggle: () => setMode(resolvedTheme === "dark" ? "light" : "dark"),
+  };
 }

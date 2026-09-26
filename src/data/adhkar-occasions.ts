@@ -16,6 +16,7 @@
  */
 
 import type { Dhikr } from "@/data/adhkar";
+import { adhkar } from "./adhkar.ts";
 
 export const coucherAdhkar: Dhikr[] = [
   {
@@ -601,4 +602,19 @@ export const apresPriereAdhkar: Dhikr[] = [
       "Parole directe du Prophète ﷺ (type A) ; les nombres 33/33/33 et la formule de complément à 100 sont explicites dans le texte du hadith.",
     validationStatus: "verified_source",
   },
+];
+
+/**
+ * Union de TOUTES les catégories d'Adhkār (matin/soir + occasions) — source
+ * unique pour les Favoris et toute fonctionnalité transversale (recherche,
+ * partage). Ne jamais filtrer les favoris sur `adhkar` (matin/soir) seul :
+ * un dhikr favori d'une catégorie « occasion » doit rester trouvable ici.
+ */
+export const ALL_ADHKAR: Dhikr[] = [
+  ...adhkar,
+  ...coucherAdhkar,
+  ...sortieAdhkar,
+  ...voyageAdhkar,
+  ...reveilAdhkar,
+  ...apresPriereAdhkar,
 ];

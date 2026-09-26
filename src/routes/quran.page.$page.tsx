@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Heart,
   Home,
   Loader2,
   Maximize2,
@@ -47,7 +48,7 @@ import {
   type SearchResult,
 } from "@/lib/mushaf";
 import { Basmala } from "@/components/AyahText";
-import { useLocalState } from "@/lib/storage";
+import { useLocalState, useFavorites } from "@/lib/storage";
 import { getPageContent, type EtudeCategory } from "@/lib/etude-content";
 import { ContentList, AgirSection } from "@/routes/etude.$surah.$ayah";
 import { cn } from "@/lib/utils";
@@ -123,6 +124,7 @@ function MushafPage() {
     staleTime: Infinity,
   });
 
+  const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const [selected, setSelected] = useState<string[]>([]);
   const [showNav, setShowNav] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -811,7 +813,7 @@ function MushafPage() {
             return meta ? ` · ${meta.nameFrench} · ${meta.nameArabic}` : "";
           })()}
       </p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <button
           onClick={() => {
             const [s, a] = key.split(":");
@@ -826,6 +828,13 @@ function MushafPage() {
         >
           <Sparkles className="size-5" />
           Étudier
+        </button>
+        <button
+          onClick={() => toggleFavorite("ayah", key)}
+          className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-xs font-semibold transition hover:border-gold/50 hover:text-gold"
+        >
+          <Heart className={cn("size-5", isFavorite("ayah", key) && "fill-gold text-gold")} />
+          Favori
         </button>
         <button
           onClick={copyVerse}

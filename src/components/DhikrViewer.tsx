@@ -9,6 +9,7 @@ import {
   Type,
   Leaf,
   ChevronDown,
+  Share2,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { AyahText } from "@/components/AyahText";
@@ -16,6 +17,7 @@ import { SourceInfo } from "@/components/SourceInfo";
 
 import type { Dhikr } from "@/data/adhkar";
 import { useDailyProgress, useFavorites, getLastReadIndex, useLocalState } from "@/lib/storage";
+import { shareDhikr } from "@/lib/share";
 import { cn } from "@/lib/utils";
 
 type FontSize = "normal" | "large" | "xlarge";
@@ -87,7 +89,7 @@ export function DhikrViewer({
 
   const count = progress.counts[dhikr.id] ?? 0;
   const done = count >= dhikr.repetitions;
-  const fav = isFavorite(dhikr.id);
+  const fav = isFavorite("dhikr", dhikr.id);
 
   const go = (d: number) => {
     setIdx((i) => Math.min(list.length - 1, Math.max(0, i + d)));
@@ -190,7 +192,14 @@ export function DhikrViewer({
               )}
             </div>
             <button
-              onClick={() => toggle(dhikr.id)}
+              onClick={() => shareDhikr(dhikr, idx)}
+              aria-label="Partager"
+              className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
+            >
+              <Share2 className="size-5" />
+            </button>
+            <button
+              onClick={() => toggle("dhikr", dhikr.id)}
               aria-label={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
               aria-pressed={fav}
               className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-gold"

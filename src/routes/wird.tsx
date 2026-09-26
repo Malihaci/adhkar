@@ -124,13 +124,24 @@ function JoinPreview({
 
 function CreateWird({ onCreate }: { onCreate: (w: WirdState) => void }) {
   const [mode, setMode] = useState<"perso" | "groupe">("perso");
+  const [basis, setBasis] = useState<"duree" | "pages">("duree");
   const [custom, setCustom] = useState("");
+  const [customPages, setCustomPages] = useState("");
   const [groupName, setGroupName] = useState("");
 
+  // Les deux modes ("Durée" ou "Pages/jour") passent TOUJOURS par la même
+  // durée en jours, elle-même consommée par l'unique `buildKhatmaSchedule()`
+  // — aucun second algorithme de répartition (§22 mission).
   const start = (days: number) => onCreate(createWirdState(days));
   const startGroup = (days: number) => {
     if (!groupName.trim()) return;
     onCreate(createWirdState(days, groupName.trim()));
+  };
+  const startFromPagesPerDay = (pagesPerDay: number) => {
+    if (pagesPerDay <= 0) return;
+    const days = Math.ceil(TOTAL_MUSHAF_PAGES / pagesPerDay);
+    if (mode === "perso") start(days);
+    else startGroup(days);
   };
 
   return (
@@ -165,41 +176,104 @@ function CreateWird({ onCreate }: { onCreate: (w: WirdState) => void }) {
         />
       )}
 
-      <div className="grid grid-cols-3 gap-2">
-        {[30, 60, 90].map((d) => (
-          <button
-            key={d}
-            onClick={() => (mode === "perso" ? start(d) : startGroup(d))}
-            disabled={mode === "groupe" && !groupName.trim()}
-            className="surface-card flex flex-col items-center gap-1 rounded-2xl px-3 py-4 transition hover:-translate-y-0.5 hover:border-gold/40 disabled:opacity-40"
-          >
-            <span className="font-display text-xl font-bold text-gold">{d}</span>
-            <span className="text-xs text-muted-foreground">jours</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-2">
-        <input
-          inputMode="numeric"
-          value={custom}
-          onChange={(e) => setCustom(e.target.value.replace(/\D/g, ""))}
-          placeholder="Durée personnalisée (jours)"
-          className="h-12 flex-1 rounded-2xl border border-border bg-background px-4 text-sm"
-        />
+      <div className="flex gap-1 rounded-full border border-border p-1">
         <button
-          onClick={() => {
-            const d = Number(custom);
-            if (d <= 0) return;
-            if (mode === "perso") start(d);
-            else startGroup(d);
-          }}
-          disabled={!custom || (mode === "groupe" && !groupName.trim())}
-          className="h-12 shrink-0 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+          onClick={() => setBasis("duree")}
+          className={cn(
+            "flex-1 rounded-full py-2 text-xs font-semibold transition",
+            basis === "duree" ? "bg-secondary text-foreground" : "text-muted-foreground",
+          )}
         >
-          Créer
+          Durée
+        </button>
+        <button
+          onClick={() => setBasis("pages")}
+          className={cn(
+            "flex-1 rounded-full py-2 text-xs font-semibold transition",
+            basis === "pages" ? "bg-secondary text-foreground" : "text-muted-foreground",
+          )}
+        >
+          Pages / jour
         </button>
       </div>
+
+      {basis === "duree" ? (
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            {[30, 60, 90].map((d) => (
+              <button
+                key={d}
+                onClick={() => (mode === "perso" ? start(d) : startGroup(d))}
+                disabled={mode === "groupe" && !groupName.trim()}
+                className="surface-card flex flex-col items-center gap-1 rounded-2xl px-3 py-4 transition hover:-translate-y-0.5 hover:border-gold/40 disabled:opacity-40"
+              >
+                <span className="font-display text-xl font-bold text-gold">{d}</span>
+                <span className="text-xs text-muted-foreground">jours</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              inputMode="numeric"
+              value={custom}
+              onChange={(e) => setCustom(e.target.value.replace(/\D/g, ""))}
+              placeholder="Durée personnalisée (jours)"
+              className="h-12 flex-1 rounded-2xl border border-border bg-background px-4 text-sm"
+            />
+            <button
+              onClick={() => {
+                const d = Number(custom);
+                if (d <= 0) return;
+                if (mode === "perso") start(d);
+                else startGroup(d);
+              }}
+              disabled={!custom || (mode === "groupe" && !groupName.trim())}
+              className="h-12 shrink-0 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+            >
+              Créer
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-4 gap-2">
+            {[2, 4, 5, 10].map((p) => (
+              <button
+                key={p}
+                onClick={() => startFromPagesPerDay(p)}
+                disabled={mode === "groupe" && !groupName.trim()}
+                className="surface-card flex flex-col items-center gap-1 rounded-2xl px-2 py-4 transition hover:-translate-y-0.5 hover:border-gold/40 disabled:opacity-40"
+              >
+                <span className="font-display text-xl font-bold text-gold">{p}</span>
+                <span className="text-[11px] text-muted-foreground">pages/j</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              inputMode="numeric"
+              value={customPages}
+              onChange={(e) => setCustomPages(e.target.value.replace(/\D/g, ""))}
+              placeholder="Pages par jour (autre)"
+              className="h-12 flex-1 rounded-2xl border border-border bg-background px-4 text-sm"
+            />
+            <button
+              onClick={() => startFromPagesPerDay(Number(customPages))}
+              disabled={!customPages || (mode === "groupe" && !groupName.trim())}
+              className="h-12 shrink-0 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+            >
+              Créer
+            </button>
+          </div>
+          {customPages && Number(customPages) > 0 && (
+            <p className="text-center text-xs text-muted-foreground">
+              ≈ {Math.ceil(TOTAL_MUSHAF_PAGES / Number(customPages))} jours pour terminer le Coran
+            </p>
+          )}
+        </>
+      )}
 
       <p className="text-center text-xs text-muted-foreground">
         Les {TOTAL_MUSHAF_PAGES} pages du Mushaf sont réparties automatiquement, sans trou ni
