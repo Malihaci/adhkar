@@ -140,7 +140,12 @@ export function DhikrViewer({
         <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-3 py-2.5 sm:px-4">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {label ?? (category === "morning" ? "Adhkâr du matin" : "Adhkâr du soir")}
+              {label ??
+                (category === "morning"
+                  ? "Adhkâr du matin"
+                  : category === "evening"
+                    ? "Adhkâr du soir"
+                    : "Adhkâr")}
               <span
                 className={cn(
                   "ml-2 font-bold tabular-nums",
