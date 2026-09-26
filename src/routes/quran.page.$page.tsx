@@ -43,6 +43,9 @@ import {
   TAJWEED_COLORS,
   TAJWEED_LEGEND,
   verseAudioUrl,
+  basmalaAudioUrl,
+  withBasmalaBridges,
+  BASMALA_BRIDGE_KEY,
   type Chapter,
   type PageVerse,
   type SearchResult,
@@ -196,7 +199,7 @@ function MushafPage() {
       const el = audioRef.current;
       if (!el || !key) return;
       const sessionId = ++loadSessionRef.current;
-      el.src = verseAudioUrl(reciterId, key);
+      el.src = key === BASMALA_BRIDGE_KEY ? basmalaAudioUrl(reciterId) : verseAudioUrl(reciterId, key);
       el.load();
       el.playbackRate = speed;
       if (autoplay) {
@@ -232,7 +235,11 @@ function MushafPage() {
     // façon asynchrone pour sourate/juz'/hizb).
     activeQueueContext.current = selectionSignature();
     const perAyah = ayahRepeat > 1 ? ayahRepeat : 1;
-    let full = keys.flatMap((k) => Array.from({ length: perAyah }, () => k));
+    // Le pont Basmala (voir withBasmalaBridges) ne doit jamais être répété
+    // par la répétition PAR AYAH — seule l'ayah qui le suit l'est.
+    let full = withBasmalaBridges(keys).flatMap((k) =>
+      k === BASMALA_BRIDGE_KEY ? [k] : Array.from({ length: perAyah }, () => k),
+    );
     const applySelRepeat = !opts?.skipSelRepeat;
     if (applySelRepeat && selRepeat > 1) {
       full = Array.from({ length: selRepeat }, () => full).flat();
@@ -278,6 +285,7 @@ function MushafPage() {
   /** Tourne la page quand la récitation quitte la page affichée. */
   const followKey = (key: string) => {
     if (!autoTurn || !verses?.length) return;
+    if (key === BASMALA_BRIDGE_KEY) return; // pont Basmala : jamais de tourne-page
     if (verses.some((v) => v.key === key)) return;
     const [s, a] = key.split(":").map(Number);
     const last = verses[verses.length - 1];

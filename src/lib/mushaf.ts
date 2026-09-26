@@ -355,6 +355,46 @@ export function verseAudioUrl(reciterId: string, verseKey: string): string {
   return `${QURAN_CDN_BASE[r.ref]}/${file}`;
 }
 
+/* ------------------------------------------------------------- Basmala audio */
+/**
+ * Vérifié empiriquement (données d'alignement mot-à-mot d'api.quran.com +
+ * analyse de forme d'onde, pas seulement une durée) : les fichiers par-ayah
+ * utilisés ici (Minshawi/Husary/Dossari/Ghamdi) ne contiennent PAS de
+ * Basmala pour l'ayah 1 des sourates normales — la parole y démarre presque
+ * immédiatement (~0,2–0,4 s), comme pour n'importe quelle autre ayah. C'est
+ * la cause réelle du bug signalé : rien n'était injecté, et la source ne la
+ * fournissait pas non plus.
+ *
+ * Solution retenue : réutiliser le fichier 1:1 (Al-Fatiha) du MÊME
+ * récitateur comme pont audio — 1:1 EST la Basmala (texte identique, aucune
+ * sourate ni ayah propre), donc aucun nouvel asset n'est nécessaire et la
+ * voix reste cohérente avec le récitateur choisi.
+ */
+export const BASMALA_BRIDGE_KEY = "basmala";
+
+export function basmalaAudioUrl(reciterId: string): string {
+  return verseAudioUrl(reciterId, "1:1");
+}
+
+/**
+ * Insère le pont Basmala immédiatement avant chaque ayah 1 rencontrée dans
+ * la séquence, sauf sourate 1 (Al-Fatiha — 1:1 est déjà la Basmala, jamais
+ * de doublon) et sourate 9 (At-Tawbah — n'en comporte jamais). S'applique
+ * uniformément que l'ayah 1 soit le premier élément (début de sourate) ou
+ * rencontrée plus loin dans la séquence (transition automatique entre
+ * sourates) ; ne déclenche jamais rien pour une ayah ≠ 1 (lecture commencée
+ * au milieu d'une sourate).
+ */
+export function withBasmalaBridges(keys: string[]): string[] {
+  const out: string[] = [];
+  for (const key of keys) {
+    const [surah, ayah] = key.split(":").map(Number);
+    if (ayah === 1 && surah !== 1 && surah !== 9) out.push(BASMALA_BRIDGE_KEY);
+    out.push(key);
+  }
+  return out;
+}
+
 /* ------------------------------------------------------ Recherche (V1 arabe) */
 /**
  * Recherche plein texte fournie par api.quran.com (tolérante aux harakat :
