@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Heart, RotateCcw, Minus, Plus, ChevronDown, Check, Play, Share2 } from "lucide-react";
+import { Heart, RotateCcw, Minus, Plus, ChevronDown, Check, Pause, Play, Share2 } from "lucide-react";
 import type { Dhikr } from "@/data/adhkar";
 import { AyahText } from "@/components/AyahText";
 
 import { useDailyProgress, useFavorites } from "@/lib/storage";
 import { shareDhikr } from "@/lib/share";
+import { useDhikrVerseAudio } from "@/lib/dhikrAudio";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -18,6 +19,7 @@ export function DhikrCard({ dhikr, index }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [tab, setTab] = useState<"ar" | "ph" | "fr" | "all">("ar");
   const [audioUnavailable, setAudioUnavailable] = useState(false);
+  const dhikrAudio = useDhikrVerseAudio(dhikr.verseKeys);
 
   const count = progress.counts[dhikr.id] ?? 0;
   const done = count >= dhikr.repetitions;
@@ -52,13 +54,17 @@ export function DhikrCard({ dhikr, index }: Props) {
         <div className="flex shrink-0 items-center gap-0.5">
           <button
             onClick={() => {
+              if (dhikrAudio.available) {
+                dhikrAudio.toggle();
+                return;
+              }
               setAudioUnavailable(true);
               window.setTimeout(() => setAudioUnavailable(false), 2500);
             }}
-            aria-label="Écouter ce dhikr"
+            aria-label={dhikrAudio.playing ? "Mettre en pause" : "Écouter ce dhikr"}
             className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
           >
-            <Play className="size-4" />
+            {dhikrAudio.playing ? <Pause className="size-4" /> : <Play className="size-4" />}
           </button>
           <button
             onClick={() => shareDhikr(dhikr, index)}

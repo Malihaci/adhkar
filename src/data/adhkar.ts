@@ -43,6 +43,14 @@ export interface Dhikr {
   evidenceSummaryFr?: string;
   sourceIds?: string[];
   validationStatus?: "verified_source" | "needs_review";
+  /**
+   * Renseigné UNIQUEMENT quand ce dhikr est un texte coranique exact (ex.
+   * Āyat al-Kursī, Al-Ikhlāṣ, Al-Falaq, An-Nās) : verseKeys exacts, dans
+   * l'ordre de récitation — permet de réutiliser le moteur audio Coran
+   * existant (§24/§8 mission) au lieu d'un "Audio indisponible" honnête
+   * mais évitable pour ces cas précis. Jamais un index de tableau.
+   */
+  verseKeys?: string[];
 }
 
 // Textes arabes partagés (Coran & formules identiques matin/soir)
@@ -197,6 +205,7 @@ const morning: Dhikr[] = [
     id: "m-01-ayat-kursi",
     category: "morning",
     title: "1. Âyat al-Kursî",
+    verseKeys: ["2:255"],
     arabic: AYAT_KURSI,
     phonetic: AYAT_KURSI_PH,
     translation: AYAT_KURSI_FR,
@@ -211,6 +220,7 @@ const morning: Dhikr[] = [
     id: "m-02-ikhlas",
     category: "morning",
     title: "2. Sourate Al-Ikhlâs",
+    verseKeys: ["112:1", "112:2", "112:3", "112:4"],
     arabic: IKHLAS,
     phonetic:
       "Qul Huwa-llâhu Ahad, Allâhu-s-Samad, lam yalid wa lam yûlad, wa lam yakun lahu kufuwan Ahad.",
@@ -226,6 +236,7 @@ const morning: Dhikr[] = [
     id: "m-03-falaq",
     category: "morning",
     title: "3. Sourate Al-Falaq",
+    verseKeys: ["113:1", "113:2", "113:3", "113:4", "113:5"],
     arabic: FALAQ,
     phonetic:
       "Qul a'ûdhu bi Rabbi-l-falaq, min sharri mâ khalaq, wa min sharri ghâsiqin idhâ waqab, wa min sharri-n-naffâthâti fi-l-'uqad, wa min sharri hâsidin idhâ hasad.",
@@ -240,6 +251,7 @@ const morning: Dhikr[] = [
     id: "m-04-nas",
     category: "morning",
     title: "4. Sourate An-Nâs",
+    verseKeys: ["114:1", "114:2", "114:3", "114:4", "114:5", "114:6"],
     arabic: NAS,
     phonetic:
       "Qul a'ûdhu bi Rabbi-n-nâs, Maliki-n-nâs, Ilâhi-n-nâs, min sharri-l-waswâsi-l-khannâs, alladhî yuwaswisu fî sudûri-n-nâs, mina-l-jinnati wa-n-nâs.",
@@ -612,6 +624,7 @@ const evening: Dhikr[] = [
     id: "e-01-ayat-kursi",
     category: "evening",
     title: "1. Âyat al-Kursî",
+    verseKeys: ["2:255"],
     arabic: AYAT_KURSI,
     phonetic: AYAT_KURSI_PH,
     translation: AYAT_KURSI_FR,
@@ -625,6 +638,7 @@ const evening: Dhikr[] = [
     id: "e-02-baqara-fin",
     category: "evening",
     title: "2. Les deux derniers versets d'Al-Baqara",
+    verseKeys: ["2:285", "2:286"],
     arabic:
       "آمَنَ الرَّسُولُ بِمَا أُنْزِلَ إِلَيْهِ مِنْ رَبِّهِ وَالْمُؤْمِنُونَ ۚ كُلٌّ آمَنَ بِاللَّهِ وَمَلَائِكَتِهِ وَكُتُبِهِ وَرُسُلِهِ لَا نُفَرِّقُ بَيْنَ أَحَدٍ مِنْ رُسُلِهِ ۚ وَقَالُوا سَمِعْنَا وَأَطَعْنَا ۖ غُفْرَانَكَ رَبَّنَا وَإِلَيْكَ الْمَصِيرُ. لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا ۚ لَهَا مَا كَسَبَتْ وَعَلَيْهَا مَا اكْتَسَبَتْ ۗ رَبَّنَا لَا تُؤَاخِذْنَا إِنْ نَسِينَا أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَا إِصْرًا كَمَا حَمَلْتَهُ عَلَى الَّذِينَ مِنْ قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِ ۖ وَاعْفُ عَنَّا وَاغْفِرْ لَنَا وَارْحَمْنَا ۚ أَنْتَ مَوْلَانَا فَانْصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ.",
     phonetic: "Âmana-r-Rasûlu bimâ unzila ilayhi min Rabbihi wal-mu'minûn… (Al-Baqara 285-286).",
@@ -639,6 +653,7 @@ const evening: Dhikr[] = [
     id: "e-03-ikhlas",
     category: "evening",
     title: "3. Sourate Al-Ikhlâs",
+    verseKeys: ["112:1", "112:2", "112:3", "112:4"],
     arabic: IKHLAS,
     phonetic:
       "Qul Huwa-llâhu Ahad, Allâhu-s-Samad, lam yalid wa lam yûlad, wa lam yakun lahu kufuwan Ahad.",
@@ -653,6 +668,7 @@ const evening: Dhikr[] = [
     id: "e-04-falaq",
     category: "evening",
     title: "4. Sourate Al-Falaq",
+    verseKeys: ["113:1", "113:2", "113:3", "113:4", "113:5"],
     arabic: FALAQ,
     phonetic: "Qul a'ûdhu bi Rabbi-l-falaq…",
     translation: "Refuge contre tous les maux — voir matin n°3.",
@@ -665,6 +681,7 @@ const evening: Dhikr[] = [
     id: "e-05-nas",
     category: "evening",
     title: "5. Sourate An-Nâs",
+    verseKeys: ["114:1", "114:2", "114:3", "114:4", "114:5", "114:6"],
     arabic: NAS,
     phonetic: "Qul a'ûdhu bi Rabbi-n-nâs…",
     translation: "Refuge contre le waswâs — voir matin n°4.",

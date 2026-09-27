@@ -9,6 +9,7 @@ import {
   Type,
   Leaf,
   ChevronDown,
+  Pause,
   Play,
   Share2,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { SourceInfo } from "@/components/SourceInfo";
 import type { Dhikr } from "@/data/adhkar";
 import { useDailyProgress, useFavorites, getLastReadIndex, useLocalState } from "@/lib/storage";
 import { shareDhikr } from "@/lib/share";
+import { useDhikrVerseAudio } from "@/lib/dhikrAudio";
 import { cn } from "@/lib/utils";
 
 type FontSize = "normal" | "large" | "xlarge";
@@ -80,6 +82,7 @@ export function DhikrViewer({
   }, [list.length]);
 
   const dhikr = list[Math.min(idx, list.length - 1)];
+  const dhikrAudio = useDhikrVerseAudio(dhikr?.verseKeys);
 
   // Persist current position
   useEffect(() => {
@@ -162,17 +165,71 @@ export function DhikrViewer({
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <button
+              onClick={() => {
+                if (dhikrAudio.available) {
+                  dhikrAudio.toggle();
+                  return;
+                }
+                setAudioUnavailable(true);
+                window.setTimeout(() => setAudioUnavailable(false), 2500);
+              }}
+              aria-label={dhikrAudio.playing ? "Mettre en pause" : "Écouter ce dhikr"}
+              className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
+            >
+              {dhikrAudio.playing ? <Pause className="size-5" /> : <Play className="size-5" />}
+            </button>
+            <button
+              onClick={() => toggle("dhikr", dhikr.id)}
+              aria-label={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
+              aria-pressed={fav}
+              className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-gold"
+            >
+              <Heart className={cn("size-6 transition", fav && "fill-gold text-gold")} />
+            </button>
+            <button
+              onClick={() => shareDhikr(dhikr, idx)}
+              aria-label="Partager"
+              className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
+            >
+              <Share2 className="size-5" />
+            </button>
+            {/* "Aa" — affichage : phonétique + taille du texte, réglages peu
+                fréquents rangés derrière un seul panneau (§22/35 mission). */}
             <div className="relative">
               <button
                 onClick={() => setSizeOpen((v) => !v)}
-                aria-label="Taille du texte"
+                aria-label="Affichage (phonétique, taille du texte)"
                 aria-expanded={sizeOpen}
                 className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
               >
                 <Type className="size-5" />
               </button>
               {sizeOpen && (
-                <div className="absolute right-0 top-12 z-30 w-40 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)]">
+                <div className="absolute right-0 top-12 z-30 w-52 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)]">
+                  <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+                    <span className="text-sm font-medium text-foreground">Phonétique</span>
+                    <button
+                      onClick={() => setShowPhonetic(!showPhonetic)}
+                      role="switch"
+                      aria-checked={showPhonetic}
+                      aria-label="Afficher la phonétique"
+                      className={cn(
+                        "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                        showPhonetic ? "bg-primary" : "bg-muted",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-1 size-5 rounded-full bg-background shadow transition-all",
+                          showPhonetic ? "left-6" : "left-1",
+                        )}
+                      />
+                    </button>
+                  </div>
+                  <p className="px-4 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Taille du texte
+                  </p>
                   {(
                     [
                       ["normal", "Normal"],
@@ -198,31 +255,6 @@ export function DhikrViewer({
                 </div>
               )}
             </div>
-            <button
-              onClick={() => {
-                setAudioUnavailable(true);
-                window.setTimeout(() => setAudioUnavailable(false), 2500);
-              }}
-              aria-label="Écouter ce dhikr"
-              className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
-            >
-              <Play className="size-5" />
-            </button>
-            <button
-              onClick={() => shareDhikr(dhikr, idx)}
-              aria-label="Partager"
-              className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
-            >
-              <Share2 className="size-5" />
-            </button>
-            <button
-              onClick={() => toggle("dhikr", dhikr.id)}
-              aria-label={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
-              aria-pressed={fav}
-              className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-gold"
-            >
-              <Heart className={cn("size-6 transition", fav && "fill-gold text-gold")} />
-            </button>
           </div>
         </header>
 
@@ -232,26 +264,52 @@ export function DhikrViewer({
           </p>
         )}
 
-        {/* Phonétique toggle */}
-        <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2 sm:px-4">
-          <span className="text-sm font-medium text-muted-foreground">Phonétique</span>
+        {/* Vivre ce dhikr — remonté juste sous les actions (§23), plus besoin
+            de descendre jusqu'en bas pour le trouver. */}
+        <div className="mx-3 mt-3 shrink-0 rounded-2xl border border-border bg-secondary/40 sm:mx-4">
           <button
-            onClick={() => setShowPhonetic(!showPhonetic)}
-            role="switch"
-            aria-checked={showPhonetic}
-            aria-label="Afficher la phonétique"
-            className={cn(
-              "relative h-8 w-14 shrink-0 rounded-full transition-colors",
-              showPhonetic ? "bg-primary" : "bg-muted",
-            )}
+            onClick={() => setLiveOpen((v) => !v)}
+            aria-expanded={liveOpen}
+            className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
           >
-            <span
+            <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+              <Leaf className="size-4 shrink-0 text-primary" />
+              Vivre ce dhikr
+            </span>
+            <ChevronDown
               className={cn(
-                "absolute top-1 size-6 rounded-full bg-background shadow transition-all",
-                showPhonetic ? "left-7" : "left-1",
+                "size-4 shrink-0 text-muted-foreground transition-transform",
+                liveOpen && "rotate-180",
               )}
             />
           </button>
+          {liveOpen && (
+            <div className="space-y-3 border-t border-border px-4 py-3 text-sm leading-relaxed text-foreground">
+              {dhikr.context && (
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                  {dhikr.context}
+                </p>
+              )}
+              <p>{dhikr.explanation}</p>
+              {dhikr.merits && <p>{dhikr.merits}</p>}
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <span>{dhikr.reference}</span>
+                {dhikr.collection && (
+                  <SourceInfo
+                    sourceTitle={dhikr.collection}
+                    sourceReference={dhikr.hadithNumber}
+                    sourceAuthor={dhikr.narrator}
+                    authenticity={
+                      dhikr.authenticityGrade
+                        ? `${dhikr.authenticityGrade}${dhikr.authenticityGrader ? " — " + dhikr.authenticityGrader : ""}`
+                        : undefined
+                    }
+                    nature={dhikr.evidenceSummaryFr}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -277,53 +335,6 @@ export function DhikrViewer({
           >
             {dhikr.translation}
           </p>
-
-          {/* Vivre ce dhikr */}
-          <div className="rounded-2xl border border-border bg-secondary/40">
-            <button
-              onClick={() => setLiveOpen((v) => !v)}
-              aria-expanded={liveOpen}
-              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
-            >
-              <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
-                <Leaf className="size-4 shrink-0 text-primary" />
-                Vivre ce dhikr
-              </span>
-              <ChevronDown
-                className={cn(
-                  "size-4 shrink-0 text-muted-foreground transition-transform",
-                  liveOpen && "rotate-180",
-                )}
-              />
-            </button>
-            {liveOpen && (
-              <div className="space-y-3 border-t border-border px-4 py-3 text-sm leading-relaxed text-foreground">
-                {dhikr.context && (
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                    {dhikr.context}
-                  </p>
-                )}
-                <p>{dhikr.explanation}</p>
-                {dhikr.merits && <p>{dhikr.merits}</p>}
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <span>{dhikr.reference}</span>
-                  {dhikr.collection && (
-                    <SourceInfo
-                      sourceTitle={dhikr.collection}
-                      sourceReference={dhikr.hadithNumber}
-                      sourceAuthor={dhikr.narrator}
-                      authenticity={
-                        dhikr.authenticityGrade
-                          ? `${dhikr.authenticityGrade}${dhikr.authenticityGrader ? " — " + dhikr.authenticityGrader : ""}`
-                          : undefined
-                      }
-                      nature={dhikr.evidenceSummaryFr}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Bottom bar — une seule ligne, LTR : gauche = précédent, droite = suivant */}
