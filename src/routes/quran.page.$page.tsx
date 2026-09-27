@@ -11,6 +11,7 @@ import {
   Loader2,
   Maximize2,
   Minimize2,
+  MoreHorizontal,
   Pause,
   Play,
   Search,
@@ -19,6 +20,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { fetchHamidullahAyah } from "@/lib/hamidullah";
 import {
   MIN_FALLBACK_QUERY_LENGTH,
   RECITERS,
@@ -139,6 +141,14 @@ function MushafPage() {
     setMenuFor(null);
     setMenuAnchor(null);
   };
+  // Changement de page = fermeture de la sélection/menu en cours (§14) —
+  // cette route reste montée d'une page à l'autre (seul `page` change).
+  useEffect(() => {
+    setSelected([]);
+    setMenuFor(null);
+    setMenuAnchor(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchNavigating, setSearchNavigating] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -321,19 +331,6 @@ function MushafPage() {
   };
 
   /* --------------------------------------------------------- sélection */
-  const toggleVerse = (key: string) => {
-    if (!verses) return;
-    const keys = verses.map((v) => v.key);
-    setSelected((prev) => {
-      if (!prev.length) return [key];
-      if (prev.includes(key)) return prev.length === 1 ? [] : prev.filter((k) => k !== key);
-      const idxs = [...prev, key].map((k) => keys.indexOf(k));
-      const min = Math.min(...idxs);
-      const max = Math.max(...idxs);
-      return keys.slice(min, max + 1); // versets consécutifs
-    });
-  };
-
   const selLabel =
     selected.length === 0
       ? ""
@@ -403,6 +400,32 @@ function MushafPage() {
       if (navigator.share) await navigator.share({ url: link, title: `Coran — page ${page}` });
       else {
         await navigator.clipboard.writeText(link);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      }
+    } catch {
+      /* annulé */
+    }
+  };
+
+  /**
+   * Partage riche d'une ayah (§6 menu ayah) : texte arabe exact + traduction
+   * française validée (Hamidullah, même source que partout ailleurs) +
+   * sourate + numéro + lien existant — jamais de Tafsir/mérite/texte généré.
+   */
+  const shareSelectedVerse = async (key: string) => {
+    const v = verses?.find((vv) => vv.key === key);
+    if (!v) return;
+    const [s, a] = key.split(":").map(Number);
+    const meta = chapters?.find((c) => c.id === s);
+    const hamidullah = await fetchHamidullahAyah(s, a).catch(() => null);
+    const link = buildLink(key);
+    const label = meta ? `${meta.nameFrench} — ${key}` : key;
+    const text = [v.arabic, hamidullah?.translation, label, link].filter(Boolean).join("\n\n");
+    try {
+      if (navigator.share) await navigator.share({ text, url: link });
+      else {
+        await navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 1800);
       }
@@ -757,11 +780,10 @@ function MushafPage() {
         gesture.current.longPress = true;
         suppressNextClick.current = true;
         const key = gesture.current.wordKey!;
-        // L'appui long sélectionne l'ayah si nécessaire (jamais un toggle/
-        // une extension de plage comme le tap) puis ouvre son menu —
-        // selectedVerseKey correspond toujours à l'ayah concernée.
-        setSelected((prev) => (prev.includes(key) ? prev : [key]));
-        setMenuFor(key);
+        // Appui long = même résultat "direct" qu'un tap (sélection +
+        // barre d'actions compacte), jamais le menu natif Android — voir
+        // select-none/-webkit-touch-callout sur le conteneur du Mushaf.
+        setSelected([key]);
       }, 480);
     }
   };
@@ -802,12 +824,15 @@ function MushafPage() {
     }
   };
 
+  /** Tap/clic court = sélectionne CETTE ayah seule (jamais une extension de
+   * plage) et affiche la barre d'actions compacte — un second tap sur la
+   * même ayah referme la sélection (§1/§14 mission menu d'actions). */
   const onWordClick = (key: string) => {
     if (suppressNextClick.current) {
       suppressNextClick.current = false;
       return;
     }
-    toggleVerse(key);
+    setSelected((prev) => (prev.length === 1 && prev[0] === key ? [] : [key]));
   };
 
   /** Clic droit desktop : sélectionne l'ayah et ouvre le menu près du curseur
@@ -819,9 +844,13 @@ function MushafPage() {
     setMenuAnchor({ x: e.clientX, y: e.clientY });
   };
 
-  /** Contenu identique (titre + Étudier/Copier/Partager) pour les deux
-   * présentations du menu — bottom sheet mobile (appui long) et popover
-   * ancré au curseur (clic droit desktop). Mêmes actions, même comportement. */
+  /**
+   * Menu "Plus" (§3 mission menu ayah) — Étudier / Copier l'ayah / Copier
+   * la traduction. Favori/Partager/Écouter vivent désormais sur la barre
+   * d'actions compacte (§2) ; ce menu reste le complément, pas un doublon.
+   * Même contenu pour les deux présentations (bottom sheet mobile, popover
+   * clic droit desktop).
+   */
   const menuActions = (key: string) => (
     <>
       <p className="mb-2 text-center text-xs font-semibold text-muted-foreground">
@@ -832,7 +861,7 @@ function MushafPage() {
             return meta ? ` · ${meta.nameFrench} · ${meta.nameArabic}` : "";
           })()}
       </p>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button
           onClick={() => {
             const [s, a] = key.split(":");
@@ -849,38 +878,50 @@ function MushafPage() {
           Étudier
         </button>
         <button
-          onClick={() => toggleFavorite("ayah", key)}
-          className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-xs font-semibold transition hover:border-gold/50 hover:text-gold"
-        >
-          <Heart className={cn("size-5", isFavorite("ayah", key) && "fill-gold text-gold")} />
-          Favori
-        </button>
-        <button
           onClick={copyVerse}
-          className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
+          className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-center text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
         >
           <Copy className="size-5" />
-          Copier
+          Copier l'ayah
         </button>
         <button
-          onClick={() => {
-            share(key);
-            closeMenu();
-          }}
-          className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
+          onClick={copyTranslation}
+          className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-center text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
         >
-          <Share2 className="size-5" />
-          Partager
+          <Copy className="size-5" />
+          Copier la traduction
         </button>
       </div>
     </>
   );
 
   const menuVerse = verses?.find((v) => v.key === menuFor);
+  /** Copie le texte arabe exact (text_uthmani) — jamais le markup Tajwīd, les
+   * numéros graphiques ni aucun élément d'interface. */
   const copyVerse = async () => {
     if (!menuVerse) return;
     try {
       await navigator.clipboard.writeText(menuVerse.arabic);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* refusé */
+    }
+    closeMenu();
+  };
+  /** Copie la traduction française validée (Hamidullah) + sourate + ayah. */
+  const copyTranslation = async () => {
+    if (!menuVerse || !menuFor) return;
+    const [s, a] = menuFor.split(":").map(Number);
+    const meta = chapters?.find((c) => c.id === s);
+    const hamidullah = await fetchHamidullahAyah(s, a).catch(() => null);
+    if (!hamidullah) {
+      closeMenu();
+      return;
+    }
+    const label = meta ? `${meta.nameFrench} — ${menuFor}` : menuFor;
+    try {
+      await navigator.clipboard.writeText(`${hamidullah.translation}\n\n${label}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -971,6 +1012,13 @@ function MushafPage() {
         onTouchStart={onSheetTouchStart}
         onTouchMove={onSheetTouchMove}
         onTouchEnd={onSheetTouchEnd}
+        onClick={(e) => {
+          // Tap/clic en dehors d'un mot = ferme la sélection (§14) — ne fait
+          // rien si le tap a atteint un mot (son propre onClick gère déjà ce cas).
+          if (selected.length && !(e.target as HTMLElement).closest("[data-word-key]")) {
+            setSelected([]);
+          }
+        }}
       >
         {isPending && (
           <p className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
@@ -988,8 +1036,22 @@ function MushafPage() {
         >
           <div
             ref={sheetRef}
-            style={{ fontSize: fontPx }}
-            className="flex h-full w-full flex-col justify-start gap-[0.35em]"
+            style={
+              {
+                fontSize: fontPx,
+                // Tailwind/Lightning CSS élague -webkit-touch-callout des
+                // classes utilitaires : posé en style inline pour qu'il
+                // atteigne réellement le DOM (§9/§10 — voir mushaf-no-callout
+                // dans styles.css pour user-select, géré côté Tailwind).
+                WebkitTouchCallout: "none",
+              } as React.CSSProperties
+            }
+            // select-none + touch-callout:none : uniquement dans cette zone
+            // interactive du Mushaf (§9/§10 mission) — empêche le menu natif
+            // Android ("Rédaction IA / Traduire / Copier") de se déclencher
+            // sur un appui, sans toucher à la sélection de texte ailleurs
+            // dans l'app (Étude, Tafsir, Tadabbur restent sélectionnables).
+            className="mushaf-no-callout flex h-full w-full flex-col justify-start gap-[0.35em]"
           >
             {(lines ?? []).map((line, li) => {
               const startSurah = surahStartAtLine.get(li);
@@ -1038,8 +1100,12 @@ function MushafPage() {
                           onClick={() => onWordClick(w.key)}
                           onContextMenu={(e) => onWordContextMenu(e, w.key)}
                           className={cn(
+                            // Surlignage de sélection volontairement très discret
+                            // (simple teinte, pas de changement de couleur de texte)
+                            // pour éviter l'effet "gros rectangles" — même boîte,
+                            // même rayon, aucun reflow (§12 mission menu ayah).
                             "cursor-pointer rounded px-[0.05em] transition-colors",
-                            isSel && "bg-primary/15 text-primary",
+                            isSel && "bg-primary/10",
                             isPlaying && "bg-gold/20 text-gold",
                             w.end && "text-gold",
                           )}
@@ -1069,57 +1135,110 @@ function MushafPage() {
         </div>
       </div>
 
-      {/* Indicateur de sélection — discret, ne déplace jamais le Mushaf */}
-      {selected.length > 0 && (
-        <p className="shrink-0 px-3 pb-0.5 text-center text-[11px] font-medium text-primary">
-          {selLabel}
-        </p>
+      {/* Une seule barre basse à la fois (§13 mission menu ayah) : les
+          actions de l'ayah sélectionnée REMPLACENT les contrôles Mushaf,
+          jamais les deux empilés. */}
+      {selected.length > 0 && selKey ? (
+        <nav className="shrink-0 border-t border-border/40 bg-card/90 px-3 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
+          <div className="mx-auto flex max-w-2xl items-center gap-1">
+            <button
+              onClick={() => setSelected([])}
+              aria-label="Fermer la sélection"
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-[18px]" strokeWidth={1.75} />
+            </button>
+            <p className="min-w-0 flex-1 truncate text-center text-xs font-semibold text-primary">
+              {selLabel}
+            </p>
+            <button
+              onClick={() => {
+                if (playing && current === selKey) toggle();
+                else playAyah();
+              }}
+              aria-label={playing && current === selKey ? "Pause" : "Écouter cette ayah"}
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
+            >
+              {playing && current === selKey ? (
+                <Pause className="size-[18px]" strokeWidth={1.75} />
+              ) : (
+                <Play className="size-[18px]" strokeWidth={1.75} />
+              )}
+            </button>
+            <button
+              onClick={() => toggleFavorite("ayah", selKey)}
+              aria-label={isFavorite("ayah", selKey) ? "Retirer des favoris" : "Ajouter aux favoris"}
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
+            >
+              <Heart
+                className={cn(
+                  "size-[18px]",
+                  isFavorite("ayah", selKey) && "fill-gold text-gold",
+                )}
+                strokeWidth={1.75}
+              />
+            </button>
+            <button
+              onClick={() => shareSelectedVerse(selKey)}
+              aria-label="Partager"
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
+            >
+              <Share2 className="size-[18px]" strokeWidth={1.75} />
+            </button>
+            <button
+              onClick={() => setMenuFor(selKey)}
+              aria-label="Plus d'actions"
+              className="grid size-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-soft)] transition active:scale-95"
+            >
+              <MoreHorizontal className="size-[18px]" strokeWidth={1.75} />
+            </button>
+          </div>
+        </nav>
+      ) : (
+        <nav className="shrink-0 border-t border-border/40 bg-card/90 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-1">
+            <Link
+              to="/"
+              aria-label="Accueil"
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
+            >
+              <Home className="size-[18px]" strokeWidth={1.75} />
+            </Link>
+            <button
+              onClick={() => goPage(1)}
+              aria-label="Page suivante"
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
+            >
+              <ChevronLeft className="size-[18px]" strokeWidth={1.75} />
+            </button>
+            <button
+              onClick={() => (isCurrentSession ? toggle() : playFromAnchor())}
+              aria-label={playing ? "Pause" : "Lecture"}
+              className="grid size-14 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elevated)] transition active:scale-95"
+            >
+              {playing ? (
+                <Pause className="size-6" strokeWidth={1.75} />
+              ) : (
+                <Play className="size-6" strokeWidth={1.75} />
+              )}
+            </button>
+            <button
+              onClick={() => setOptionsOpen(true)}
+              aria-label="Options de récitation"
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
+            >
+              <Settings2 className="size-[18px]" strokeWidth={1.75} />
+            </button>
+            <button
+              onClick={() => goPage(-1)}
+              aria-label="Page précédente"
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
+            >
+              <ChevronRight className="size-[18px]" strokeWidth={1.75} />
+            </button>
+          </div>
+        </nav>
       )}
-
-      {/* Barre basse unique : Accueil · navigation · lecture · options */}
-      <nav className="shrink-0 border-t border-border/40 bg-card/90 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-1">
-          <Link
-            to="/"
-            aria-label="Accueil"
-            className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
-          >
-            <Home className="size-[18px]" strokeWidth={1.75} />
-          </Link>
-          <button
-            onClick={() => goPage(1)}
-            aria-label="Page suivante"
-            className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
-          >
-            <ChevronLeft className="size-[18px]" strokeWidth={1.75} />
-          </button>
-          <button
-            onClick={() => (isCurrentSession ? toggle() : playFromAnchor())}
-            aria-label={playing ? "Pause" : "Lecture"}
-            className="grid size-14 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elevated)] transition active:scale-95"
-          >
-            {playing ? (
-              <Pause className="size-6" strokeWidth={1.75} />
-            ) : (
-              <Play className="size-6" strokeWidth={1.75} />
-            )}
-          </button>
-          <button
-            onClick={() => setOptionsOpen(true)}
-            aria-label="Options de récitation"
-            className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
-          >
-            <Settings2 className="size-[18px]" strokeWidth={1.75} />
-          </button>
-          <button
-            onClick={() => goPage(-1)}
-            aria-label="Page précédente"
-            className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
-          >
-            <ChevronRight className="size-[18px]" strokeWidth={1.75} />
-          </button>
-        </div>
-      </nav>
 
       {copied && (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center">
