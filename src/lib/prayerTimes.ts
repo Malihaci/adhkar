@@ -10,7 +10,8 @@
  * réponse `{ data: { timings: {...}, meta: {...} } }`.
  */
 
-import { readJSON, writeJSON } from "@/lib/storage";
+import { useQuery } from "@tanstack/react-query";
+import { readJSON, writeJSON, useLocalState } from "@/lib/storage";
 
 const API = "https://api.aladhan.com/v1";
 
@@ -46,7 +47,28 @@ export const CALC_METHODS = [
 
 export type LocationMode = "auto" | "manual";
 
+/**
+ * Source affichée des horaires (§ chantier "Mawāqīt selon la mosquée") :
+ * - "mosque" : l'utilisateur souhaite suivre une mosquée précise.
+ * - "auto" : moteur de calcul (Al Adhan) — comportement historique.
+ *
+ * IMPORTANT : l'API MAWAQIT est privée (vérifié — help.mawaqit.net/en/
+ * articles/11991838-can-i-use-your-api : "Our API is currently private
+ * and not publicly available"), et aucune autre source officielle/
+ * autorisée de calendriers par mosquée n'est disponible dans ce projet.
+ * `mosqueName`/`mosqueCity` ne sont donc que des champs D'IDENTIFICATION
+ * (saisis manuellement par l'utilisateur) — ils ne déclenchent AUCUNE
+ * récupération d'horaires réels. Tant qu'aucune source autorisée n'existe,
+ * `fetchTodayTimings` continue d'utiliser le moteur de calcul dans tous
+ * les cas, et l'interface l'indique clairement (jamais substitué en
+ * silence) plutôt que de fabriquer des horaires de mosquée.
+ */
+export type TimeSource = "mosque" | "auto";
+
 export interface PrayerSettings {
+  source: TimeSource;
+  mosqueName?: string;
+  mosqueCity?: string;
   mode: LocationMode;
   city?: string;
   country?: string;
@@ -60,12 +82,22 @@ export interface PrayerSettings {
 const SETTINGS_KEY = "adhkar:prayer-settings";
 
 export const DEFAULT_PRAYER_SETTINGS: PrayerSettings = {
+  source: "auto",
   mode: "manual",
   city: "Paris",
   country: "France",
   methodId: 12,
   school: 0,
 };
+
+/** Libellé honnête de la provenance réellement affichée (§ "jamais MAWAQIT prétendu"). */
+export function describeTimeSource(s: PrayerSettings): string {
+  if (s.source === "mosque" && s.mosqueName) {
+    return `Repli calcul automatique (mosquée "${s.mosqueName}" non connectée)`;
+  }
+  const method = CALC_METHODS.find((m) => m.id === s.methodId);
+  return `Calcul automatique${method ? " · " + method.name : ""}`;
+}
 
 export function getPrayerSettings(): PrayerSettings {
   return readJSON<PrayerSettings>(SETTINGS_KEY, DEFAULT_PRAYER_SETTINGS);
@@ -176,4 +208,41 @@ export function getNextPrayer(timings: PrayerTimings, now = new Date()): NextPra
 export function getAsrDateFromTimings(timings: PrayerTimings | null): Date | null {
   if (!timings?.Asr) return null;
   return timeToday(timings.Asr);
+}
+
+/** "dans 0 min" ne doit jamais s'afficher — toujours "moins d'1 min" en approche immédiate. */
+export function formatCountdown(ms: number): string {
+  const totalMin = Math.floor(ms / 60000);
+  if (totalMin <= 0) return "moins d'1 min";
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h${String(m).padStart(2, "0")}` : `${m} min`;
+}
+
+/**
+ * Source temporelle UNIQUE réutilisée par l'accueil, la page Horaires et le
+ * moteur de rappels (§ "une seule source centrale, jamais deux calculs
+ * indépendants"). `source` ("mosquée"/"calcul") n'affecte que le libellé
+ * affiché par les appelants (voir `describeTimeSource`) — la donnée
+ * réellement récupérée reste identique tant qu'aucune source autorisée par
+ * mosquée n'existe, jamais substituée en silence.
+ */
+export function usePrayerTimings() {
+  // useLocalState (pas une simple lecture) : tout changement de réglages
+  // (mosquée, localisation, méthode) redéclenche immédiatement la requête
+  // et se propage à tous les écrans qui utilisent ce hook — accueil, page
+  // Horaires, rappels — sans action supplémentaire.
+  const [settings, setSettings] = useLocalState<PrayerSettings>(SETTINGS_KEY, DEFAULT_PRAYER_SETTINGS);
+  const query = useQuery({
+    queryKey: ["prayer-timings", settings],
+    queryFn: () => fetchTodayTimings(settings),
+    staleTime: 30 * 60_000,
+  });
+  return {
+    settings,
+    setSettings,
+    timings: query.data ?? null,
+    isPending: query.isPending,
+    isError: query.isError,
+  };
 }

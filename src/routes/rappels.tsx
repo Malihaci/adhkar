@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { Bell, BellOff } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useLocalState } from "@/lib/storage";
@@ -11,7 +10,7 @@ import {
   resolveReminderTime,
   type ReminderConfig,
 } from "@/lib/reminders";
-import { fetchTodayTimings, getPrayerSettings } from "@/lib/prayerTimes";
+import { usePrayerTimings } from "@/lib/prayerTimes";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/rappels")({
@@ -44,11 +43,7 @@ function RappelsPage() {
   // Le moteur de vérification tourne désormais une seule fois à la racine
   // de l'app (`useReminderEngine`, monté dans __root.tsx) — voir §24 : avant
   // ce correctif il ne tournait que pendant que cet écran était affiché.
-  const { data: timings } = useQuery({
-    queryKey: ["prayer-timings", getPrayerSettings()],
-    queryFn: () => fetchTodayTimings(getPrayerSettings()),
-    staleTime: 30 * 60_000,
-  });
+  const { timings } = usePrayerTimings();
 
   const toggle = (id: string) =>
     setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)));

@@ -8,6 +8,7 @@ import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { useDailyProgress, useLocalState } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import { HomeSuggestion } from "@/components/HomeSuggestion";
+import { NextPrayerWidget } from "@/components/NextPrayerWidget";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,6 +48,7 @@ function Index() {
   return (
     <AppShell title="Accueil" homeHeader>
       <div className="space-y-5">
+        <NextPrayerWidget />
         <HomeSuggestion counts={progress.counts} />
 
         {/* 2 portes principales — dominantes */}

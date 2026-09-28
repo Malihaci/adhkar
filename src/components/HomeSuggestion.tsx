@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, X } from "lucide-react";
 import { useLocalState } from "@/lib/storage";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { effectiveSchedule, type WirdState } from "@/lib/khatma";
-import { fetchTodayTimings, getAsrDateFromTimings, getPrayerSettings } from "@/lib/prayerTimes";
+import { getAsrDateFromTimings, usePrayerTimings } from "@/lib/prayerTimes";
 
 /**
  * Actions contextuelles de l'accueil — jamais des cartes permanentes.
@@ -33,13 +32,9 @@ interface Item {
 export function HomeSuggestion({ counts }: { counts: Record<string, number> }) {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [wird] = useLocalState<WirdState | null>("adhkar:wird", null);
-  const { data: timings } = useQuery({
-    queryKey: ["prayer-timings", getPrayerSettings()],
-    queryFn: () => fetchTodayTimings(getPrayerSettings()),
-    staleTime: 30 * 60_000,
-  });
+  const { timings } = usePrayerTimings();
 
-  const items = computeItems(wird, counts, timings ?? null).filter((i) => !dismissed.has(i.key));
+  const items = computeItems(wird, counts, timings).filter((i) => !dismissed.has(i.key));
   if (!items.length) return null;
 
   return (
