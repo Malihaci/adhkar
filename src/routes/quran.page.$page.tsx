@@ -208,6 +208,7 @@ function MushafPage() {
       const el = audioRef.current;
       if (!el || !key) return;
       const sessionId = ++loadSessionRef.current;
+      audioRetryRef.current = 0;
       el.src = key === BASMALA_BRIDGE_KEY ? basmalaAudioUrl(reciterId) : verseAudioUrl(reciterId, key);
       el.load();
       el.playbackRate = speed;
@@ -313,11 +314,11 @@ function MushafPage() {
     followKey(queue[i]);
   };
 
-  const onEnded = () => {
-    if (ayahRepeat === 0) {
-      load(queue[qIndex]); // ∞ sur l'ayah en cours
-      return;
-    }
+  /** Avance à l'ayah suivante, boucle, ou arrête proprement la session —
+   * partagé par la fin normale (onEnded) et l'abandon après échec réseau
+   * (onAudioError) : une ayah en erreur ne doit jamais geler toute la
+   * session, elle doit être sautée exactement comme si elle était finie. */
+  const advanceQueue = () => {
     if (qIndex + 1 < queue.length) goTo(qIndex + 1);
     else if (loop) goTo(0);
     else {
@@ -328,6 +329,66 @@ function MushafPage() {
       setQueue([]);
       setQIndex(0);
     }
+  };
+
+  /** Une seule tentative de reprise par ayah avant de passer à la suivante —
+   * jamais de boucle infinie sur un fichier durablement indisponible. */
+  const audioRetryRef = useRef(0);
+
+  const onAudioError = () => {
+    const el = audioRef.current;
+    if (!el || !queue.length) return;
+    const failedKey = queue[qIndex];
+    const sessionId = loadSessionRef.current;
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.warn("[audio] erreur de lecture", {
+        verseKey: failedKey,
+        src: el.currentSrc || el.src,
+        errorCode: el.error?.code,
+        errorMessage: el.error?.message,
+        retry: audioRetryRef.current,
+      });
+    }
+    if (audioRetryRef.current < 1) {
+      audioRetryRef.current += 1;
+      window.setTimeout(() => {
+        // Une commande plus récente a déjà remplacé cette session : n'agit
+        // jamais sur une ayah qui n'est plus celle réellement en cours.
+        if (loadSessionRef.current !== sessionId) return;
+        el.load();
+        el.play().catch(() => {
+          if (loadSessionRef.current === sessionId) {
+            if (import.meta.env.DEV) {
+              // eslint-disable-next-line no-console
+              console.warn("[audio] reprise échouée, passage à l'ayah suivante", {
+                verseKey: failedKey,
+              });
+            }
+            audioRetryRef.current = 0;
+            advanceQueue();
+          }
+        });
+      }, 400);
+      return;
+    }
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.warn("[audio] échec définitif après reprise, passage à l'ayah suivante", {
+        verseKey: failedKey,
+      });
+    }
+    audioRetryRef.current = 0;
+    advanceQueue();
+  };
+
+  const onEnded = () => {
+    audioRetryRef.current = 0;
+    if (ayahRepeat === 0) {
+      load(queue[qIndex]); // ∞ sur l'ayah en cours
+      return;
+    }
+    advanceQueue();
   };
 
   /* --------------------------------------------------------- sélection */
@@ -936,6 +997,7 @@ function MushafPage() {
         ref={audioRef}
         preload="none"
         onEnded={onEnded}
+        onError={onAudioError}
         onTimeUpdate={(e) => {
           const el = e.currentTarget;
           setProgress(el.duration ? (el.currentTime / el.duration) * 100 : 0);
