@@ -12,6 +12,33 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchTodayTimings, getPrayerSettings, type PrayerKey, type PrayerTimings } from "@/lib/prayerTimes";
 import { useLocalState } from "@/lib/storage";
+import { getAdhanOption, playBeep, type AdhanId } from "@/lib/adhan";
+import { getPersonalAudioURL } from "@/lib/personalAudio";
+
+/**
+ * Abstraction PrayerNotificationService (§9 mission) — préparée mais non
+ * branchée : la seule implémentation existante aujourd'hui est
+ * `useReminderEngine` ci-dessous (Web/PWA, premier plan uniquement, voir
+ * limites documentées). Une future implémentation native (Capacitor)
+ * respecterait la même forme (permission/planification/déclenchement) sans
+ * que l'UI de réglage (rappels.tsx) ait besoin d'être réécrite.
+ */
+export interface PrayerNotificationService {
+  isSupported(): boolean;
+  getPermission(): NotificationPermission | "unsupported";
+  requestPermission(): Promise<NotificationPermission>;
+}
+
+/** Contenu à programmer avant une prière (§4 mission — modèle préparé,
+ * AUCUNE interface utilisateur construite pour l'instant). */
+export interface PreContentConfig {
+  type: "surah" | "ayah" | "hizb" | "juz" | "range" | "personalAudio";
+  /** verseKey, numéro de sourate/hizb/juz, ou plage "2:1-2:5" selon `type`. */
+  ref?: string;
+  reciterId?: string;
+  /** Contenu déjà téléchargé pour lecture hors-ligne — non implémenté. */
+  offline?: boolean;
+}
 
 export interface ReminderConfig {
   id: string;
@@ -30,6 +57,35 @@ export interface ReminderConfig {
   prayerKey?: PrayerKey;
   /** Minutes avant l'heure de la prière (0 = à l'heure exacte). */
   offsetMinutes?: number;
+  /** Son joué au déclenchement — uniquement pour les rappels de prière. */
+  adhanId?: AdhanId;
+  /** Préparé pour une future évolution (§4) — non utilisé par l'UI actuelle. */
+  preContent?: PreContentConfig;
+}
+
+/** Joue le son choisi pour un rappel — réutilisé par le déclenchement réel
+ * ET par les boutons "Tester" (même chemin de code, jamais deux logiques). */
+export async function playReminderSound(adhanId: AdhanId | undefined) {
+  if (!adhanId || adhanId === "none") return;
+  if (adhanId === "beep") {
+    playBeep();
+    return;
+  }
+  if (adhanId === "personal") {
+    const url = await getPersonalAudioURL();
+    if (!url) return;
+    const audio = new Audio(url);
+    audio.play().catch(() => {
+      /* autoplay bloqué — voir §7/§8, le tap sur la notification reste le repli */
+    });
+    return;
+  }
+  const option = getAdhanOption(adhanId);
+  if (!option.audioUrl) return;
+  const audio = new Audio(option.audioUrl);
+  audio.play().catch(() => {
+    /* autoplay bloqué — voir §7/§8 */
+  });
 }
 
 export const PRAYER_REMINDER_IDS = ["fajr", "dhuhr", "asr", "maghrib", "isha"] as const;
@@ -65,9 +121,33 @@ export const DEFAULT_REMINDERS: ReminderConfig[] = [
     deepLink: `/quran/page/${AL_KAHF_PAGE}`,
     weekday: 5,
   },
-  { id: "fajr", label: "Fajr", time: "", enabled: false, deepLink: "/horaires", prayerKey: "Fajr" },
-  { id: "dhuhr", label: "Dhuhr", time: "", enabled: false, deepLink: "/horaires", prayerKey: "Dhuhr" },
-  { id: "asr", label: "ʿAsr", time: "", enabled: false, deepLink: "/horaires", prayerKey: "Asr" },
+  {
+    id: "fajr",
+    label: "Fajr",
+    time: "",
+    enabled: false,
+    deepLink: "/horaires",
+    prayerKey: "Fajr",
+    adhanId: "none",
+  },
+  {
+    id: "dhuhr",
+    label: "Dhuhr",
+    time: "",
+    enabled: false,
+    deepLink: "/horaires",
+    prayerKey: "Dhuhr",
+    adhanId: "none",
+  },
+  {
+    id: "asr",
+    label: "ʿAsr",
+    time: "",
+    enabled: false,
+    deepLink: "/horaires",
+    prayerKey: "Asr",
+    adhanId: "none",
+  },
   {
     id: "maghrib",
     label: "Maghrib",
@@ -75,8 +155,17 @@ export const DEFAULT_REMINDERS: ReminderConfig[] = [
     enabled: false,
     deepLink: "/horaires",
     prayerKey: "Maghrib",
+    adhanId: "none",
   },
-  { id: "isha", label: "ʿIshāʾ", time: "", enabled: false, deepLink: "/horaires", prayerKey: "Isha" },
+  {
+    id: "isha",
+    label: "ʿIshāʾ",
+    time: "",
+    enabled: false,
+    deepLink: "/horaires",
+    prayerKey: "Isha",
+    adhanId: "none",
+  },
 ];
 
 export interface ReminderFireLog {
@@ -163,9 +252,22 @@ export function useReminderEngine() {
           reminders,
           log,
           (r) => {
-            const n = new Notification(r.label, { body: "Toucher pour ouvrir", tag: r.id });
+            const offset = r.offsetMinutes ?? 0;
+            const body =
+              r.prayerKey && offset > 0
+                ? `${r.label} dans ${offset} min`
+                : r.prayerKey
+                  ? `C'est l'heure de ${r.label}`
+                  : "Toucher pour ouvrir";
+            const n = new Notification(r.label, { body, tag: r.id });
+            // Tentative immédiate (l'app est au premier plan à ce moment) —
+            // best-effort seulement, l'autoplay peut être bloqué (§7/§8).
+            void playReminderSound(r.adhanId);
             n.onclick = () => {
               window.focus();
+              // Le clic est un vrai geste utilisateur : repli garanti si la
+              // tentative précédente avait été bloquée par l'autoplay.
+              void playReminderSound(r.adhanId);
               window.location.href = r.deepLink;
             };
           },
