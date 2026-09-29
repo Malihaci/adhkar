@@ -176,6 +176,17 @@ function MushafPage() {
 
   /* ------------------------------------------------------------- audio */
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  /**
+   * Cause réelle de la coupure perceptible entre deux ayat : `load()` ne
+   * déclenchait le téléchargement de l'ayah N+1 qu'à l'intérieur de
+   * `onEnded`, une fois l'ayah N déjà terminée — le silence audible était
+   * donc un temps réseau (latence CDN), jamais un silence naturel de la
+   * récitation. Ce second élément `<audio>`, jamais attaché au DOM ni joué,
+   * précharge l'ayah suivante pendant que l'ayah courante joue encore ; au
+   * moment de `onEnded`, `load()` réutilise la même URL déjà en cache HTTP
+   * du navigateur et démarre sans nouvelle attente réseau.
+   */
+  const preloadRef = useRef<HTMLAudioElement | null>(null);
   const [queue, setQueue] = useState<string[]>([]);
   const [qIndex, setQIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -203,6 +214,9 @@ function MushafPage() {
   /** Incrémenté à chaque `load()` : ignore les promesses `play()` obsolètes. */
   const loadSessionRef = useRef(0);
 
+  const audioUrlForKey = (key: string) =>
+    key === BASMALA_BRIDGE_KEY ? basmalaAudioUrl(reciterId) : verseAudioUrl(reciterId, key);
+
   const load = useCallback(
     (key: string, autoplay = true) => {
       const el = audioRef.current;
@@ -227,6 +241,26 @@ function MushafPage() {
   useEffect(() => {
     if (audioRef.current) audioRef.current.playbackRate = speed;
   }, [speed]);
+
+  // Précharge l'ayah suivante de la file pendant que l'ayah courante joue —
+  // voir le commentaire sur `preloadRef` plus haut. Ne joue jamais ce second
+  // élément, ne touche jamais à `audioRef` (celui réellement audible).
+  useEffect(() => {
+    const nextKey = queue[qIndex + 1];
+    if (!nextKey) return;
+    let el = preloadRef.current;
+    if (!el) {
+      el = new Audio();
+      el.preload = "auto";
+      preloadRef.current = el;
+    }
+    const url = audioUrlForKey(nextKey);
+    if (el.src !== url) {
+      el.src = url;
+      el.load();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queue, qIndex, reciterId]);
 
   /**
    * Construit la file en appliquant la répétition par ayah puis par

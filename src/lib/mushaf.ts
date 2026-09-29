@@ -311,7 +311,10 @@ export interface Reciter {
 /**
  * IDs vérifiés auprès des sources réelles :
  * - quran.com /resources/recitations (ids 6, 7, 9)
- * - everyayah.com (dossier existant pour Yasser Ad-Dussary)
+ * - everyayah.com (dossier existant pour Yasser Ad-Dussary, Sa‘d al-Ghâmidî,
+ *   ‘Alî Jâbir — vérifié en direct par requêtes HEAD sur plusieurs ayat de
+ *   sourates différentes avant intégration, aucun fichier ayah-par-ayah
+ *   fabriqué)
  */
 export const RECITERS: Reciter[] = [
   { id: "minshawi", name: "Muhammad Siddîq al-Minshâwî", source: "quran", ref: "9" },
@@ -327,6 +330,12 @@ export const RECITERS: Reciter[] = [
     name: "Sa‘d al-Ghâmidî",
     source: "everyayah",
     ref: "Ghamadi_40kbps",
+  },
+  {
+    id: "jaber",
+    name: "‘Alî Jâbir — علي جابر",
+    source: "everyayah",
+    ref: "Ali_Jaber_64kbps",
   },
 ];
 
