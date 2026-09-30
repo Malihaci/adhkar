@@ -8,6 +8,7 @@ import {
   Copy,
   Heart,
   Home,
+  Leaf,
   Loader2,
   Maximize2,
   Minimize2,
@@ -1122,9 +1123,10 @@ function MushafPage() {
             aria-label="Vivre cette page"
             className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
-            <span aria-hidden className="text-[15px] leading-none">
-              🌿
-            </span>
+            {/* Vraie icône vectorielle, jamais un emoji comme asset final
+                (même langage visuel que la petite feuille "Vivre ce dhikr"
+                côté Adhkār — chantier "Lecture Coran + Adhkār"). */}
+            <Leaf className="size-4" />
           </button>
           <button
             onClick={() => setSearchOpen(true)}

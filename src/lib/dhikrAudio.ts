@@ -30,12 +30,22 @@ function resolveUrl(key: string): string {
     : verseAudioUrl(DHIKR_RECITER, key);
 }
 
-export function useDhikrVerseAudio(verseKeys: string[] | undefined) {
+export function useDhikrVerseAudio(
+  verseKeys: string[] | undefined,
+  onFinished?: () => void,
+  speed = 1,
+) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const queueRef = useRef<string[]>([]);
   const indexRef = useRef(0);
   const retryRef = useRef(0);
+  /** Toujours à jour sans figurer dans les dépendances de l'effet de montage
+   * (`[]`, l'élément <audio> ne doit être créé qu'une seule fois) — voir
+   * "lecture continue" (§19 mission), déclenché uniquement en fin NATURELLE
+   * de la file, jamais sur une pause manuelle. */
+  const onFinishedRef = useRef(onFinished);
+  onFinishedRef.current = onFinished;
 
   useEffect(() => {
     const el = new Audio();
@@ -48,7 +58,10 @@ export function useDhikrVerseAudio(verseKeys: string[] | undefined) {
     const advance = () => {
       indexRef.current += 1;
       if (indexRef.current < queueRef.current.length) playIndex(indexRef.current);
-      else setPlaying(false);
+      else {
+        setPlaying(false);
+        onFinishedRef.current?.();
+      }
     };
     const onEnded = () => advance();
     // Une ayah en échec (réseau/CDN) ne doit jamais geler toute la
@@ -86,6 +99,13 @@ export function useDhikrVerseAudio(verseKeys: string[] | undefined) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Vitesse persistée dans ⚙️ Paramètres > Adhkār (§6/§12 mission) —
+  // indépendante de la vitesse Coran, prend effet immédiatement, y compris
+  // en cours de lecture.
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = speed;
+  }, [speed]);
+
   const toggle = () => {
     const el = audioRef.current;
     if (!el || !verseKeys?.length) return;
@@ -98,6 +118,7 @@ export function useDhikrVerseAudio(verseKeys: string[] | undefined) {
     indexRef.current = 0;
     retryRef.current = 0;
     el.src = resolveUrl(queueRef.current[0]);
+    el.playbackRate = speed;
     el.play().catch(() => setPlaying(false));
     setPlaying(true);
   };

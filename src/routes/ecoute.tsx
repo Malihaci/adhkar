@@ -22,6 +22,7 @@ import {
   calibrateTimeMap,
 } from "@/lib/afasyAudio";
 import { readJSON, writeJSON } from "@/lib/storage";
+import { usePreferences } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/ecoute")({
@@ -58,7 +59,12 @@ function EcoutePage() {
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
-  const [rate, setRate] = useState(1);
+  // Vitesse partagée avec ⚙️ Paramètres > Adhkār (§6/§12 mission) — un seul
+  // réglage pour toute la lecture audio Adhkār, jamais dupliqué localement.
+  const { prefs, updateAdhkar } = usePreferences();
+  const [rate, setRateLocal] = useState(1);
+  useEffect(() => setRateLocal(prefs.adhkar.speed), [prefs.adhkar.speed]);
+  const setRate = (r: number) => updateAdhkar({ speed: r });
   const [rateOpen, setRateOpen] = useState(false);
   const [shift, setShift] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);

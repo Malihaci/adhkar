@@ -221,16 +221,73 @@ function ParametresPage() {
           </label>
           <p className="mb-1 mt-3 text-xs text-muted-foreground">Vitesse</p>
           <SpeedRow value={prefs.quran.speed} onChange={(v) => updateQuran({ speed: v })} />
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+            Lecture continue déjà disponible dans le Mushaf (Options → "Jusqu'à la fin"/répétition).
+          </p>
 
           <div className="mt-5 border-t border-border pt-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Audio Adhkār
             </p>
+            <p className="mb-1 mt-3 text-xs text-muted-foreground">Version audio</p>
+            <div className="flex gap-1 rounded-full border border-border p-1">
+              {(
+                [
+                  ["afasy", "Version actuelle"],
+                  ["ghamdi", "Sa‘d al-Ghâmidî"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => updateAdhkar({ audioProfile: key })}
+                  aria-pressed={prefs.adhkar.audioProfile === key}
+                  className={cn(
+                    "flex-1 rounded-full py-2 text-xs font-semibold transition",
+                    prefs.adhkar.audioProfile === key
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {prefs.adhkar.audioProfile === "ghamdi" && (
+              <p className="mt-2 rounded-xl border border-gold/30 bg-gold/5 px-3 py-2 text-[11px] leading-relaxed text-foreground">
+                En préparation — aucun fichier audio de Sa‘d al-Ghâmidî dont l'utilisation dans
+                l'application est vérifiée et autorisée n'a été trouvé pour l'instant (le fichier
+                proposé en ligne ne porte aucune licence de réutilisation claire). L'architecture est
+                prête ; cette voix restera honnêtement indisponible tant qu'une source légitime n'est
+                pas fournie.
+              </p>
+            )}
             <p className="mb-1 mt-3 text-xs text-muted-foreground">Vitesse</p>
-            <SpeedRow value={prefs.adhkar.speed} onChange={(v) => updateAdhkar({ speed: v })} />
-            <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+            <div className="mt-2 flex gap-1 rounded-full border border-border p-1">
+              {[0.75, 1, 1.25, 1.5].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => updateAdhkar({ speed: s })}
+                  aria-pressed={prefs.adhkar.speed === s}
+                  className={cn(
+                    "flex-1 rounded-full py-2 text-sm font-semibold transition",
+                    prefs.adhkar.speed === s ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {s}×
+                </button>
+              ))}
+            </div>
+            <div className="mt-3">
+              <ToggleRow
+                label="Lecture continue"
+                checked={prefs.adhkar.continuous}
+                onChange={(v) => updateAdhkar({ continuous: v })}
+              />
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
               Récitation Cheikh Al-‘Afâsy (Adhkār) — réglage indépendant du récitateur Coran, jamais
-              mélangés.
+              mélangés. "Tout écouter" (piste continue matin/soir) reste disponible depuis l'écran
+              Adhkār.
             </p>
           </div>
         </Section>

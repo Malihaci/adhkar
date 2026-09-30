@@ -6,12 +6,12 @@ import {
   ChevronRight,
   Home,
   Check,
-  Settings2,
   Leaf,
-  ChevronDown,
+  MoreHorizontal,
   Pause,
   Play,
   Share2,
+  X,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { AyahText } from "@/components/AyahText";
@@ -22,6 +22,7 @@ import { useDailyProgress, useFavorites, getLastReadIndex } from "@/lib/storage"
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { shareDhikr } from "@/lib/share";
 import { useDhikrVerseAudio } from "@/lib/dhikrAudio";
+import { GHAMIDI_UNAVAILABLE_REASON } from "@/lib/adhkarGhamidi";
 import { cn } from "@/lib/utils";
 
 const ARABIC_SIZE: Record<ReadingSize, string> = {
@@ -59,30 +60,29 @@ export function DhikrViewer({
   const { isFavorite, toggle } = useFavorites();
   const category = list[0]?.category ?? "morning";
   /**
-   * Position restaurée synchroniquement dès le premier rendu (initialiseur
-   * paresseux) — jamais via un second `useEffect` séparé qui appelait
-   * `setIdx(saved)` après coup : celui-ci entrait en course avec l'effet de
-   * persistance juste en dessous (`setLastRead(..., idx)`, déclenché sur
-   * TOUT montage). Les deux s'exécutaient dans le même flush d'effets, mais
-   * la persistance lisait encore l'ancien `idx` (0) capturé au rendu
-   * initial — elle réécrasait donc l'index restauré par 0 dans le stockage
-   * juste après l'avoir lu, causant une perte de position perceptible dès
-   * qu'on revenait sur l'écran (ex. après un aller-retour par ⚙️ Paramètres,
-   * §15/§19 mission). Calculer `idx` une seule fois, dès l'état initial,
-   * élimine cette course : plus rien ne peut persister une valeur transitoire.
+   * `idx` démarre TOUJOURS à `initialIndex ?? 0` — jamais une lecture de
+   * `localStorage` dans l'initialiseur : cette app est rendue côté serveur
+   * (TanStack Start), et le serveur n'a pas accès au stockage du navigateur.
+   * Un initialiseur paresseux lisant la position sauvegardée y renverrait
+   * une AUTRE valeur que le rendu serveur (0) dès le tout premier rendu
+   * client, avant même l'hydratation — React détecte alors un mismatch et
+   * rejette l'arbre serveur (erreur "Hydration failed", vu en direct sur un
+   * rechargement complet de /matin). La restauration doit donc rester dans
+   * un effet (post-hydratation, comme `useLocalState`), mais SANS reproduire
+   * l'ancienne course avec l'effet de persistance : voir l'effet unique
+   * ci-dessous qui gère restauration ET persistance ensemble.
    */
-  const [idx, setIdx] = useState(() => {
-    if (typeof initialIndex === "number") return initialIndex;
-    if (!persist) return 0;
-    const saved = getLastReadIndex(category);
-    return saved !== null && saved >= 0 && saved < list.length ? saved : 0;
-  });
-  const { prefs, updateAdhkar } = usePreferences();
+  const [idx, setIdx] = useState(initialIndex ?? 0);
+  const { prefs } = usePreferences();
   const showFrancais = prefs.adhkar.francais;
   const showPhonetic = prefs.adhkar.phonetique;
   const fontSize = prefs.adhkar.textSize;
-  const [sizeOpen, setSizeOpen] = useState(false);
+  /** Préférences d'affichage/taille/audio : centralisées dans ⚙️ Paramètres
+   * > Adhkār (chantier "Paramètres centralisés") — cet écran ne les
+   * reconfigure plus lui-même, voir §11 mission ("le menu ⋯ contient
+   * uniquement les actions propres au dhikr"). */
   const [liveOpen, setLiveOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [warnOpen, setWarnOpen] = useState(false);
   const [audioUnavailable, setAudioUnavailable] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -94,10 +94,54 @@ export function DhikrViewer({
   }, [list.length]);
 
   const dhikr = list[Math.min(idx, list.length - 1)];
-  const dhikrAudio = useDhikrVerseAudio(dhikr?.verseKeys);
-
-  // Persist current position
+  /** "Version actuelle" (§13 mission) — inchangée : verseKeys exacts, jamais
+   * un index de tableau, voir src/lib/dhikrAudio.ts. Le profil "ghamdi"
+   * (§14 mission) reste honnêtement indisponible tant qu'aucun fichier
+   * autorisé n'est fourni (src/lib/adhkarGhamidi.ts) — jamais de repli
+   * silencieux vers l'autre voix. "Lecture continue" (§19) : uniquement en
+   * fin NATURELLE de l'audio, jamais sur une pause manuelle.
+   */
+  const usingAfasyProfile = prefs.adhkar.audioProfile === "afasy";
+  const autoAdvanceRef = useRef(false);
+  const dhikrAudio = useDhikrVerseAudio(
+    usingAfasyProfile ? dhikr?.verseKeys : undefined,
+    () => {
+      if (prefs.adhkar.continuous && idx < list.length - 1) {
+        autoAdvanceRef.current = true;
+        setIdx((i) => Math.min(list.length - 1, i + 1));
+      }
+    },
+    prefs.adhkar.speed,
+  );
   useEffect(() => {
+    if (!autoAdvanceRef.current) return;
+    autoAdvanceRef.current = false;
+    if (dhikrAudio.available) dhikrAudio.toggle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx]);
+
+  /**
+   * Restauration (une seule fois, post-hydratation) PUIS persistance de la
+   * position — dans le MÊME effet, pour ne jamais laisser la persistance
+   * écrire une valeur transitoire pendant qu'une restauration est en cours
+   * (§15/§19 mission : un aller-retour par ⚙️ Paramètres ne doit jamais
+   * perdre le dhikr courant). Au tout premier passage, si une position
+   * sauvegardée diffère de l'état initial (0), on l'applique et on sort
+   * SANS persister cette valeur transitoire — l'effet se redéclenche
+   * aussitôt avec le bon `idx` et persiste alors normalement.
+   */
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (!restoredRef.current) {
+      restoredRef.current = true;
+      if (persist && typeof initialIndex !== "number") {
+        const saved = getLastReadIndex(category);
+        if (saved !== null && saved >= 0 && saved < list.length && saved !== idx) {
+          setIdx(saved);
+          return;
+        }
+      }
+    }
     if (persist && dhikr) setLastRead(dhikr.id, dhikr.category, idx);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx]);
@@ -153,9 +197,13 @@ export function DhikrViewer({
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        {/* Header */}
-        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-3 py-2.5 sm:px-4">
-          <div className="min-w-0">
+        {/* Header épuré (§9 mission) : plus de Play/Favori/Partager/Aa
+            permanents — seulement le titre (jusqu'à 2 lignes avant de
+            tronquer) et deux icônes discrètes (feuille = "Vivre ce dhikr",
+            ⋯ = actions du dhikr). Affichage/taille/audio vivent désormais
+            uniquement dans ⚙️ Paramètres > Adhkār. */}
+        <header className="flex items-start justify-between gap-2 border-b border-border px-3 py-2.5 sm:px-4">
+          <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {label ??
                 (category === "morning"
@@ -172,177 +220,33 @@ export function DhikrViewer({
                 {idx + 1} / {list.length}
               </span>
             </p>
-            <h1 className="truncate font-display text-base font-semibold text-foreground sm:text-lg">
+            <h1 className="line-clamp-2 font-display text-base font-semibold leading-snug text-foreground sm:text-lg">
               {dhikr.title}
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <button
-              onClick={() => {
-                if (dhikrAudio.available) {
-                  dhikrAudio.toggle();
-                  return;
-                }
-                setAudioUnavailable(true);
-                window.setTimeout(() => setAudioUnavailable(false), 2500);
-              }}
-              aria-label={dhikrAudio.playing ? "Mettre en pause" : "Écouter ce dhikr"}
-              className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
+              onClick={() => setLiveOpen(true)}
+              aria-label="Vivre ce dhikr"
+              className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
             >
-              {dhikrAudio.playing ? <Pause className="size-5" /> : <Play className="size-5" />}
+              <Leaf className="size-[18px]" />
             </button>
             <button
-              onClick={() => toggle("dhikr", dhikr.id)}
-              aria-label={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
-              aria-pressed={fav}
-              className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-gold"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Plus d'actions"
+              className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
             >
-              <Heart className={cn("size-6 transition", fav && "fill-gold text-gold")} />
+              <MoreHorizontal className="size-[18px]" />
             </button>
-            <button
-              onClick={() => shareDhikr(dhikr, idx)}
-              aria-label="Partager"
-              className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-primary"
-            >
-              <Share2 className="size-5" />
-            </button>
-            {/* ⚙️ — affichage : arabe/français/phonétique + taille du texte,
-                réglages peu fréquents rangés derrière un seul panneau
-                (§22/35 mission), désormais backés par ⚙️ Paramètres > Adhkār
-                (chantier "Paramètres centralisés" — src/lib/preferences.ts). */}
-            <div className="relative">
-              <button
-                onClick={() => setSizeOpen((v) => !v)}
-                aria-label="Affichage (arabe, français, phonétique, taille du texte)"
-                aria-expanded={sizeOpen}
-                className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-              >
-                <Settings2 className="size-5" />
-              </button>
-              {sizeOpen && (
-                <div className="absolute right-0 top-12 z-30 w-56 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)]">
-                  {(
-                    [
-                      ["francais", "Français", showFrancais],
-                      ["phonetique", "Phonétique", showPhonetic],
-                    ] as const
-                  ).map(([key, label, checked]) => (
-                    <div
-                      key={key}
-                      className="flex items-center justify-between gap-3 border-b border-border px-4 py-3"
-                    >
-                      <span className="text-sm font-medium text-foreground">{label}</span>
-                      <button
-                        onClick={() => updateAdhkar({ [key]: !checked })}
-                        role="switch"
-                        aria-checked={checked}
-                        aria-label={`Afficher ${label.toLowerCase()}`}
-                        className={cn(
-                          "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-                          checked ? "bg-primary" : "bg-muted",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "absolute top-1 size-5 rounded-full bg-background shadow transition-all",
-                            checked ? "left-6" : "left-1",
-                          )}
-                        />
-                      </button>
-                    </div>
-                  ))}
-                  <p className="px-4 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Taille du texte
-                  </p>
-                  {(
-                    [
-                      ["normal", "Normal"],
-                      ["large", "Grand"],
-                      ["xlarge", "Très grand"],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        updateAdhkar({ textSize: key });
-                        setSizeOpen(false);
-                      }}
-                      className={cn(
-                        "flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium transition hover:bg-muted",
-                        fontSize === key && "text-primary",
-                      )}
-                    >
-                      {label}
-                      {fontSize === key && <Check className="size-4" />}
-                    </button>
-                  ))}
-                  <Link
-                    to="/parametres"
-                    search={{ section: "adhkar" }}
-                    onClick={() => setSizeOpen(false)}
-                    className="block border-t border-border px-4 py-2.5 text-center text-xs font-medium text-primary"
-                  >
-                    Tous les paramètres
-                  </Link>
-                </div>
-              )}
-            </div>
           </div>
         </header>
 
         {audioUnavailable && (
           <p className="bg-muted/40 px-3 py-1.5 text-center text-[11px] text-muted-foreground">
-            Audio indisponible pour ce dhikr.
+            {usingAfasyProfile ? "Audio indisponible pour ce dhikr." : GHAMIDI_UNAVAILABLE_REASON}
           </p>
         )}
-
-        {/* Vivre ce dhikr — remonté juste sous les actions (§23), plus besoin
-            de descendre jusqu'en bas pour le trouver. */}
-        <div className="mx-3 mt-3 shrink-0 rounded-2xl border border-border bg-secondary/40 sm:mx-4">
-          <button
-            onClick={() => setLiveOpen((v) => !v)}
-            aria-expanded={liveOpen}
-            className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
-          >
-            <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
-              <Leaf className="size-4 shrink-0 text-primary" />
-              Vivre ce dhikr
-            </span>
-            <ChevronDown
-              className={cn(
-                "size-4 shrink-0 text-muted-foreground transition-transform",
-                liveOpen && "rotate-180",
-              )}
-            />
-          </button>
-          {liveOpen && (
-            <div className="space-y-3 border-t border-border px-4 py-3 text-sm leading-relaxed text-foreground">
-              {dhikr.context && (
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                  {dhikr.context}
-                </p>
-              )}
-              <p>{dhikr.explanation}</p>
-              {dhikr.merits && <p>{dhikr.merits}</p>}
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <span>{dhikr.reference}</span>
-                {dhikr.collection && (
-                  <SourceInfo
-                    sourceTitle={dhikr.collection}
-                    sourceReference={dhikr.hadithNumber}
-                    sourceAuthor={dhikr.narrator}
-                    authenticity={
-                      dhikr.authenticityGrade
-                        ? `${dhikr.authenticityGrade}${dhikr.authenticityGrader ? " — " + dhikr.authenticityGrader : ""}`
-                        : undefined
-                    }
-                    nature={dhikr.evidenceSummaryFr}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Content */}
         <div className="flex-1 space-y-4 overflow-y-auto px-3 py-3 sm:px-6">
@@ -371,7 +275,9 @@ export function DhikrViewer({
           )}
         </div>
 
-        {/* Bottom bar — une seule ligne, LTR : gauche = précédent, droite = suivant */}
+        {/* Footer fixe (§12 mission) : Accueil · Précédent · ▶/⏸ (audio du
+            dhikr affiché) · Réciter X/Y (compteur, zone tactile principale)
+            · Suivant — navigation LTR normale pour l'Adhkār (§31). */}
         <div className="border-t border-border bg-secondary/50 px-2 py-2 sm:px-3">
           <div className="flex items-stretch gap-2">
             <Link
@@ -388,6 +294,20 @@ export function DhikrViewer({
               className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sky-500/15 text-sky-600 transition disabled:opacity-30 active:scale-95"
             >
               <ChevronLeft className="size-6" />
+            </button>
+            <button
+              onClick={() => {
+                if (dhikrAudio.available) {
+                  dhikrAudio.toggle();
+                  return;
+                }
+                setAudioUnavailable(true);
+                window.setTimeout(() => setAudioUnavailable(false), 2500);
+              }}
+              aria-label={dhikrAudio.playing ? "Mettre en pause" : "Écouter ce dhikr"}
+              className="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary transition active:scale-95"
+            >
+              {dhikrAudio.playing ? <Pause className="size-5" /> : <Play className="size-5" />}
             </button>
 
             <button
@@ -476,6 +396,123 @@ export function DhikrViewer({
                   Passer quand même
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Petite feuille "Vivre ce dhikr" (§10 mission) — même langage
+            visuel que "Vivre cette page" côté Coran : une vraie icône
+            vectorielle (Leaf), jamais d'emoji comme asset final, ouvrant une
+            feuille compacte plutôt qu'un gros bandeau permanent. */}
+        {liveOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm"
+            onClick={() => setLiveOpen(false)}
+          >
+            <div
+              className="flex max-h-[75dvh] w-full flex-col rounded-t-3xl border-t border-border bg-card"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-4">
+                <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+                  <Leaf className="size-5 text-primary" /> Vivre ce dhikr
+                </h2>
+                <button
+                  onClick={() => setLiveOpen(false)}
+                  aria-label="Fermer"
+                  className="grid size-9 shrink-0 place-items-center rounded-full border border-border"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 pb-5 text-sm leading-relaxed text-foreground">
+                {dhikr.context && (
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                    {dhikr.context}
+                  </p>
+                )}
+                <p>{dhikr.explanation}</p>
+                {dhikr.merits && <p>{dhikr.merits}</p>}
+                <div className="flex items-center gap-1 border-t border-border pt-3 text-xs text-muted-foreground">
+                  <span>{dhikr.reference}</span>
+                  {dhikr.collection && (
+                    <SourceInfo
+                      sourceTitle={dhikr.collection}
+                      sourceReference={dhikr.hadithNumber}
+                      sourceAuthor={dhikr.narrator}
+                      authenticity={
+                        dhikr.authenticityGrade
+                          ? `${dhikr.authenticityGrade}${dhikr.authenticityGrader ? " — " + dhikr.authenticityGrader : ""}`
+                          : undefined
+                      }
+                      nature={dhikr.evidenceSummaryFr}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ⋯ — uniquement les actions propres au dhikr (§11 mission) :
+            Favori, Partager, Source. Taille/Français/Phonétique/Audio ne
+            sont plus jamais répétés ici, voir ⚙️ Paramètres > Adhkār. */}
+        {menuOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm"
+            onClick={() => setMenuOpen(false)}
+          >
+            <div
+              className="w-full rounded-t-3xl border-t border-border bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => {
+                  toggle("dhikr", dhikr.id);
+                  setMenuOpen(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted"
+              >
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                  <Heart className={cn("size-4", fav && "fill-gold text-gold")} />
+                </span>
+                <span className="text-sm font-medium text-foreground">
+                  {fav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  shareDhikr(dhikr, idx);
+                  setMenuOpen(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted"
+              >
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                  <Share2 className="size-4" />
+                </span>
+                <span className="text-sm font-medium text-foreground">Partager</span>
+              </button>
+              {dhikr.collection ? (
+                <div className="flex items-center gap-3 rounded-xl px-3 py-3">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                    <Leaf className="size-4 opacity-0" aria-hidden />
+                  </span>
+                  <SourceInfo
+                    sourceTitle={dhikr.collection}
+                    sourceReference={dhikr.hadithNumber}
+                    sourceAuthor={dhikr.narrator}
+                    authenticity={
+                      dhikr.authenticityGrade
+                        ? `${dhikr.authenticityGrade}${dhikr.authenticityGrader ? " — " + dhikr.authenticityGrader : ""}`
+                        : undefined
+                    }
+                    nature={dhikr.evidenceSummaryFr}
+                  />
+                  <span className="text-xs text-muted-foreground">{dhikr.reference}</span>
+                </div>
+              ) : (
+                <p className="px-3 py-3 text-xs text-muted-foreground">{dhikr.reference}</p>
+              )}
             </div>
           </div>
         )}

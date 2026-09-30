@@ -35,12 +35,21 @@ export interface QuranPreferences {
   speed: number;
 }
 
+/** "afasy" = piste continue existante (Al-'Afâsy, voir src/lib/afasyAudio.ts
+ * et /ecoute) pour "Tout écouter" — "ghamdi" = second profil demandé (§14-17
+ * mission) ; voir src/lib/adhkarGhamidi.ts pour son état réel (aucun fichier
+ * autorisé trouvé à ce jour, jamais un audio de repli fabriqué à sa place). */
+export type AdhkarAudioProfile = "afasy" | "ghamdi";
+
 export interface AdhkarPreferences {
   arabic: boolean;
   francais: boolean;
   phonetique: boolean;
   textSize: ReadingSize;
   speed: number;
+  audioProfile: AdhkarAudioProfile;
+  /** Enchaîne automatiquement l'audio du dhikr suivant quand disponible. */
+  continuous: boolean;
 }
 
 export interface GeneralPreferences {
@@ -77,6 +86,8 @@ export const DEFAULT_ADHKAR: AdhkarPreferences = {
   phonetique: false,
   textSize: "large",
   speed: 1,
+  audioProfile: "afasy",
+  continuous: false,
 };
 
 export const DEFAULT_GENERAL: GeneralPreferences = { reduceMotion: false };
@@ -145,7 +156,21 @@ function loadPreferences(): AppPreferences {
   if (typeof window === "undefined") return DEFAULT_PREFERENCES;
   try {
     const raw = window.localStorage.getItem(PREFS_KEY);
-    if (raw) return { ...DEFAULT_PREFERENCES, ...(JSON.parse(raw) as AppPreferences) };
+    if (raw) {
+      // Fusion PAR SECTION (jamais un simple spread plat) : une version
+      // antérieure de `adhkar:preferences` (chantier précédent) n'a pas les
+      // champs ajoutés depuis (ex. audioProfile/continuous) — un spread plat
+      // remplacerait tout `adhkar`/`quran` déjà enregistré et perdrait ces
+      // nouveaux champs (undefined), au lieu de simplement les compléter.
+      const parsed = JSON.parse(raw) as Partial<AppPreferences>;
+      return {
+        ...DEFAULT_PREFERENCES,
+        ...parsed,
+        quran: { ...DEFAULT_QURAN, ...parsed.quran },
+        adhkar: { ...DEFAULT_ADHKAR, ...parsed.adhkar },
+        general: { ...DEFAULT_GENERAL, ...parsed.general },
+      };
+    }
   } catch {
     /* ignore, repli sur la migration/valeurs par défaut */
   }

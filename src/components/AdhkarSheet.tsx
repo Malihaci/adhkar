@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { DoorOpen, Headphones, Luggage, Moon, Sparkles, Sunrise, X } from "lucide-react";
+import { DoorOpen, Headphones, Luggage, Moon, Settings2, Sparkles, Sunrise, X } from "lucide-react";
 
 /**
  * Choix Adhkār — Quotidien (Matin/Soir) + Occasions. Composant partagé entre
@@ -27,13 +27,26 @@ export function AdhkarSheet({
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="font-display text-lg font-semibold">Quel Adhkâr souhaitez-vous lire ?</h2>
-          <button
-            onClick={onClose}
-            aria-label="Fermer"
-            className="grid size-9 shrink-0 place-items-center rounded-full border border-border"
-          >
-            <X className="size-4" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {/* ⚙️ contextuel (§2 mission "Paramètres centralisés") — ouvre
+                directement Paramètres > Adhkār, jamais un second système. */}
+            <Link
+              to="/parametres"
+              search={{ section: "adhkar" }}
+              onClick={onClose}
+              aria-label="Paramètres Adhkār"
+              className="grid size-9 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition hover:text-foreground"
+            >
+              <Settings2 className="size-4" />
+            </Link>
+            <button
+              onClick={onClose}
+              aria-label="Fermer"
+              className="grid size-9 shrink-0 place-items-center rounded-full border border-border"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
         </div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Quotidien
