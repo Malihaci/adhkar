@@ -1,10 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, BookMarked, Clock, Heart, Search, Settings, X } from "lucide-react";
+import { Bell, BookMarked, Clock, Heart, Search, Settings, Sparkles, X } from "lucide-react";
 
-/** "Plus" — point d'accès unique aux contenus/réglages secondaires (§5/§I mission). */
+/**
+ * "Plus" — point d'accès unique aux contenus/réglages secondaires (§5/§I
+ * mission). "Comprendre — Tadabbur" (accès général, hors āyah précise) y
+ * reste accessible depuis que CoranSheet a été supprimé (chantier "Coran
+ * direct") — l'accès le plus rapide au contenu Comprendre/Tadabbur reste
+ * désormais au niveau de l'āyah (bouton "Étudier" dans le lecteur), mais
+ * rien de ce contenu n'a été retiré ni rendu injoignable.
+ */
 export function PlusSheet({ onClose }: { onClose: () => void }) {
   const items = [
     { to: "/favoris" as const, label: "Favoris", icon: Heart },
+    { to: "/tadabbur" as const, label: "Comprendre — Tadabbur", icon: Sparkles },
     { to: "/horaires" as const, label: "Horaires de prière", icon: Clock },
     { to: "/rappels" as const, label: "Mes rappels", icon: Bell },
     { to: "/wird" as const, label: "Mon Wird / Khatma", icon: BookMarked },

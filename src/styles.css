@@ -120,14 +120,6 @@
   color: transparent;
 }
 
-/* Zone interactive du Mushaf uniquement (§9/§10 menu ayah) : empêche le
-   menu natif Android/iOS ("Rédaction IA / Traduire / Copier") de se
-   déclencher sur un appui — jamais appliqué ailleurs dans l'app. */
-@utility mushaf-no-callout {
-  -webkit-touch-callout: none;
-  user-select: none;
-}
-
 /* ⚙️ Paramètres > Général > "Réduire les animations" (chantier "Paramètres
    centralisés") — une seule règle globale plutôt que de toucher chaque
    transition individuellement. */

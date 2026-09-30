@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Home, BookOpen, Sparkles, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readJSON, type DailyProgress } from "@/lib/storage";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { AdhkarSheet } from "@/components/AdhkarSheet";
-import { CoranSheet } from "@/components/CoranSheet";
 import { PlusSheet } from "@/components/PlusSheet";
+import { loadPreferences, resolveCoranMode } from "@/lib/preferences";
 
 function computeProgress(list: { id: string; repetitions: number }[], counts: Record<string, number>) {
   const total = list.reduce((n, d) => n + d.repetitions, 0);
@@ -14,7 +14,7 @@ function computeProgress(list: { id: string; repetitions: number }[], counts: Re
   return total ? Math.round((done / total) * 100) : 0;
 }
 
-type Sheet = "adhkar" | "coran" | "plus" | null;
+type Sheet = "adhkar" | "plus" | null;
 
 /**
  * Accueil | Coran | Adhkār | Plus (§5 mission) — toujours cet ordre.
@@ -29,9 +29,9 @@ type Sheet = "adhkar" | "coran" | "plus" | null;
  */
 export function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
   const [sheet, setSheet] = useState<Sheet>(null);
   const [adhkarPct, setAdhkarPct] = useState({ morning: 0, evening: 0 });
-  const [lastPage, setLastPage] = useState(1);
 
   const openAdhkar = () => {
     const progress = readJSON<DailyProgress>("adhkar:progress", { date: "", counts: {} });
@@ -41,9 +41,18 @@ export function BottomNav() {
     });
     setSheet("adhkar");
   };
+  /** Chantier "Coran direct" — plus d'écran intermédiaire (CoranSheet,
+   * supprimé) : un seul clic ouvre directement la dernière position, dans
+   * le lecteur (Mushaf ou ayah par ayah) que les préférences imposent. */
   const openCoran = () => {
-    setLastPage(readJSON<number>("quran-last-page", 1));
-    setSheet("coran");
+    const prefs = loadPreferences();
+    if (resolveCoranMode(prefs) === "mushaf") {
+      const lastPage = readJSON<number>("quran-last-page", 1);
+      navigate({ to: "/quran/page/$page", params: { page: String(lastPage) } });
+    } else {
+      const lastSurah = readJSON<number>("quran-last-surah", 1);
+      navigate({ to: "/quran/lire/$surah", params: { surah: String(lastSurah) } });
+    }
   };
 
   const items = [
@@ -103,7 +112,6 @@ export function BottomNav() {
           onClose={() => setSheet(null)}
         />
       )}
-      {sheet === "coran" && <CoranSheet lastPage={lastPage} onClose={() => setSheet(null)} />}
       {sheet === "plus" && <PlusSheet onClose={() => setSheet(null)} />}
     </>
   );

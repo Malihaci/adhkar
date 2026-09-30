@@ -1,11 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Heart, Pause, Play, Settings2, Share2, Sparkles } from "lucide-react";
-import { AppShell } from "@/components/AppShell";
-import { fetchChapters, verseAudioUrl } from "@/lib/mushaf";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Heart,
+  Pause,
+  Play,
+  Settings2,
+  Share2,
+  Sparkles,
+} from "lucide-react";
+import { RECITERS, fetchChapters, fetchVersePage, verseAudioUrl } from "@/lib/mushaf";
 import { fetchHamidullahSura } from "@/lib/hamidullah";
-import { useFavorites } from "@/lib/storage";
+import { useFavorites, writeJSON } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +67,36 @@ function LirePage() {
 
   const chapter = chapters?.find((c) => c.id === surah);
 
+  // Mémorise la dernière sourate visitée ici — même convention que
+  // `quran-last-page` côté Mushaf (écriture directe, pas d'abonnement
+  // nécessaire) — utilisée par l'entrée directe "Coran" (§1/§2 mission
+  // "Coran direct") pour rouvrir exactement ce mode/cette position.
+  useEffect(() => {
+    writeJSON("quran-last-surah", surah);
+  }, [surah]);
+
+  // Retour automatique au Mushaf (§15 mission) : dès que Français ET
+  // Phonétique sont désactivés (arabe seul), ce mode ayah-par-ayah n'a plus
+  // lieu d'être — on rouvre le Mushaf de Médine sur la page de cette
+  // sourate, sans redemander confirmation. `fetchVersePage` préserve la
+  // position (première āyah de la sourate en cours) au lieu de renvoyer à
+  // la page 1.
+  useEffect(() => {
+    if (!prefs.quran.arabic || prefs.quran.francais || prefs.quran.phonetique) return;
+    let cancelled = false;
+    fetchVersePage(`${surah}:1`)
+      .then((page) => {
+        if (!cancelled) navigate({ to: "/quran/page/$page", params: { page: String(page) } });
+      })
+      .catch(() => {
+        /* échec réseau ponctuel — l'utilisateur reste sur ce mode, aucune page inventée */
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs.quran.arabic, prefs.quran.francais, prefs.quran.phonetique]);
+
   const goSurah = (delta: number) => {
     const next = surah + delta;
     if (next < 1 || next > 114) return;
@@ -72,6 +111,7 @@ function LirePage() {
       return;
     }
     audioEl.src = verseAudioUrl(prefs.quran.reciterId, verseKey);
+    audioEl.playbackRate = prefs.quran.speed;
     audioEl.onended = () => setPlayingKey(null);
     audioEl.play().catch(() => setPlayingKey(null));
     setPlayingKey(verseKey);
@@ -85,6 +125,23 @@ function LirePage() {
     try {
       if (navigator.share) await navigator.share({ text, url: url.toString() });
       else await navigator.clipboard.writeText(text);
+    } catch {
+      /* annulé */
+    }
+  };
+
+  /** UNE seule action "Copier" (§20 mission) — plus de "Copier arabe" /
+   * "Copier traduction" séparés : combine uniquement les couches réellement
+   * affichées (jamais une couche désactivée ou indisponible), dans l'ordre
+   * arabe → phonétique → français. La phonétique n'existe pas encore pour
+   * une āyah générique (voir le message honnête ci-dessous) donc elle n'est
+   * jamais ajoutée pour l'instant — code volontairement générique si une
+   * source fiable est intégrée plus tard. */
+  const copyAyah = async (arabic: string, translation: string) => {
+    const parts = [arabic];
+    if (layers.francais) parts.push(`Français :\n${translation}`);
+    try {
+      await navigator.clipboard.writeText(parts.join("\n\n"));
     } catch {
       /* annulé */
     }
@@ -152,11 +209,69 @@ function LirePage() {
                 </button>
               ))}
             </div>
+
+            <p className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Taille de lecture
+            </p>
+            <div className="flex gap-1 rounded-full border border-border p-1">
+              {(
+                [
+                  ["normal", "Normal"],
+                  ["large", "Grand"],
+                  ["xlarge", "Très grand"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => updateQuran({ textSize: key })}
+                  aria-pressed={layers.textSize === key}
+                  className={cn(
+                    "flex-1 rounded-full py-1.5 text-xs font-semibold transition",
+                    layers.textSize === key
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <select
+                value={layers.reciterId}
+                onChange={(e) => updateQuran({ reciterId: e.target.value })}
+                aria-label="Récitateur"
+                className="h-10 rounded-full border border-border bg-background px-3 text-xs font-medium"
+              >
+                {RECITERS.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+              <div className="flex gap-1 rounded-full border border-border p-1">
+                {[1, 1.25].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => updateQuran({ speed: s })}
+                    aria-pressed={layers.speed === s}
+                    className={cn(
+                      "flex-1 rounded-full text-xs font-semibold transition",
+                      layers.speed === s ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {s}×
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <Link
               to="/parametres"
               search={{ section: "coran" }}
               onClick={() => setOptionsOpen(false)}
-              className="mt-2 inline-block text-xs font-medium text-primary underline-offset-2 hover:underline"
+              className="mt-3 inline-block text-xs font-medium text-primary underline-offset-2 hover:underline"
             >
               Tous les paramètres
             </Link>
@@ -220,6 +335,13 @@ function LirePage() {
                       className="flex h-8 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium text-foreground"
                     >
                       <Share2 className="size-3.5" />
+                    </button>
+                    <button
+                      onClick={() => copyAyah(v.arabic, v.translation)}
+                      aria-label="Copier"
+                      className="flex h-8 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium text-foreground"
+                    >
+                      <Copy className="size-3.5" />
                     </button>
                     <Link
                       to="/etude/$surah/$ayah"

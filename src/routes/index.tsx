@@ -1,16 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { BookMarked, BookOpen, Heart, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AdhkarSheet } from "@/components/AdhkarSheet";
-import { CoranSheet } from "@/components/CoranSheet";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { useDailyProgress, useLocalState } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import { HomeSuggestion } from "@/components/HomeSuggestion";
 import { NextPrayerWidget } from "@/components/NextPrayerWidget";
 import { OnboardingModal } from "@/components/OnboardingModal";
-import { usePreferences } from "@/lib/preferences";
+import { usePreferences, resolveCoranMode } from "@/lib/preferences";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -44,9 +43,21 @@ function Index() {
   const morning = computeProgress(morningAdhkar, progress.counts);
   const evening = computeProgress(eveningAdhkar, progress.counts);
   const [lastPage] = useLocalState<number>("quran-last-page", 1);
+  const [lastSurah] = useLocalState<number>("quran-last-surah", 1);
   const [adhkarChooserOpen, setAdhkarChooserOpen] = useState(false);
-  const [coranChooserOpen, setCoranChooserOpen] = useState(false);
   const { prefs, hydrated } = usePreferences();
+  const navigate = useNavigate();
+
+  /** Chantier "Coran direct" (§1/§2/§17) : un seul clic, plus d'écran
+   * intermédiaire — ouvre directement le lecteur (Mushaf ou ayah par ayah)
+   * qu'imposent les préférences, à la dernière position connue. */
+  const openCoran = () => {
+    if (resolveCoranMode(prefs) === "mushaf") {
+      navigate({ to: "/quran/page/$page", params: { page: String(lastPage) } });
+    } else {
+      navigate({ to: "/quran/lire/$surah", params: { surah: String(lastSurah) } });
+    }
+  };
 
   return (
     <AppShell title="Accueil" homeHeader>
@@ -65,7 +76,7 @@ function Index() {
             icon={<Sparkles className="size-6" />}
           />
           <GateButton
-            onClick={() => setCoranChooserOpen(true)}
+            onClick={openCoran}
             label="Coran"
             arabic="قُرْآن"
             tone="gold"
@@ -86,9 +97,6 @@ function Index() {
           eveningPct={evening.pct}
           onClose={() => setAdhkarChooserOpen(false)}
         />
-      )}
-      {coranChooserOpen && (
-        <CoranSheet lastPage={lastPage} onClose={() => setCoranChooserOpen(false)} />
       )}
     </AppShell>
   );

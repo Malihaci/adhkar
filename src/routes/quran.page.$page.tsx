@@ -561,6 +561,18 @@ function MushafPage() {
   const surahOnPage = verses?.[0]?.surah ?? 1;
   const surahMeta = chapters?.find((c) => c.id === surahOnPage);
 
+  /** Bascule automatique vers le mode ayah-par-ayah (§3/§4 mission "Coran
+   * direct") : dès que Français ou Phonétique est activé, plus de message
+   * demandant d'ouvrir ce mode — on y navigue directement, sur la sourate
+   * affichée (position préservée au mieux, voir §15). */
+  useEffect(() => {
+    if (!verses?.length) return; // sourate pas encore connue, jamais naviguer à l'aveugle
+    if (prefs.quran.francais || prefs.quran.phonetique) {
+      navigate({ to: "/quran/lire/$surah", params: { surah: String(surahOnPage) } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs.quran.francais, prefs.quran.phonetique, verses?.length]);
+
   /** Ayah de référence : la 1re sélectionnée, sinon la 1re de la page. */
   const anchorVerse =
     (selected.length ? verses?.find((v) => v.key === selected[0]) : verses?.[0]) ?? verses?.[0];
@@ -847,14 +859,14 @@ function MushafPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textSize, ceilingFontPx]);
 
-  /* ------------------------------------------------- swipe + appui long */
-  const gesture = useRef({
-    x: 0,
-    y: 0,
-    wordKey: null as string | null,
-    timer: null as number | null,
-    longPress: false,
-  });
+  /* ------------------------------------------------------------- swipe
+   * (§21 mission "Coran direct") : l'appui long ne sélectionne plus rien
+   * lui-même — il retombe sur la sélection de texte NATIVE du téléphone/
+   * navigateur (voir la suppression de `mushaf-no-callout`/user-select
+   * plus bas), pour permettre de copier une partie précise du texte avec
+   * le "Copier" système. Seul un TAP court ouvre encore la barre d'actions
+   * de l'application (onWordClick, inchangé). */
+  const gesture = useRef({ x: 0, y: 0 });
 
   const goPage = (delta: number) =>
     navigate({
@@ -939,45 +951,9 @@ function MushafPage() {
     const t = e.touches[0];
     gesture.current.x = t.clientX;
     gesture.current.y = t.clientY;
-    gesture.current.longPress = false;
-    const wordEl = (e.target as HTMLElement).closest<HTMLElement>("[data-word-key]");
-    gesture.current.wordKey = wordEl?.dataset.wordKey ?? null;
-    if (gesture.current.timer) window.clearTimeout(gesture.current.timer);
-    if (gesture.current.wordKey) {
-      gesture.current.timer = window.setTimeout(() => {
-        gesture.current.longPress = true;
-        suppressNextClick.current = true;
-        const key = gesture.current.wordKey!;
-        // Appui long = même résultat "direct" qu'un tap (sélection +
-        // barre d'actions compacte), jamais le menu natif Android — voir
-        // select-none/-webkit-touch-callout sur le conteneur du Mushaf.
-        setSelected([key]);
-      }, 480);
-    }
-  };
-
-  const onSheetTouchMove = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    const dx = t.clientX - gesture.current.x;
-    const dy = t.clientY - gesture.current.y;
-    if ((Math.abs(dx) > 10 || Math.abs(dy) > 10) && gesture.current.timer) {
-      window.clearTimeout(gesture.current.timer);
-      gesture.current.timer = null;
-    }
   };
 
   const onSheetTouchEnd = (e: React.TouchEvent) => {
-    if (gesture.current.timer) {
-      window.clearTimeout(gesture.current.timer);
-      gesture.current.timer = null;
-    }
-    if (gesture.current.longPress) {
-      gesture.current.longPress = false;
-      // Empêche le "clic fantôme" qui suit le relâchement du doigt de
-      // refermer immédiatement le menu contextuel qu'on vient d'ouvrir.
-      e.preventDefault();
-      return;
-    }
     const t = e.changedTouches[0];
     const dx = t.clientX - gesture.current.x;
     const dy = t.clientY - gesture.current.y;
@@ -1029,7 +1005,7 @@ function MushafPage() {
             return meta ? ` · ${meta.nameFrench} · ${meta.nameArabic}` : "";
           })()}
       </p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => {
             const [s, a] = key.split(":");
@@ -1050,46 +1026,25 @@ function MushafPage() {
           className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-center text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
         >
           <Copy className="size-5" />
-          Copier l'ayah
-        </button>
-        <button
-          onClick={copyTranslation}
-          className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-center text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
-        >
-          <Copy className="size-5" />
-          Copier la traduction
+          Copier
         </button>
       </div>
     </>
   );
 
   const menuVerse = verses?.find((v) => v.key === menuFor);
-  /** Copie le texte arabe exact (text_uthmani) — jamais le markup Tajwīd, les
-   * numéros graphiques ni aucun élément d'interface. */
+  /**
+   * UNE seule action "Copier" (§20 mission "Coran direct") — plus de
+   * "Copier l'ayah"/"Copier la traduction" séparés. Le Mushaf n'affiche
+   * jamais que l'arabe (Français/Phonétique basculent automatiquement vers
+   * /quran/lire, voir l'effet plus haut), donc ce contexte copie
+   * uniquement le texte arabe exact (text_uthmani) — jamais une couche
+   * désactivée ou absente de cet écran.
+   */
   const copyVerse = async () => {
     if (!menuVerse) return;
     try {
       await navigator.clipboard.writeText(menuVerse.arabic);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* refusé */
-    }
-    closeMenu();
-  };
-  /** Copie la traduction française validée (Hamidullah) + sourate + ayah. */
-  const copyTranslation = async () => {
-    if (!menuVerse || !menuFor) return;
-    const [s, a] = menuFor.split(":").map(Number);
-    const meta = chapters?.find((c) => c.id === s);
-    const hamidullah = await fetchHamidullahAyah(s, a).catch(() => null);
-    if (!hamidullah) {
-      closeMenu();
-      return;
-    }
-    const label = meta ? `${meta.nameFrench} — ${menuFor}` : menuFor;
-    try {
-      await navigator.clipboard.writeText(`${hamidullah.translation}\n\n${label}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -1196,7 +1151,6 @@ function MushafPage() {
         ref={boxRef}
         className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-1.5 py-1"
         onTouchStart={onSheetTouchStart}
-        onTouchMove={onSheetTouchMove}
         onTouchEnd={onSheetTouchEnd}
         onClick={(e) => {
           // Tap/clic en dehors d'un mot = ferme la sélection (§14) — ne fait
@@ -1220,22 +1174,15 @@ function MushafPage() {
         <div ref={fitBoxRef} className="mx-auto">
           <div
             ref={sheetRef}
-            style={
-              {
-                fontSize: fontPx,
-                // Tailwind/Lightning CSS élague -webkit-touch-callout des
-                // classes utilitaires : posé en style inline pour qu'il
-                // atteigne réellement le DOM (§9/§10 — voir mushaf-no-callout
-                // dans styles.css pour user-select, géré côté Tailwind).
-                WebkitTouchCallout: "none",
-              } as React.CSSProperties
-            }
-            // select-none + touch-callout:none : uniquement dans cette zone
-            // interactive du Mushaf (§9/§10 mission) — empêche le menu natif
-            // Android ("Rédaction IA / Traduire / Copier") de se déclencher
-            // sur un appui, sans toucher à la sélection de texte ailleurs
-            // dans l'app (Étude, Tafsir, Tadabbur restent sélectionnables).
-            className="mushaf-no-callout flex w-full flex-col justify-start gap-[0.35em]"
+            style={{ fontSize: fontPx } as React.CSSProperties}
+            // Sélection de texte NATIVE volontairement conservée ici (§21
+            // mission "Coran direct") : un appui long doit pouvoir
+            // sélectionner une partie précise du texte et utiliser le
+            // "Copier" du système — ne plus bloquer ce geste globalement
+            // (l'ancien `mushaf-no-callout`/user-select:none empêchait
+            // aussi bien le menu natif Android que toute sélection
+            // partielle, ce qui est désormais explicitement indésirable).
+            className="flex w-full flex-col justify-start gap-[0.35em]"
           >
             {(lines ?? []).map((line, li) => {
               const startSurah = surahStartAtLine.get(li);
@@ -1714,20 +1661,11 @@ function MushafPage() {
                   </button>
                 ))}
               </div>
-              {(prefs.quran.francais || prefs.quran.phonetique) && (
-                <p className="mb-4 rounded-xl border border-gold/30 bg-gold/5 px-3 py-2 text-[11px] leading-relaxed text-foreground">
-                  Le Mushaf de Médine n'affiche que l'arabe (jamais de traduction insérée dans ses
-                  lignes) —{" "}
-                  <Link
-                    to="/quran/lire/$surah"
-                    params={{ surah: String(surahMeta?.id ?? 1) }}
-                    className="font-semibold text-primary underline-offset-2 hover:underline"
-                  >
-                    ouvrir le mode ayah par ayah
-                  </Link>{" "}
-                  pour lire avec ces couches.
-                </p>
-              )}
+              {/* Plus de message "ouvrir le mode ayah par ayah" (§4 mission
+                  "Coran direct") : activer Français/Phonétique ci-dessus
+                  bascule automatiquement vers ce mode (effet juste après le
+                  hook `updateQuran`, voir plus haut) — aucun clic
+                  supplémentaire, jamais un message affiché sans action. */}
 
               <Link
                 to="/parametres"

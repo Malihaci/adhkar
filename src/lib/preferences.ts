@@ -152,7 +152,14 @@ function migrateLegacy(): AppPreferences {
   };
 }
 
-function loadPreferences(): AppPreferences {
+/**
+ * Lecture ponctuelle (pas un hook) — pour les endroits qui ne doivent
+ * jamais s'abonner de façon réactive aux préférences (ex. BottomNav, montée
+ * sur TOUTE page ; un abonnement réactif y dupliquerait des rendus, voir
+ * son propre commentaire de tête de fichier). Même logique de
+ * migration/fusion que `usePreferences`, juste sans état React.
+ */
+export function loadPreferences(): AppPreferences {
   if (typeof window === "undefined") return DEFAULT_PREFERENCES;
   try {
     const raw = window.localStorage.getItem(PREFS_KEY);
@@ -234,4 +241,17 @@ export function usePreferences() {
   );
 
   return { prefs, hydrated, updateQuran, updateAdhkar, updateGeneral, completeOnboarding };
+}
+
+/**
+ * Chantier "Coran direct" — un seul lecteur, plus d'écran intermédiaire
+ * (CoranSheet, supprimé) : le mode s'infère uniquement des préférences.
+ * CAS A (arabe seul, ± Tajwīd) → Mushaf de Médine. Dès que Français ou
+ * Phonétique est activé → mode ayah par ayah (jamais les deux affichés côte
+ * à côte comme deux écrans séparés).
+ */
+export function resolveCoranMode(prefs: AppPreferences): "mushaf" | "lire" {
+  return prefs.quran.arabic && !prefs.quran.francais && !prefs.quran.phonetique
+    ? "mushaf"
+    : "lire";
 }
