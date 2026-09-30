@@ -62,12 +62,20 @@ import { cn } from "@/lib/utils";
 interface Search {
   r?: string;
   sel?: string;
+  /** Portion "Mon Wird" partagée (lien direct, jamais le programme complet
+   * ni aucune donnée personnelle de l'auteur — voir §"Partage Mon Wird") :
+   * `shared=wird` + `end` = dernière page de la portion, la page de l'URL
+   * elle-même étant déjà `startPage`. */
+  end?: number;
+  shared?: string;
 }
 
 export const Route = createFileRoute("/quran/page/$page")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     r: typeof s.r === "string" ? s.r : undefined,
     sel: typeof s.sel === "string" ? s.sel : undefined,
+    end: typeof s.end === "string" || typeof s.end === "number" ? Number(s.end) : undefined,
+    shared: typeof s.shared === "string" ? s.shared : undefined,
   }),
   head: ({ params }) => {
     const title = `Coran — page ${params.page} / 604 (Mushaf de Médine)`;
@@ -115,6 +123,15 @@ function MushafPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const page = clampPage(Number(pageParam));
+  /** Page de départ RÉELLE de la portion "Mon Wird" partagée — capturée une
+   * seule fois à l'arrivée sur le lien (`page` change ensuite à mesure que
+   * l'utilisateur avance, `shared`/`end` restent mais plus rien ne donne le
+   * point de départ d'origine dans l'URL). Jamais recalculée après. */
+  const sharedStartPageRef = useRef<number | null>(null);
+  if (search.shared === "wird" && sharedStartPageRef.current === null) {
+    sharedStartPageRef.current = page;
+  }
+  const sharedStartPage = sharedStartPageRef.current;
   const { prefs, updateQuran } = usePreferences();
   // `search.r` (lien partagé) prévaut sur la préférence centrale, elle-même
   // le repli par défaut — jamais un retour silencieux au 1er récitateur.
@@ -843,7 +860,10 @@ function MushafPage() {
     navigate({
       to: "/quran/page/$page",
       params: { page: String(clampPage(page + delta)) },
-      search: { r: reciterId },
+      // La navigation normale (précédent/suivant, clavier, swipe) doit
+      // continuer à traverser toute la portion "Mon Wird" partagée — jamais
+      // perdre `shared`/`end` en cours de route (§3/§4 partage Wird).
+      search: { r: reciterId, shared: search.shared, end: search.end },
     });
 
   /** Références "toujours à jour" pour les raccourcis clavier : l'effet qui
@@ -1151,6 +1171,16 @@ function MushafPage() {
             </button>
           )}
         </div>
+        {/* Portion "Mon Wird" partagée (lien direct reçu, jamais le
+            programme complet ni aucune donnée personnelle de l'auteur) —
+            discret, informatif, ne bloque jamais la navigation normale. */}
+        {search.shared === "wird" && search.end && (
+          <p className="mx-auto mt-1 max-w-2xl px-1 text-center text-[11px] text-muted-foreground">
+            {page >= search.end
+              ? `Wird partagé · pages ${sharedStartPage}–${search.end} · portion terminée`
+              : `Wird partagé · pages ${sharedStartPage}–${search.end}`}
+          </p>
+        )}
       </header>
 
       {/* Mushaf — élément principal, coupures de lignes officielles (15 lignes).

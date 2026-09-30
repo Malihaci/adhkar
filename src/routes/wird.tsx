@@ -322,17 +322,28 @@ function ActiveWird({
   };
 
   const share = async (dayOnly: boolean) => {
-    const code = encodeKhatmaShare(wird);
-    const url = new URL(
-      "/wird",
+    const origin =
       typeof window !== "undefined"
         ? window.location.origin
-        : "https://adhkari-daily-guide.lovable.app",
-    );
-    url.searchParams.set("join", code);
-    const text = dayOnly
-      ? `${wird.name ?? "Mon Wird"} — Jour ${today.day}/${totalDays}\nPages ${today.startPage} → ${today.endPage}\n${url.toString()}`
-      : `${wird.name ?? "Ma Khatma"} — ${totalDays} jours\n${url.toString()}`;
+        : "https://adhkari-daily-guide.lovable.app";
+    let url: URL;
+    let text: string;
+    if (dayOnly) {
+      // Lien DIRECT vers la portion du jour (§"Partage Mon Wird") — jamais
+      // vers /wird?join=..., qui ouvrirait l'accueil Coran/le programme
+      // complet. Le destinataire doit pouvoir l'ouvrir sans avoir configuré
+      // Mon Wird ni aucune donnée du partageur : seules startPage/endPage
+      // (déjà publiques, aucune info personnelle) sont dans l'URL.
+      url = new URL(`/quran/page/${today.startPage}`, origin);
+      url.searchParams.set("end", String(today.endPage));
+      url.searchParams.set("shared", "wird");
+      text = `${wird.name ?? "Mon Wird"} — Jour ${today.day}/${totalDays}\nPages ${today.startPage} → ${today.endPage}\n${url.toString()}`;
+    } else {
+      const code = encodeKhatmaShare(wird);
+      url = new URL("/wird", origin);
+      url.searchParams.set("join", code);
+      text = `${wird.name ?? "Ma Khatma"} — ${totalDays} jours\n${url.toString()}`;
+    }
     try {
       if (navigator.share) await navigator.share({ text, url: url.toString() });
       else {
