@@ -667,20 +667,51 @@ function MushafPage() {
     return map;
   }, [lines]);
 
-  /* ------------------------------------- ajustement à la hauteur d'écran */
+  /* ------------------------------------- ajustement à la largeur d'écran */
   const boxRef = useRef<HTMLDivElement>(null);
-  /** Conteneur "virtuel" sur lequel le fitting calcule réellement — sa
-   * taille est délibérément box/zoom (jamais 100%), pour que l'agrandissement
-   * agisse sur l'échelle visuelle (CSS transform) sans jamais changer la
-   * composition (line_number, retours à la ligne) calculée par le fitting. */
   const fitBoxRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState(26);
-  const [zoom, setZoom] = useLocalState("adhkar:mushaf-zoom", 1);
+  /**
+   * Cause réelle du texte trop petit sur mobile : l'ancien réglage "Taille
+   * du Mushaf" rétrécissait la boîte de calcul par `zoom` PUIS agrandissait
+   * le rendu par exactement le même facteur (`transform: scale(zoom)`) — les
+   * deux s'annulaient mathématiquement, donc A+/A- ne changeait jamais rien
+   * à l'écran (vérifié en direct : même taille de mot en pixels à 100 % et
+   * 115 %). En plus, l'ancien fit visait à faire tenir les 15 lignes ENTIÈRES
+   * de la page dans la hauteur d'écran SANS jamais faire défiler — sur un
+   * mobile dense en texte, c'est la hauteur (pas la largeur) qui limitait la
+   * taille, souvent bien en dessous de ce que la largeur autoriserait.
+   *
+   * Correction : `ceilingFontPx` est désormais calculé sur la LARGEUR
+   * réelle uniquement (aucune ligne ne doit jamais déborder horizontalement
+   * — c'est la seule contrainte de fidélité non négociable) ; la hauteur
+   * n'est plus un facteur qui rétrécit le texte. Si le résultat dépasse la
+   * hauteur d'écran, la page défile verticalement (voir `overflow-y-auto`
+   * plus bas) au lieu d'être invisible/coupée par un `overflow:hidden`.
+   * "Standard/Grand/Très grand" appliquent ensuite une simple fraction ≤ 1
+   * de ce plafond — toujours sûr, jamais de dépassement horizontal possible
+   * puisqu'on ne fait que réduire depuis la valeur qui tient exactement.
+   */
+  const [ceilingFontPx, setCeilingFontPx] = useState(26);
+  const TEXT_SIZE_LEVELS = [
+    { value: 0.72, label: "Standard" },
+    { value: 0.86, label: "Grand" },
+    { value: 1, label: "Très grand" },
+  ] as const;
+  const [textSize, setTextSize] = useLocalState<number>(
+    "adhkar:mushaf-text-size",
+    TEXT_SIZE_LEVELS[1].value,
+  );
+  /** Toujours à jour pour que `fit()` (fermeture recréée seulement quand
+   * `lines` change) lise le niveau de taille courant sans figurer dans ses
+   * dépendances — un changement de taille seul ne doit jamais refaire la
+   * recherche en largeur, voir l'effet séparé plus bas. */
+  const textSizeRef = useRef(textSize);
+  textSizeRef.current = textSize;
   /** Couche visuelle uniquement (couleurs) — jamais de reflow, jamais de
    * changement de line_number/texte/ordre. Voir src/lib/mushaf.ts. */
   const [tajweedMode, setTajweedMode] = useLocalState("adhkar:tajweed-mode", false);
-  const ZOOM_LEVELS = [0.85, 1, 1.15, 1.3] as const;
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -691,22 +722,20 @@ function MushafPage() {
     let cancelled = false;
     // scrollWidth === clientWidth dès qu'une ligne tient (pas de "marge"
     // native à lire ici) : on cherche donc d'abord la taille maximale qui
-    // tient exactement, puis on recule d'un petit pourcentage pour ne
-    // jamais laisser un mot/haraka effleurer le bord de la ligne.
+    // tient exactement en LARGEUR, puis on recule d'un petit pourcentage
+    // pour ne jamais laisser un mot/haraka effleurer le bord de la ligne.
+    // La hauteur n'est plus vérifiée ici : un dépassement vertical fait
+    // défiler la page (voir overflow-y-auto), jamais rétrécir le texte.
     const SAFE_FACTOR = 0.97;
-    const fits = () => {
-      if (sheet.scrollHeight > fitBox.clientHeight) return false;
+    const fitsWidth = () => {
       const rows = sheet.querySelectorAll<HTMLElement>("[data-mushaf-line]");
       for (const r of rows) if (r.scrollWidth > r.clientWidth) return false;
       return true;
     };
     const fit = () => {
       if (cancelled) return;
-      // Boîte virtuelle = boîte réelle / zoom : le fitting compose toujours
-      // pour cette taille virtuelle, jamais pour la taille visuelle finale.
       // En portrait, la largeur reste plafonnée (comme l'ancien max-w-2xl) ;
-      // en paysage, le Mushaf utilise toute la largeur réellement disponible
-      // — c'est le cœur de la correction du mode paysage.
+      // en paysage, le Mushaf utilise toute la largeur réellement disponible.
       const isLandscape =
         typeof window !== "undefined" && window.matchMedia("(orientation: landscape)").matches;
       const PORTRAIT_MAX_WIDTH_PX = 672; // équivalent Tailwind max-w-2xl
@@ -732,20 +761,21 @@ function MushafPage() {
       const effectiveWidth = isLandscape
         ? Math.min(boxContentWidth, LANDSCAPE_MAX_WIDTH_PX)
         : Math.min(boxContentWidth, PORTRAIT_MAX_WIDTH_PX);
-      fitBox.style.width = `${effectiveWidth / zoom}px`;
-      fitBox.style.height = `${box.clientHeight / zoom}px`;
+      fitBox.style.width = `${effectiveWidth}px`;
       let lo = 8;
-      let hi = 40;
+      let hi = 60;
       let best = lo;
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < 10; i++) {
         const mid = (lo + hi) / 2;
         sheet.style.fontSize = `${mid}px`;
-        if (fits()) {
+        if (fitsWidth()) {
           best = mid;
           lo = mid;
         } else hi = mid;
       }
-      const safe = Math.max(8, best * SAFE_FACTOR);
+      const ceiling = Math.max(8, best * SAFE_FACTOR);
+      setCeilingFontPx(ceiling);
+      const safe = ceiling * textSizeRef.current;
       sheet.style.fontSize = `${safe}px`;
       setFontPx(safe);
     };
@@ -773,9 +803,20 @@ function MushafPage() {
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-    // `zoom` recalcule volontairement le fitting (nouvelle boîte virtuelle) ;
-    // ni la sélection ni la file de lecture ne doivent le redéclencher.
-  }, [lines, zoom]);
+    // `textSize` ne redéclenche PAS la recherche en largeur (le plafond ne
+    // dépend que de l'écran/police) — voir l'effet séparé ci-dessous qui se
+    // contente de réappliquer `ceilingFontPx * textSize`, instantané.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lines]);
+
+  // Changement de "Standard/Grand/Très grand" : pas besoin de refaire la
+  // recherche en largeur, seulement réappliquer la fraction du plafond déjà
+  // connu — instantané, jamais de reflow différent.
+  useEffect(() => {
+    if (sheetRef.current) sheetRef.current.style.fontSize = `${ceilingFontPx * textSize}px`;
+    setFontPx(ceilingFontPx * textSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [textSize, ceilingFontPx]);
 
   /* ------------------------------------------------- swipe + appui long */
   const gesture = useRef({
@@ -1101,10 +1142,16 @@ function MushafPage() {
 
       {/* Mushaf — élément principal, coupures de lignes officielles (15 lignes).
           En paysage, toute la largeur/hauteur disponible est utilisée (pas
-          de max-w-2xl) : c'est l'élément prioritaire de l'écran. */}
+          de max-w-2xl) : c'est l'élément prioritaire de l'écran.
+          `overflow-y-auto` (jamais `-hidden`) : à "Très grand" (ou sur un
+          petit écran), les 15 lignes peuvent dépasser la hauteur visible —
+          l'utilisateur défile alors pour lire la suite au lieu qu'un
+          overflow:hidden ne cache silencieusement une partie de la page. Le
+          défilement horizontal reste bloqué : aucune ligne ne doit jamais
+          déborder en largeur (voir le fit ci-dessus, seule contrainte dure). */}
       <div
         ref={boxRef}
-        className="min-h-0 flex-1 overflow-hidden px-1.5 py-1"
+        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-1.5 py-1"
         onTouchStart={onSheetTouchStart}
         onTouchMove={onSheetTouchMove}
         onTouchEnd={onSheetTouchEnd}
@@ -1121,15 +1168,13 @@ function MushafPage() {
             <Loader2 className="size-4 animate-spin" /> Chargement de la page…
           </p>
         )}
-        {/* Boîte virtuelle : dimensionnée en JS (box/zoom, capée à 672px
-            seulement en portrait) puis agrandie visuellement par transform
-            scale — le fitting à l'intérieur ne voit jamais l'agrandissement,
-            donc jamais de reflow/retour à la ligne différent selon le zoom. */}
-        <div
-          ref={fitBoxRef}
-          style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
-          className="mx-auto h-full"
-        >
+        {/* Boîte dimensionnée en JS (largeur réelle, capée à 672px seulement
+            en portrait — voir le fit ci-dessus) ; plus de transform scale
+            depuis la correction §"Taille du Mushaf" (l'ancien trick
+            rétrécir/agrandir s'annulait exactement, voir le commentaire sur
+            `ceilingFontPx`). La composition (line_number, retours à la
+            ligne) ne dépend que des données du Mushaf, jamais de la taille. */}
+        <div ref={fitBoxRef} className="mx-auto">
           <div
             ref={sheetRef}
             style={
@@ -1147,7 +1192,7 @@ function MushafPage() {
             // Android ("Rédaction IA / Traduire / Copier") de se déclencher
             // sur un appui, sans toucher à la sélection de texte ailleurs
             // dans l'app (Étude, Tafsir, Tadabbur restent sélectionnables).
-            className="mushaf-no-callout flex h-full w-full flex-col justify-start gap-[0.35em]"
+            className="mushaf-no-callout flex w-full flex-col justify-start gap-[0.35em]"
           >
             {(lines ?? []).map((line, li) => {
               const startSurah = surahStartAtLine.get(li);
@@ -1538,36 +1583,22 @@ function MushafPage() {
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Taille du Mushaf
               </p>
-              <div className="mb-4 flex items-center gap-2 rounded-full border border-border p-1">
-                <button
-                  onClick={() =>
-                    setZoom((z) => {
-                      const i = ZOOM_LEVELS.indexOf(z as (typeof ZOOM_LEVELS)[number]);
-                      return ZOOM_LEVELS[Math.max(0, i - 1)] ?? ZOOM_LEVELS[0];
-                    })
-                  }
-                  disabled={zoom <= ZOOM_LEVELS[0]}
-                  aria-label="Réduire le Mushaf"
-                  className="grid size-9 shrink-0 place-items-center rounded-full text-sm font-bold text-foreground transition disabled:opacity-30"
-                >
-                  A−
-                </button>
-                <span className="flex-1 text-center text-xs font-semibold text-muted-foreground">
-                  {Math.round(zoom * 100)}%
-                </span>
-                <button
-                  onClick={() =>
-                    setZoom((z) => {
-                      const i = ZOOM_LEVELS.indexOf(z as (typeof ZOOM_LEVELS)[number]);
-                      return ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, i + 1)] ?? ZOOM_LEVELS[0];
-                    })
-                  }
-                  disabled={zoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
-                  aria-label="Agrandir le Mushaf"
-                  className="grid size-9 shrink-0 place-items-center rounded-full text-sm font-bold text-foreground transition disabled:opacity-30"
-                >
-                  A+
-                </button>
+              <div className="mb-4 flex gap-1 rounded-full border border-border p-1">
+                {TEXT_SIZE_LEVELS.map((lvl) => (
+                  <button
+                    key={lvl.label}
+                    onClick={() => setTextSize(lvl.value)}
+                    aria-pressed={textSize === lvl.value}
+                    className={cn(
+                      "flex-1 rounded-full py-2 text-sm font-semibold transition",
+                      textSize === lvl.value
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {lvl.label}
+                  </button>
+                ))}
               </div>
 
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
