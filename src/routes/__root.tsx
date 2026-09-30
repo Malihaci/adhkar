@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useReminderEngine } from "@/lib/reminders";
+import { useSmartReminderEngine } from "@/lib/smartReminders";
 import { usePreferences } from "@/lib/preferences";
 
 function NotFoundComponent() {
@@ -142,6 +143,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ReminderEngine />
+      <SmartReminderEngine />
       <ReduceMotionEffect />
       <Outlet />
     </QueryClientProvider>
@@ -167,5 +169,13 @@ function ReduceMotionEffect() {
  */
 function ReminderEngine() {
   useReminderEngine();
+  return null;
+}
+
+/** Rappels intelligents Prières/Adhkār/Wird (chantier "Rappels intelligents")
+ * — voir src/lib/smartReminders.ts pour la logique et les limites (même
+ * moteur "premier plan uniquement" que ReminderEngine ci-dessus). */
+function SmartReminderEngine() {
+  useSmartReminderEngine();
   return null;
 }

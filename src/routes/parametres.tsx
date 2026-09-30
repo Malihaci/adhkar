@@ -1,9 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Laptop, Moon, Sun } from "lucide-react";
+import { ChevronDown, Laptop, Moon, Sun } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useTheme, type ThemeMode } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
+import { useSmartReminderPrefs, type WirdReminderMode } from "@/lib/smartReminders";
 import { RECITERS } from "@/lib/mushaf";
 import { cn } from "@/lib/utils";
 
@@ -115,6 +116,43 @@ function SpeedRow({ value, onChange }: { value: number; onChange: (v: number) =>
   );
 }
 
+const WIRD_MODE_OPTIONS: { key: WirdReminderMode; label: string }[] = [
+  { key: "after-fajr", label: "Après Fajr" },
+  { key: "after-morning-adhkar", label: "Après mes Adhkār du matin" },
+  { key: "custom", label: "Heure personnalisée" },
+  { key: "off", label: "Désactivé" },
+];
+
+/** Ligne avec détails repliés par défaut (§2/§21 mission — "les options
+ * détaillées apparaissent seulement en touchant chaque ligne"). */
+function DisclosureRow({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value?: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b border-border py-2.5 last:border-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <span className="text-sm font-medium text-foreground">{label}</span>
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {value}
+          <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
+        </span>
+      </button>
+      {open && <div className="pt-2.5">{children}</div>}
+    </div>
+  );
+}
+
 function Section({
   id,
   title,
@@ -139,6 +177,8 @@ function ParametresPage() {
   const search = Route.useSearch();
   const { prefs, updateQuran, updateAdhkar, updateGeneral } = usePreferences();
   const { mode, setMode } = useTheme();
+  const [smart, setSmart] = useSmartReminderPrefs();
+  const updateSmart = (patch: Partial<typeof smart>) => setSmart((prev) => ({ ...prev, ...patch }));
   const scrolled = useRef(false);
 
   useEffect(() => {
@@ -292,10 +332,129 @@ function ParametresPage() {
           </div>
         </Section>
 
-        <Section id="horaires" title="Horaires / notifications">
+        <Section
+          id="notifications"
+          title="Notifications"
+          subtitle="Un seul mode intelligent pour prières, Adhkār et Mon Wird"
+        >
+          <ToggleRow
+            label="Mode intelligent"
+            checked={smart.enabled}
+            onChange={(v) => updateSmart({ enabled: v })}
+          />
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            Propose Adhkār/Wird seulement s'ils ne sont pas déjà terminés, sans jamais empiler
+            plusieurs notifications à la suite d'une prière.
+          </p>
+
+          <div className={cn("mt-3", !smart.enabled && "pointer-events-none opacity-40")}>
+            <DisclosureRow label="Prières" value={smart.prayers ? "Activé" : "Désactivé"}>
+              <ToggleRow
+                label="Notifications de prière"
+                checked={smart.prayers}
+                onChange={(v) => updateSmart({ prayers: v })}
+              />
+              <a href="/rappels" className="text-xs font-medium text-primary underline-offset-2 hover:underline">
+                Régler chaque prière (rappel avant, Adhān…)
+              </a>
+            </DisclosureRow>
+
+            <DisclosureRow label="Adhkār" value={smart.adhkar ? "Activé" : "Désactivé"}>
+              <ToggleRow
+                label="Adhkār matin/soir"
+                checked={smart.adhkar}
+                onChange={(v) => updateSmart({ adhkar: v })}
+              />
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Matin dès Fajr, soir dès le vrai ʿAsr — uniquement si non terminés.
+              </p>
+            </DisclosureRow>
+
+            <DisclosureRow
+              label="Mon Wird"
+              value={
+                !smart.wird
+                  ? "Désactivé"
+                  : (WIRD_MODE_OPTIONS.find((o) => o.key === smart.wirdMode)?.label ?? "")
+              }
+            >
+              <ToggleRow
+                label="Rappel Mon Wird"
+                checked={smart.wird}
+                onChange={(v) => updateSmart({ wird: v })}
+              />
+              {smart.wird && (
+                <>
+                  <p className="mb-1.5 mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Rappel du Wird
+                  </p>
+                  <div className="space-y-1.5">
+                    {WIRD_MODE_OPTIONS.map((o) => (
+                      <button
+                        key={o.key}
+                        onClick={() => updateSmart({ wirdMode: o.key })}
+                        className={cn(
+                          "flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-sm transition",
+                          smart.wirdMode === o.key
+                            ? "border-primary/50 bg-primary/5 text-foreground"
+                            : "border-border text-muted-foreground",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "size-4 shrink-0 rounded-full border-2",
+                            smart.wirdMode === o.key ? "border-primary bg-primary" : "border-border",
+                          )}
+                        />
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                  {smart.wirdMode === "custom" && (
+                    <input
+                      type="time"
+                      value={smart.wirdCustomTime}
+                      onChange={(e) => updateSmart({ wirdCustomTime: e.target.value })}
+                      className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                    />
+                  )}
+                  <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                    Le Wird se lit à tout moment de la journée — ce rappel n'est qu'une aide, jamais
+                    une contrainte, et reprend toujours là où vous en étiez.
+                  </p>
+                </>
+              )}
+            </DisclosureRow>
+
+            <DisclosureRow label="Ne pas déranger" value={`${smart.quietStart} — ${smart.quietEnd}`}>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs text-muted-foreground">Début</span>
+                  <input
+                    type="time"
+                    value={smart.quietStart}
+                    onChange={(e) => updateSmart({ quietStart: e.target.value })}
+                    className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs text-muted-foreground">Fin</span>
+                  <input
+                    type="time"
+                    value={smart.quietEnd}
+                    onChange={(e) => updateSmart({ quietEnd: e.target.value })}
+                    className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                  />
+                </label>
+              </div>
+            </DisclosureRow>
+          </div>
+        </Section>
+
+        <Section id="horaires" title="Horaires">
           <p className="text-sm text-muted-foreground">
-            Source des horaires (mosquée ou calcul automatique), localisation, méthode et rappels de
-            prière se règlent directement sur la page Horaires.
+            Source des horaires (mosquée ou calcul automatique), localisation et méthode se règlent
+            directement sur la page Horaires.
           </p>
           <a
             href="/horaires"

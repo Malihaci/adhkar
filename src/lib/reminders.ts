@@ -8,12 +8,13 @@
  * sans retoucher l'UI de réglage.
  */
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchTodayTimings, getPrayerSettings, type PrayerKey, type PrayerTimings } from "@/lib/prayerTimes";
 import { useLocalState } from "@/lib/storage";
 import { getAdhanOption, playBeep, type AdhanId } from "@/lib/adhan";
 import { getPersonalAudioURL } from "@/lib/personalAudio";
+import { useSmartReminderPrefs } from "@/lib/smartReminders";
 
 /**
  * Abstraction PrayerNotificationService (§9 mission) — préparée mais non
@@ -209,7 +210,13 @@ export function checkDueReminders(
   const now = new Date();
   const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
   const today = todayKey();
-  const next = { ...fireLog };
+  // Ne jamais renvoyer un nouvel objet quand rien n'a sonné : un appelant
+  // qui stocke ce retour dans du state React (setFireLog(checkDueReminders
+  // (...))) verrait sinon une référence différente à CHAQUE tick même sans
+  // changement réel, déclenchant un rendu (et tout effet qui en dépend) en
+  // boucle — c'est exactement ce qui causait la boucle infinie constatée en
+  // direct dès que `reminders` changeait aussi de référence à chaque rendu.
+  let next: ReminderFireLog | null = null;
   for (const r of reminders) {
     if (!r.enabled) continue;
     if (typeof r.weekday === "number" && now.getDay() !== r.weekday) continue;
@@ -217,9 +224,10 @@ export function checkDueReminders(
     if (effectiveTime === null || effectiveTime !== hhmm) continue;
     if (fireLog[r.id] === today) continue;
     onFire(r);
+    if (!next) next = { ...fireLog };
     next[r.id] = today;
   }
-  return next;
+  return next ?? fireLog;
 }
 
 /**
@@ -234,8 +242,28 @@ export function checkDueReminders(
  * documentée en tête de fichier.
  */
 export function useReminderEngine() {
-  const [reminders] = useLocalState<ReminderConfig[]>("adhkar:reminders", DEFAULT_REMINDERS);
+  const [rawReminders] = useLocalState<ReminderConfig[]>("adhkar:reminders", DEFAULT_REMINDERS);
   const [fireLog, setFireLog] = useLocalState<ReminderFireLog>("adhkar:reminders-firelog", {});
+  const [smartPrefs] = useSmartReminderPrefs();
+  /** Mode intelligent actif (chantier "Rappels intelligents") : les anciens
+   * rappels Adhkār matin/soir et Mon Wird à HEURE FIXE ne doivent plus
+   * sonner — le SmartReminderEngine (src/lib/smartReminders.ts) les
+   * remplace par une logique contextuelle (progression réelle, vrai Fajr/
+   * ʿAsr, priorité vs prière). Les prières et les autres rappels fixes
+   * (réveil/coucher/Al-Kahf) restent gérés ici sans changement. */
+  // `useMemo` — jamais un simple `.filter()` inline : ce dernier renvoie un
+  // NOUVEAU tableau à chaque rendu, ce qui changeait la dépendance de
+  // l'effet ci-dessous à chaque tick et provoquait une boucle de rendu
+  // infinie ("Maximum update depth exceeded", constatée en direct).
+  const reminders = useMemo(
+    () =>
+      smartPrefs.enabled
+        ? rawReminders.filter(
+            (r) => !["matin", "soir", "wird"].includes(r.id) && (smartPrefs.prayers || !r.prayerKey),
+          )
+        : rawReminders,
+    [rawReminders, smartPrefs.enabled, smartPrefs.prayers],
+  );
   const needsTimings = reminders.some((r) => r.enabled && r.prayerKey);
   const { data: timings } = useQuery({
     queryKey: ["prayer-timings", getPrayerSettings()],

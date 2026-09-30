@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Bell, BellOff, CheckCircle2, Music, Trash2, Upload } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useLocalState } from "@/lib/storage";
@@ -20,6 +20,7 @@ import {
   type PersonalAudioMeta,
 } from "@/lib/personalAudio";
 import { usePrayerTimings } from "@/lib/prayerTimes";
+import { useSmartReminderPrefs } from "@/lib/smartReminders";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/rappels")({
@@ -94,7 +95,13 @@ function RappelsPage() {
     setPersonalAudio(null);
   };
 
-  const fixedReminders = reminders.filter((r) => !r.prayerKey);
+  const [smart] = useSmartReminderPrefs();
+  // Quand le mode intelligent est actif, ces 3 rappels à heure fixe ne
+  // sonnent plus jamais (voir useReminderEngine dans reminders.ts) — les
+  // masquer ici plutôt que de laisser un interrupteur "activé" qui ne ferait
+  // plus rien, ce qui serait trompeur (chantier "Rappels intelligents").
+  const smartManagedIds = smart.enabled ? ["matin", "soir", "wird"] : [];
+  const fixedReminders = reminders.filter((r) => !r.prayerKey && !smartManagedIds.includes(r.id));
   const prayerReminders = reminders.filter((r) => r.prayerKey);
 
   return (
@@ -137,6 +144,16 @@ function RappelsPage() {
               </p>
             </div>
           </button>
+        )}
+
+        {smart.enabled && (
+          <p className="rounded-2xl border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+            Adhkār (matin/soir) et Mon Wird sont désormais gérés par le mode intelligent — voir{" "}
+            <Link to="/parametres" search={{ section: "notifications" }} className="font-medium text-primary underline-offset-2 hover:underline">
+              ⚙️ Paramètres → Notifications
+            </Link>
+            .
+          </p>
         )}
 
         <div className="surface-card divide-y divide-border">
