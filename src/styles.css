@@ -128,6 +128,18 @@
   user-select: none;
 }
 
+/* ⚙️ Paramètres > Général > "Réduire les animations" (chantier "Paramètres
+   centralisés") — une seule règle globale plutôt que de toucher chaque
+   transition individuellement. */
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
 @utility surface-card {
   background-color: var(--card);
   color: var(--card-foreground);

@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useReminderEngine } from "@/lib/reminders";
+import { usePreferences } from "@/lib/preferences";
 
 function NotFoundComponent() {
   return (
@@ -141,9 +142,21 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ReminderEngine />
+      <ReduceMotionEffect />
       <Outlet />
     </QueryClientProvider>
   );
+}
+
+/** ⚙️ Paramètres > Général > "Réduire les animations" (§17 mission) — un
+ * attribut sur `<html>`, lu par une seule règle CSS globale (voir
+ * styles.css), plutôt que de toucher chaque transition individuellement. */
+function ReduceMotionEffect() {
+  const { prefs } = usePreferences();
+  useEffect(() => {
+    document.documentElement.dataset.reduceMotion = prefs.general.reduceMotion ? "true" : "false";
+  }, [prefs.general.reduceMotion]);
+  return null;
 }
 
 /**

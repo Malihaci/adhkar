@@ -9,7 +9,7 @@ export function PlusSheet({ onClose }: { onClose: () => void }) {
     { to: "/rappels" as const, label: "Mes rappels", icon: Bell },
     { to: "/wird" as const, label: "Mon Wird / Khatma", icon: BookMarked },
     { to: "/recherche" as const, label: "Recherche", icon: Search },
-    { to: "/parametres/apparence" as const, label: "Paramètres", icon: Settings },
+    { to: "/parametres" as const, label: "Paramètres", icon: Settings },
   ];
 
   return (

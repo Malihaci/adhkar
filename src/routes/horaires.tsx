@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Building2, Clock, MapPin, Navigation, Settings2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import {
@@ -322,6 +322,13 @@ function HorairesPage() {
               Horaires fournis par Al Adhan API (Islamic Network) — méthode affichée ici, jamais
               calculée par l'application.
             </p>
+            <Link
+              to="/parametres"
+              search={{ section: "horaires" }}
+              className="block text-center text-xs font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Tous les paramètres
+            </Link>
           </div>
         )}
       </div>

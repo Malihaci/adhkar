@@ -18,6 +18,7 @@ import { Route as FavorisLectureRouteImport } from './routes/favoris-lecture'
 import { Route as HorairesRouteImport } from './routes/horaires'
 import { Route as KhatmaRouteImport } from './routes/khatma'
 import { Route as MatinRouteImport } from './routes/matin'
+import { Route as ParametresRouteImport } from './routes/parametres'
 import { Route as RappelsRouteImport } from './routes/rappels'
 import { Route as RechercheRouteImport } from './routes/recherche'
 import { Route as ReveilRouteImport } from './routes/reveil'
@@ -77,6 +78,11 @@ const MatinRoute = MatinRouteImport.update({
   path: '/matin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ParametresRoute = ParametresRouteImport.update({
+  id: '/parametres',
+  path: '/parametres',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RappelsRoute = RappelsRouteImport.update({
   id: '/rappels',
   path: '/rappels',
@@ -118,9 +124,9 @@ const WirdRoute = WirdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const ParametresApparenceRoute = ParametresApparenceRouteImport.update({
-  id: '/parametres/apparence',
-  path: '/parametres/apparence',
-  getParentRoute: () => rootRouteImport,
+  id: '/apparence',
+  path: '/apparence',
+  getParentRoute: () => ParametresRoute,
 } as any)
 const SourateSurahRoute = SourateSurahRouteImport.update({
   id: '/sourate/$surah',
@@ -153,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/horaires': typeof HorairesRoute
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
+  '/parametres': typeof ParametresRouteWithChildren
   '/rappels': typeof RappelsRoute
   '/recherche': typeof RechercheRoute
   '/reveil': typeof ReveilRoute
@@ -177,6 +184,7 @@ export interface FileRoutesByTo {
   '/horaires': typeof HorairesRoute
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
+  '/parametres': typeof ParametresRouteWithChildren
   '/rappels': typeof RappelsRoute
   '/recherche': typeof RechercheRoute
   '/reveil': typeof ReveilRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   '/horaires': typeof HorairesRoute
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
+  '/parametres': typeof ParametresRouteWithChildren
   '/rappels': typeof RappelsRoute
   '/recherche': typeof RechercheRoute
   '/reveil': typeof ReveilRoute
@@ -228,6 +237,7 @@ export interface FileRouteTypes {
     | '/horaires'
     | '/khatma'
     | '/matin'
+    | '/parametres'
     | '/rappels'
     | '/recherche'
     | '/reveil'
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/horaires'
     | '/khatma'
     | '/matin'
+    | '/parametres'
     | '/rappels'
     | '/recherche'
     | '/reveil'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/horaires'
     | '/khatma'
     | '/matin'
+    | '/parametres'
     | '/rappels'
     | '/recherche'
     | '/reveil'
@@ -301,6 +313,7 @@ export interface RootRouteChildren {
   HorairesRoute: typeof HorairesRoute
   KhatmaRoute: typeof KhatmaRoute
   MatinRoute: typeof MatinRoute
+  ParametresRoute: typeof ParametresRouteWithChildren
   RappelsRoute: typeof RappelsRoute
   RechercheRoute: typeof RechercheRoute
   ReveilRoute: typeof ReveilRoute
@@ -309,7 +322,6 @@ export interface RootRouteChildren {
   TadabburRoute: typeof TadabburRoute
   VoyageRoute: typeof VoyageRoute
   WirdRoute: typeof WirdRoute
-  ParametresApparenceRoute: typeof ParametresApparenceRoute
   SourateSurahRoute: typeof SourateSurahRoute
   EtudeSurahAyahRoute: typeof EtudeSurahAyahRoute
   QuranLireSurahRoute: typeof QuranLireSurahRoute
@@ -381,6 +393,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatinRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parametres': {
+      id: '/parametres'
+      path: '/parametres'
+      fullPath: '/parametres'
+      preLoaderRoute: typeof ParametresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/rappels': {
       id: '/rappels'
       path: '/rappels'
@@ -439,10 +458,10 @@ declare module '@tanstack/react-router' {
     }
     '/parametres/apparence': {
       id: '/parametres/apparence'
-      path: '/parametres/apparence'
+      path: '/apparence'
       fullPath: '/parametres/apparence'
       preLoaderRoute: typeof ParametresApparenceRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ParametresRoute
     }
     '/sourate/$surah': {
       id: '/sourate/$surah'
@@ -475,6 +494,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ParametresRouteChildren {
+  ParametresApparenceRoute: typeof ParametresApparenceRoute
+}
+
+const ParametresRouteChildren: ParametresRouteChildren = {
+  ParametresApparenceRoute: ParametresApparenceRoute,
+}
+
+const ParametresRouteWithChildren = ParametresRoute._addFileChildren(
+  ParametresRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApresPriereRoute: ApresPriereRoute,
@@ -485,6 +516,7 @@ const rootRouteChildren: RootRouteChildren = {
   HorairesRoute: HorairesRoute,
   KhatmaRoute: KhatmaRoute,
   MatinRoute: MatinRoute,
+  ParametresRoute: ParametresRouteWithChildren,
   RappelsRoute: RappelsRoute,
   RechercheRoute: RechercheRoute,
   ReveilRoute: ReveilRoute,
@@ -493,7 +525,6 @@ const rootRouteChildren: RootRouteChildren = {
   TadabburRoute: TadabburRoute,
   VoyageRoute: VoyageRoute,
   WirdRoute: WirdRoute,
-  ParametresApparenceRoute: ParametresApparenceRoute,
   SourateSurahRoute: SourateSurahRoute,
   EtudeSurahAyahRoute: EtudeSurahAyahRoute,
   QuranLireSurahRoute: QuranLireSurahRoute,

@@ -53,6 +53,7 @@ import {
 } from "@/lib/mushaf";
 import { Basmala } from "@/components/AyahText";
 import { useLocalState, useFavorites } from "@/lib/storage";
+import { usePreferences } from "@/lib/preferences";
 import { getPageContent, type EtudeCategory } from "@/lib/etude-content";
 import { ContentList, AgirSection } from "@/routes/etude.$surah.$ayah";
 import { cn } from "@/lib/utils";
@@ -113,7 +114,10 @@ function MushafPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const page = clampPage(Number(pageParam));
-  const reciterId = getReciter(search.r).id;
+  const { prefs, updateQuran } = usePreferences();
+  // `search.r` (lien partagé) prévaut sur la préférence centrale, elle-même
+  // le repli par défaut — jamais un retour silencieux au 1er récitateur.
+  const reciterId = getReciter(search.r ?? prefs.quran.reciterId).id;
 
   const { data: layout, isPending } = useQuery({
     queryKey: ["mushaf-layout", page],
@@ -194,7 +198,10 @@ function MushafPage() {
   const [loop, setLoop] = useState(false);
   const [ayahRepeat, setAyahRepeat] = useState(1); // 1,3,5 ou 0 = ∞
   const [selRepeat, setSelRepeat] = useState(1); // 1,3,5 ou 0 = ∞
-  const [speed, setSpeed] = useState(1); // 1 ou 1.25
+  // Vitesse persistée dans ⚙️ Paramètres > Coran — indépendante de la
+  // vitesse Adhkār (§12 mission : quranPlaybackSpeed ≠ adhkarPlaybackSpeed).
+  const speed = prefs.quran.speed;
+  const setSpeed = (s: number) => updateQuran({ speed: s });
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [pageLifeOpen, setPageLifeOpen] = useState(false);
   const [autoTurn, setAutoTurn] = useState(false);
@@ -694,15 +701,18 @@ function MushafPage() {
    * puisqu'on ne fait que réduire depuis la valeur qui tient exactement.
    */
   const [ceilingFontPx, setCeilingFontPx] = useState(26);
+  /** `readingSize` sémantique (normal/large/xlarge) vient du centre unique
+   * ⚙️ Paramètres > Coran (src/lib/preferences.ts) — partagée avec l'Adhkār
+   * et le lecteur ayah-par-ayah, mais chaque écran l'applique différemment
+   * (§9 mission) : ici, une fraction sûre du plafond de largeur du Mushaf. */
   const TEXT_SIZE_LEVELS = [
-    { value: 0.72, label: "Standard" },
-    { value: 0.86, label: "Grand" },
-    { value: 1, label: "Très grand" },
+    { key: "normal" as const, value: 0.72, label: "Standard" },
+    { key: "large" as const, value: 0.86, label: "Grand" },
+    { key: "xlarge" as const, value: 1, label: "Très grand" },
   ] as const;
-  const [textSize, setTextSize] = useLocalState<number>(
-    "adhkar:mushaf-text-size",
-    TEXT_SIZE_LEVELS[1].value,
-  );
+  const textSize =
+    TEXT_SIZE_LEVELS.find((l) => l.key === prefs.quran.textSize)?.value ?? TEXT_SIZE_LEVELS[1].value;
+  const setTextSize = (key: (typeof TEXT_SIZE_LEVELS)[number]["key"]) => updateQuran({ textSize: key });
   /** Toujours à jour pour que `fit()` (fermeture recréée seulement quand
    * `lines` change) lise le niveau de taille courant sans figurer dans ses
    * dépendances — un changement de taille seul ne doit jamais refaire la
@@ -711,7 +721,8 @@ function MushafPage() {
   textSizeRef.current = textSize;
   /** Couche visuelle uniquement (couleurs) — jamais de reflow, jamais de
    * changement de line_number/texte/ordre. Voir src/lib/mushaf.ts. */
-  const [tajweedMode, setTajweedMode] = useLocalState("adhkar:tajweed-mode", false);
+  const tajweedMode = prefs.quran.tajweed;
+  const setTajweedMode = (v: boolean) => updateQuran({ tajweed: v });
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -1549,7 +1560,10 @@ function MushafPage() {
               <select
                 aria-label="Récitateur"
                 value={reciterId}
-                onChange={(e) => setSearchParam({ r: e.target.value })}
+                onChange={(e) => {
+                  setSearchParam({ r: e.target.value });
+                  updateQuran({ reciterId: e.target.value });
+                }}
                 className="h-11 w-full rounded-full border border-border bg-background px-4 text-sm font-medium"
               >
                 {RECITERS.map((r) => (
@@ -1586,12 +1600,12 @@ function MushafPage() {
               <div className="mb-4 flex gap-1 rounded-full border border-border p-1">
                 {TEXT_SIZE_LEVELS.map((lvl) => (
                   <button
-                    key={lvl.label}
-                    onClick={() => setTextSize(lvl.value)}
-                    aria-pressed={textSize === lvl.value}
+                    key={lvl.key}
+                    onClick={() => setTextSize(lvl.key)}
+                    aria-pressed={prefs.quran.textSize === lvl.key}
                     className={cn(
                       "flex-1 rounded-full py-2 text-sm font-semibold transition",
-                      textSize === lvl.value
+                      prefs.quran.textSize === lvl.key
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground",
                     )}
@@ -1642,6 +1656,55 @@ function MushafPage() {
                   ))}
                 </div>
               )}
+
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Français / Phonétique
+              </p>
+              <div className="mb-1.5 flex gap-1 rounded-full border border-border p-1">
+                {(
+                  [
+                    ["francais", "Français"],
+                    ["phonetique", "Phonétique"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => updateQuran({ [key]: !prefs.quran[key] })}
+                    aria-pressed={prefs.quran[key]}
+                    className={cn(
+                      "flex-1 rounded-full py-2 text-sm font-semibold transition",
+                      prefs.quran[key]
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {(prefs.quran.francais || prefs.quran.phonetique) && (
+                <p className="mb-4 rounded-xl border border-gold/30 bg-gold/5 px-3 py-2 text-[11px] leading-relaxed text-foreground">
+                  Le Mushaf de Médine n'affiche que l'arabe (jamais de traduction insérée dans ses
+                  lignes) —{" "}
+                  <Link
+                    to="/quran/lire/$surah"
+                    params={{ surah: String(surahMeta?.id ?? 1) }}
+                    className="font-semibold text-primary underline-offset-2 hover:underline"
+                  >
+                    ouvrir le mode ayah par ayah
+                  </Link>{" "}
+                  pour lire avec ces couches.
+                </p>
+              )}
+
+              <Link
+                to="/parametres"
+                search={{ section: "coran" }}
+                onClick={() => setOptionsOpen(false)}
+                className="mb-1 inline-block text-xs font-medium text-primary underline-offset-2 hover:underline"
+              >
+                Tous les paramètres
+              </Link>
             </div>
 
             {/* Footer sticky : une seule action pour appliquer la config et lancer. */}

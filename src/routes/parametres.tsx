@@ -1,0 +1,288 @@
+import { useEffect, useRef } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Laptop, Moon, Sun } from "lucide-react";
+import { AppShell } from "@/components/AppShell";
+import { useTheme, type ThemeMode } from "@/lib/storage";
+import { usePreferences, type ReadingSize } from "@/lib/preferences";
+import { RECITERS } from "@/lib/mushaf";
+import { cn } from "@/lib/utils";
+
+/**
+ * Centre unique de paramètres (chantier "Paramètres intelligents et
+ * centralisés") — une seule architecture (`src/lib/preferences.ts`) pour
+ * Coran, Adhkār, Audio, Général ; Horaires garde son propre panneau complet
+ * (source mosquée/calcul, déjà construit) et n'est ici qu'un lien, pour ne
+ * jamais dupliquer ce réglage. `?section=coran|adhkar|audio|horaires|general`
+ * fait défiler directement vers la bonne section (accès contextuel §2/§14 :
+ * chaque écran renvoie ici avec la bonne ancre plutôt que d'obliger
+ * l'utilisateur à chercher parmi plusieurs niveaux de menus).
+ */
+export const Route = createFileRoute("/parametres")({
+  validateSearch: (s: Record<string, unknown>): { section?: string } => ({
+    section: typeof s.section === "string" ? s.section : undefined,
+  }),
+  head: () => ({
+    meta: [
+      { title: "Paramètres" },
+      { name: "description", content: "Coran, Adhkār, audio et affichage — tout au même endroit." },
+    ],
+  }),
+  component: ParametresPage,
+});
+
+const SIZE_OPTIONS: { key: ReadingSize; label: string }[] = [
+  { key: "normal", label: "Normal" },
+  { key: "large", label: "Grand" },
+  { key: "xlarge", label: "Très grand" },
+];
+
+const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: typeof Sun }[] = [
+  { mode: "auto", label: "Automatique", icon: Laptop },
+  { mode: "light", label: "Clair", icon: Sun },
+  { mode: "dark", label: "Sombre", icon: Moon },
+];
+
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2.5">
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      <button
+        onClick={() => onChange(!checked)}
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        className={cn(
+          "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+          checked ? "bg-primary" : "bg-muted",
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-1 size-5 rounded-full bg-background shadow transition-all",
+            checked ? "left-6" : "left-1",
+          )}
+        />
+      </button>
+    </div>
+  );
+}
+
+function SizeRow({ value, onChange }: { value: ReadingSize; onChange: (v: ReadingSize) => void }) {
+  return (
+    <div className="mt-2 flex gap-1 rounded-full border border-border p-1">
+      {SIZE_OPTIONS.map((o) => (
+        <button
+          key={o.key}
+          onClick={() => onChange(o.key)}
+          aria-pressed={value === o.key}
+          className={cn(
+            "flex-1 rounded-full py-2 text-sm font-semibold transition",
+            value === o.key ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SpeedRow({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="mt-2 flex gap-1 rounded-full border border-border p-1">
+      {[0.75, 1, 1.25].map((s) => (
+        <button
+          key={s}
+          onClick={() => onChange(s)}
+          aria-pressed={value === s}
+          className={cn(
+            "flex-1 rounded-full py-2 text-sm font-semibold transition",
+            value === s ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+          )}
+        >
+          {s}×
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Section({
+  id,
+  title,
+  subtitle,
+  children,
+}: {
+  id: string;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section id={id} className="surface-card scroll-mt-20 space-y-1 p-5">
+      <h2 className="font-display text-base font-semibold text-foreground">{title}</h2>
+      {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+      <div className="pt-1">{children}</div>
+    </section>
+  );
+}
+
+function ParametresPage() {
+  const search = Route.useSearch();
+  const { prefs, updateQuran, updateAdhkar, updateGeneral } = usePreferences();
+  const { mode, setMode } = useTheme();
+  const scrolled = useRef(false);
+
+  useEffect(() => {
+    if (scrolled.current || !search.section) return;
+    const el = document.getElementById(search.section);
+    if (el) {
+      el.scrollIntoView({ block: "start" });
+      scrolled.current = true;
+    }
+  }, [search.section]);
+
+  return (
+    <AppShell title="Paramètres" subtitle="الإعدادات">
+      <div className="space-y-4">
+        <Section id="coran" title="Coran" subtitle="S'applique au Mushaf et au mode ayah par ayah">
+          <ToggleRow
+            label="Arabe"
+            checked={prefs.quran.arabic}
+            onChange={(v) => updateQuran({ arabic: v })}
+          />
+          <ToggleRow
+            label="Français (traduction Hamidullah)"
+            checked={prefs.quran.francais}
+            onChange={(v) => updateQuran({ francais: v })}
+          />
+          <ToggleRow
+            label="Phonétique"
+            checked={prefs.quran.phonetique}
+            onChange={(v) => updateQuran({ phonetique: v })}
+          />
+          <ToggleRow
+            label="Tajwīd (couleurs, Mushaf uniquement)"
+            checked={prefs.quran.tajweed}
+            onChange={(v) => updateQuran({ tajweed: v })}
+          />
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Taille de lecture
+          </p>
+          <SizeRow value={prefs.quran.textSize} onChange={(v) => updateQuran({ textSize: v })} />
+          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+            Arabe seul (± Tajwīd) → Mushaf de Médine traditionnel. Dès que Français ou Phonétique
+            est activé → mode ayah par ayah (jamais inséré dans les lignes du Mushaf).
+          </p>
+        </Section>
+
+        <Section id="adhkar" title="Adhkār" subtitle="S'applique à toutes les catégories (matin, soir, coucher…)">
+          <ToggleRow
+            label="Français"
+            checked={prefs.adhkar.francais}
+            onChange={(v) => updateAdhkar({ francais: v })}
+          />
+          <ToggleRow
+            label="Phonétique"
+            checked={prefs.adhkar.phonetique}
+            onChange={(v) => updateAdhkar({ phonetique: v })}
+          />
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Taille de lecture
+          </p>
+          <SizeRow value={prefs.adhkar.textSize} onChange={(v) => updateAdhkar({ textSize: v })} />
+        </Section>
+
+        <Section id="audio" title="Audio">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Audio Coran
+          </p>
+          <label className="mt-1.5 block">
+            <span className="mb-1 block text-xs text-muted-foreground">Récitateur</span>
+            <select
+              value={prefs.quran.reciterId}
+              onChange={(e) => updateQuran({ reciterId: e.target.value })}
+              className="h-11 w-full rounded-full border border-border bg-background px-4 text-sm font-medium"
+            >
+              {RECITERS.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mb-1 mt-3 text-xs text-muted-foreground">Vitesse</p>
+          <SpeedRow value={prefs.quran.speed} onChange={(v) => updateQuran({ speed: v })} />
+
+          <div className="mt-5 border-t border-border pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Audio Adhkār
+            </p>
+            <p className="mb-1 mt-3 text-xs text-muted-foreground">Vitesse</p>
+            <SpeedRow value={prefs.adhkar.speed} onChange={(v) => updateAdhkar({ speed: v })} />
+            <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+              Récitation Cheikh Al-‘Afâsy (Adhkār) — réglage indépendant du récitateur Coran, jamais
+              mélangés.
+            </p>
+          </div>
+        </Section>
+
+        <Section id="horaires" title="Horaires / notifications">
+          <p className="text-sm text-muted-foreground">
+            Source des horaires (mosquée ou calcul automatique), localisation, méthode et rappels de
+            prière se règlent directement sur la page Horaires.
+          </p>
+          <a
+            href="/horaires"
+            className="mt-3 inline-block rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+          >
+            Ouvrir Horaires de prière
+          </a>
+        </Section>
+
+        <Section id="general" title="Général / accessibilité">
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Apparence
+          </p>
+          <div className="flex gap-1 rounded-full border border-border p-1">
+            {THEME_OPTIONS.map(({ mode: m, label, icon: Icon }) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                aria-pressed={mode === m}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs font-semibold transition",
+                  mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                )}
+              >
+                <Icon className="size-3.5" /> {label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 border-t border-border pt-3">
+            <ToggleRow
+              label="Réduire les animations"
+              checked={prefs.general.reduceMotion}
+              onChange={(v) => updateGeneral({ reduceMotion: v })}
+            />
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Limite les transitions/mouvements visuels de l'interface.
+            </p>
+          </div>
+        </Section>
+
+        <p className="text-center text-xs leading-relaxed text-muted-foreground">
+          Les changements s'appliquent immédiatement, partout où ils sont utilisés.
+        </p>
+      </div>
+    </AppShell>
+  );
+}

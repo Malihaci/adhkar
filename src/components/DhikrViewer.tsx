@@ -6,7 +6,7 @@ import {
   ChevronRight,
   Home,
   Check,
-  Type,
+  Settings2,
   Leaf,
   ChevronDown,
   Pause,
@@ -18,19 +18,18 @@ import { AyahText } from "@/components/AyahText";
 import { SourceInfo } from "@/components/SourceInfo";
 
 import type { Dhikr } from "@/data/adhkar";
-import { useDailyProgress, useFavorites, getLastReadIndex, useLocalState } from "@/lib/storage";
+import { useDailyProgress, useFavorites, getLastReadIndex } from "@/lib/storage";
+import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { shareDhikr } from "@/lib/share";
 import { useDhikrVerseAudio } from "@/lib/dhikrAudio";
 import { cn } from "@/lib/utils";
 
-type FontSize = "normal" | "large" | "xlarge";
-
-const ARABIC_SIZE: Record<FontSize, string> = {
+const ARABIC_SIZE: Record<ReadingSize, string> = {
   normal: "text-[1.5rem] leading-[2] sm:text-[1.9rem] sm:leading-[2]",
   large: "text-[1.9rem] leading-[1.95] sm:text-[2.3rem] sm:leading-[1.95]",
   xlarge: "text-[2.3rem] leading-[1.9] sm:text-[2.8rem] sm:leading-[1.9]",
 };
-const TEXT_SIZE: Record<FontSize, string> = {
+const TEXT_SIZE: Record<ReadingSize, string> = {
   normal: "text-[15px]",
   large: "text-[18px]",
   xlarge: "text-[21px]",
@@ -59,22 +58,35 @@ export function DhikrViewer({
   const { progress, increment, reset, setLastRead } = useDailyProgress();
   const { isFavorite, toggle } = useFavorites();
   const category = list[0]?.category ?? "morning";
-  const [idx, setIdx] = useState(initialIndex ?? 0);
-  const [showPhonetic, setShowPhonetic] = useLocalState<boolean>("adhkar:phonetic", false);
-  const [fontSize, setFontSize] = useLocalState<FontSize>("adhkar:font-size", "large");
+  /**
+   * Position restaurée synchroniquement dès le premier rendu (initialiseur
+   * paresseux) — jamais via un second `useEffect` séparé qui appelait
+   * `setIdx(saved)` après coup : celui-ci entrait en course avec l'effet de
+   * persistance juste en dessous (`setLastRead(..., idx)`, déclenché sur
+   * TOUT montage). Les deux s'exécutaient dans le même flush d'effets, mais
+   * la persistance lisait encore l'ancien `idx` (0) capturé au rendu
+   * initial — elle réécrasait donc l'index restauré par 0 dans le stockage
+   * juste après l'avoir lu, causant une perte de position perceptible dès
+   * qu'on revenait sur l'écran (ex. après un aller-retour par ⚙️ Paramètres,
+   * §15/§19 mission). Calculer `idx` une seule fois, dès l'état initial,
+   * élimine cette course : plus rien ne peut persister une valeur transitoire.
+   */
+  const [idx, setIdx] = useState(() => {
+    if (typeof initialIndex === "number") return initialIndex;
+    if (!persist) return 0;
+    const saved = getLastReadIndex(category);
+    return saved !== null && saved >= 0 && saved < list.length ? saved : 0;
+  });
+  const { prefs, updateAdhkar } = usePreferences();
+  const showFrancais = prefs.adhkar.francais;
+  const showPhonetic = prefs.adhkar.phonetique;
+  const fontSize = prefs.adhkar.textSize;
   const [sizeOpen, setSizeOpen] = useState(false);
   const [liveOpen, setLiveOpen] = useState(false);
   const [warnOpen, setWarnOpen] = useState(false);
   const [audioUnavailable, setAudioUnavailable] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!persist || typeof initialIndex === "number") return;
-    const saved = getLastReadIndex(category);
-    if (saved !== null && saved >= 0 && saved < list.length) setIdx(saved);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category]);
 
   // La liste peut rétrécir (favori retiré) : rester dans les bornes
   useEffect(() => {
@@ -194,39 +206,51 @@ export function DhikrViewer({
             >
               <Share2 className="size-5" />
             </button>
-            {/* "Aa" — affichage : phonétique + taille du texte, réglages peu
-                fréquents rangés derrière un seul panneau (§22/35 mission). */}
+            {/* ⚙️ — affichage : arabe/français/phonétique + taille du texte,
+                réglages peu fréquents rangés derrière un seul panneau
+                (§22/35 mission), désormais backés par ⚙️ Paramètres > Adhkār
+                (chantier "Paramètres centralisés" — src/lib/preferences.ts). */}
             <div className="relative">
               <button
                 onClick={() => setSizeOpen((v) => !v)}
-                aria-label="Affichage (phonétique, taille du texte)"
+                aria-label="Affichage (arabe, français, phonétique, taille du texte)"
                 aria-expanded={sizeOpen}
                 className="grid size-11 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
               >
-                <Type className="size-5" />
+                <Settings2 className="size-5" />
               </button>
               {sizeOpen && (
-                <div className="absolute right-0 top-12 z-30 w-52 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)]">
-                  <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-                    <span className="text-sm font-medium text-foreground">Phonétique</span>
-                    <button
-                      onClick={() => setShowPhonetic(!showPhonetic)}
-                      role="switch"
-                      aria-checked={showPhonetic}
-                      aria-label="Afficher la phonétique"
-                      className={cn(
-                        "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-                        showPhonetic ? "bg-primary" : "bg-muted",
-                      )}
+                <div className="absolute right-0 top-12 z-30 w-56 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)]">
+                  {(
+                    [
+                      ["francais", "Français", showFrancais],
+                      ["phonetique", "Phonétique", showPhonetic],
+                    ] as const
+                  ).map(([key, label, checked]) => (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between gap-3 border-b border-border px-4 py-3"
                     >
-                      <span
+                      <span className="text-sm font-medium text-foreground">{label}</span>
+                      <button
+                        onClick={() => updateAdhkar({ [key]: !checked })}
+                        role="switch"
+                        aria-checked={checked}
+                        aria-label={`Afficher ${label.toLowerCase()}`}
                         className={cn(
-                          "absolute top-1 size-5 rounded-full bg-background shadow transition-all",
-                          showPhonetic ? "left-6" : "left-1",
+                          "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                          checked ? "bg-primary" : "bg-muted",
                         )}
-                      />
-                    </button>
-                  </div>
+                      >
+                        <span
+                          className={cn(
+                            "absolute top-1 size-5 rounded-full bg-background shadow transition-all",
+                            checked ? "left-6" : "left-1",
+                          )}
+                        />
+                      </button>
+                    </div>
+                  ))}
                   <p className="px-4 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     Taille du texte
                   </p>
@@ -240,7 +264,7 @@ export function DhikrViewer({
                     <button
                       key={key}
                       onClick={() => {
-                        setFontSize(key);
+                        updateAdhkar({ textSize: key });
                         setSizeOpen(false);
                       }}
                       className={cn(
@@ -252,6 +276,14 @@ export function DhikrViewer({
                       {fontSize === key && <Check className="size-4" />}
                     </button>
                   ))}
+                  <Link
+                    to="/parametres"
+                    search={{ section: "adhkar" }}
+                    onClick={() => setSizeOpen(false)}
+                    className="block border-t border-border px-4 py-2.5 text-center text-xs font-medium text-primary"
+                  >
+                    Tous les paramètres
+                  </Link>
                 </div>
               )}
             </div>
@@ -327,14 +359,16 @@ export function DhikrViewer({
             </p>
           )}
 
-          <p
-            className={cn(
-              "border-t border-border pt-3 leading-relaxed text-foreground",
-              TEXT_SIZE[fontSize],
-            )}
-          >
-            {dhikr.translation}
-          </p>
+          {showFrancais && (
+            <p
+              className={cn(
+                "border-t border-border pt-3 leading-relaxed text-foreground",
+                TEXT_SIZE[fontSize],
+              )}
+            >
+              {dhikr.translation}
+            </p>
+          )}
         </div>
 
         {/* Bottom bar — une seule ligne, LTR : gauche = précédent, droite = suivant */}

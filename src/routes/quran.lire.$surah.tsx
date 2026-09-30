@@ -3,9 +3,10 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Heart, Pause, Play, Settings2, Share2, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { fetchChapters, verseAudioUrl, defaultReciter } from "@/lib/mushaf";
+import { fetchChapters, verseAudioUrl } from "@/lib/mushaf";
 import { fetchHamidullahSura } from "@/lib/hamidullah";
-import { useFavorites, useLocalState } from "@/lib/storage";
+import { useFavorites } from "@/lib/storage";
+import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/quran/lire/$surah")({
@@ -15,19 +16,30 @@ export const Route = createFileRoute("/quran/lire/$surah")({
   component: LirePage,
 });
 
-interface Layers {
-  arabic: boolean;
-  francais: boolean;
-  phonetique: boolean;
-}
-
-const DEFAULT_LAYERS: Layers = { arabic: true, francais: true, phonetique: false };
+/** Ce réglage vient désormais du centre unique ⚙️ Paramètres > Coran
+ * (chantier "Paramètres intelligents") — voir src/lib/preferences.ts.
+ * Ce mode ayah-par-ayah gère déjà toutes les combinaisons A-F de la
+ * mission (chaque couche est indépendante) : Arabe seul, Arabe+Français,
+ * Arabe+Phonétique, les trois, Français seul, Phonétique seule. */
+const ARABIC_SIZE: Record<ReadingSize, string> = {
+  normal: "text-lg leading-[1.9]",
+  large: "text-xl leading-[2]",
+  xlarge: "text-2xl leading-[2.1]",
+};
+const TEXT_SIZE: Record<ReadingSize, string> = {
+  normal: "text-[0.85rem]",
+  large: "text-[0.95rem]",
+  xlarge: "text-[1.05rem]",
+};
 
 function LirePage() {
   const { surah: surahParam } = Route.useParams();
   const navigate = useNavigate();
   const surah = Number(surahParam);
-  const [layers, setLayers] = useLocalState<Layers>("adhkar:reading-layers", DEFAULT_LAYERS);
+  const { prefs, updateQuran } = usePreferences();
+  const layers = prefs.quran;
+  const setLayer = (key: "arabic" | "francais" | "phonetique", value: boolean) =>
+    updateQuran({ [key]: value });
   const [optionsOpen, setOptionsOpen] = useState(false);
   const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const [playingKey, setPlayingKey] = useState<string | null>(null);
@@ -59,7 +71,7 @@ function LirePage() {
       setPlayingKey(null);
       return;
     }
-    audioEl.src = verseAudioUrl(defaultReciter, verseKey);
+    audioEl.src = verseAudioUrl(prefs.quran.reciterId, verseKey);
     audioEl.onended = () => setPlayingKey(null);
     audioEl.play().catch(() => setPlayingKey(null));
     setPlayingKey(verseKey);
@@ -117,27 +129,37 @@ function LirePage() {
           </button>
         </div>
         {optionsOpen && (
-          <div className="mx-auto mt-2 flex max-w-2xl flex-wrap gap-2 px-1">
-            {(
-              [
-                ["arabic", "Arabe"],
-                ["francais", "Français"],
-                ["phonetique", "Phonétique"],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setLayers((prev) => ({ ...prev, [key]: !prev[key] }))}
-                className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition",
-                  layers[key]
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground",
-                )}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="mx-auto mt-2 max-w-2xl px-1">
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["arabic", "Arabe"],
+                  ["francais", "Français"],
+                  ["phonetique", "Phonétique"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setLayer(key, !layers[key])}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition",
+                    layers[key]
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Link
+              to="/parametres"
+              search={{ section: "coran" }}
+              onClick={() => setOptionsOpen(false)}
+              className="mt-2 inline-block text-xs font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Tous les paramètres
+            </Link>
           </div>
         )}
       </header>
@@ -162,13 +184,13 @@ function LirePage() {
                     <p
                       lang="ar"
                       dir="rtl"
-                      className="font-arabic text-xl font-bold leading-[2] text-foreground"
+                      className={cn("font-arabic font-bold text-foreground", ARABIC_SIZE[layers.textSize])}
                     >
                       {v.arabic}
                     </p>
                   )}
                   {layers.francais && (
-                    <p className="text-[0.95rem] leading-[1.85] text-foreground/90">
+                    <p className={cn("leading-[1.85] text-foreground/90", TEXT_SIZE[layers.textSize])}>
                       {v.translation}
                     </p>
                   )}

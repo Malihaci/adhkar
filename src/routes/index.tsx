@@ -9,6 +9,8 @@ import { useDailyProgress, useLocalState } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import { HomeSuggestion } from "@/components/HomeSuggestion";
 import { NextPrayerWidget } from "@/components/NextPrayerWidget";
+import { OnboardingModal } from "@/components/OnboardingModal";
+import { usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -44,9 +46,11 @@ function Index() {
   const [lastPage] = useLocalState<number>("quran-last-page", 1);
   const [adhkarChooserOpen, setAdhkarChooserOpen] = useState(false);
   const [coranChooserOpen, setCoranChooserOpen] = useState(false);
+  const { prefs, hydrated } = usePreferences();
 
   return (
     <AppShell title="Accueil" homeHeader>
+      {hydrated && !prefs.onboarded && <OnboardingModal />}
       <div className="space-y-5">
         <NextPrayerWidget />
         <HomeSuggestion counts={progress.counts} />
