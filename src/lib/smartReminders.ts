@@ -24,7 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { readJSON, useLocalState, type DailyProgress } from "@/lib/storage";
 import { fetchTodayTimings, getPrayerSettings, type PrayerTimings } from "@/lib/prayerTimes";
-import { effectiveSchedule, type WirdState } from "@/lib/khatma";
+import { getWirdResumeTarget, type WirdState } from "@/lib/khatma";
 
 /** Dupliqué à l'identique depuis reminders.ts (pas importé) pour éviter une
  * dépendance circulaire entre les deux moteurs — reminders.ts a besoin des
@@ -168,13 +168,8 @@ function wirdCandidate(
   prefs: SmartReminderPrefs,
 ): SmartCandidate | null {
   if (!wird || prefs.wirdMode === "off") return null;
-  const schedule = effectiveSchedule(wird);
-  const totalDays = schedule.length;
-  if (wird.lastCompletedDay >= totalDays) return null; // Khatma entière terminée
-  const currentDayNum = Math.min(wird.lastCompletedDay + 1, totalDays);
-  if (wird.lastCompletedDay >= currentDayNum) return null; // déjà marqué terminé aujourd'hui
-  const today = schedule.find((d) => d.day === currentDayNum);
-  if (!today) return null;
+  const target = getWirdResumeTarget(wird, lastMushafPage);
+  if (!target) return null;
 
   if (prefs.wirdMode === "after-fajr") {
     if (!timings?.Fajr) return null;
@@ -193,26 +188,15 @@ function wirdCandidate(
     if (now.getTime() < start.getTime()) return null;
   }
 
-  // Reprendre exactement où l'utilisateur en est — jamais reparti de
-  // startPage si une progression existe déjà (§10 mission). Seul signal de
-  // progression déjà disponible sans nouvelle architecture : la dernière
-  // page Mushaf réellement visitée (`quran-last-page`, déjà utilisée ainsi
-  // par CoranSheet "Reprendre à la page {lastPage}").
-  const resumePage =
-    lastMushafPage != null && lastMushafPage >= today.startPage && lastMushafPage <= today.endPage
-      ? lastMushafPage
-      : today.startPage;
-  const notStarted = resumePage === today.startPage;
-
   return {
     id: `wird-${todayISO(now)}`,
-    title: notStarted ? "Mon Wird" : "Continuer mon Wird",
-    body: notStarted
-      ? `Pages ${today.startPage}–${today.endPage}`
-      : `Pages ${resumePage}–${today.endPage} restantes`,
+    title: target.notStarted ? "Mon Wird" : "Continuer mon Wird",
+    body: target.notStarted
+      ? `Pages ${target.startPage}–${target.endPage}`
+      : `Pages ${target.resumePage}–${target.endPage} restantes`,
     // Réutilise exactement le routing déjà construit pour le partage Wird
     // (§"Partage Mon Wird") — aucune nouvelle route.
-    deepLink: `/quran/page/${resumePage}?end=${today.endPage}&shared=wird`,
+    deepLink: `/quran/page/${target.resumePage}?end=${target.endPage}&shared=wird`,
     priority: 3,
   };
 }

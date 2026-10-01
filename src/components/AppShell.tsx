@@ -16,6 +16,10 @@ interface Props {
   hideSettings?: boolean;
   /** Destination de l'icône ⚙️ générique — par défaut le centre complet. */
   settingsHref?: "/parametres" | "/parametres/apparence";
+  /** Ancre contextuelle (ex. `{ section: "horaires" }`) — ouvre directement
+   * la bonne section du centre de paramètres plutôt que de forcer
+   * l'utilisateur à la retrouver (chantier "Simplifier Horaires + Accueil"). */
+  settingsSearch?: { section?: string };
 }
 
 export function AppShell({
@@ -25,6 +29,7 @@ export function AppShell({
   homeHeader,
   hideSettings,
   settingsHref = "/parametres",
+  settingsSearch,
 }: Props) {
   return (
     <div className="min-h-dvh bg-background pb-24">
@@ -48,6 +53,7 @@ export function AppShell({
               {!hideSettings && (
                 <Link
                   to={settingsHref}
+                  search={settingsSearch}
                   aria-label="Paramètres"
                   className="grid size-11 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground transition hover:border-primary/40 hover:text-primary"
                 >

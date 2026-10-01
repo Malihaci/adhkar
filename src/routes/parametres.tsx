@@ -1,10 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ChevronDown, Laptop, Moon, Sun } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Building2, Check, ChevronDown, Laptop, MapPin, Moon, Navigation, Sun, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useTheme, type ThemeMode } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { useSmartReminderPrefs, type WirdReminderMode } from "@/lib/smartReminders";
+import {
+  CALC_METHODS,
+  getMosqueCalendar,
+  getMosqueCalendarStatus,
+  makeMosqueId,
+  parseMosqueCalendarInput,
+  setMosqueCalendar,
+  usePrayerTimings,
+  type MosqueCalendar,
+  type PrayerSettings,
+} from "@/lib/prayerTimes";
+import { MOSQUE_PRESETS } from "@/data/mosque-calendars-preset";
 import { RECITERS } from "@/lib/mushaf";
 import { cn } from "@/lib/utils";
 
@@ -181,13 +194,133 @@ function ParametresPage() {
   const updateSmart = (patch: Partial<typeof smart>) => setSmart((prev) => ({ ...prev, ...patch }));
   const scrolled = useRef(false);
 
+  // --- Horaires (déplacé depuis la page Horaires — chantier "Simplifier
+  // Horaires + Accueil" : la page principale ne garde que l'essentiel, tout
+  // le réglage vit ici). Logique inchangée, simplement transplantée.
+  const { settings, setSettings, mosqueActive } = usePrayerTimings();
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [mosqueDraft, setMosqueDraft] = useState({
+    name: settings.mosqueName ?? "",
+    city: settings.mosqueCity ?? "",
+  });
+  const [calendar, setCalendarState] = useState<MosqueCalendar | null>(() => getMosqueCalendar());
+  const [calendarInput, setCalendarInput] = useState("");
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [calendarImported, setCalendarImported] = useState<number | null>(null);
+  const queryClient = useQueryClient();
+
+  const updatePrayerSettings = (patch: Partial<PrayerSettings>) => {
+    // Changement de source/mosquée/localisation : sauvegarde immédiate —
+    // horaires, prochaine prière, accueil et rappels se rechargent tous
+    // depuis cette même clé (une seule source centrale), jamais d'ancien
+    // calendrier conservé.
+    setSettings({ ...settings, ...patch });
+  };
+
+  const saveMosque = () => {
+    const name = mosqueDraft.name.trim();
+    const city = mosqueDraft.city.trim();
+    updatePrayerSettings({
+      source: "mosque",
+      mosqueName: name || undefined,
+      mosqueCity: city || undefined,
+      // Nouvel identifiant dès que nom/ville change — un calendrier déjà
+      // importé pour une AUTRE mosquée ne doit jamais être réutilisé par
+      // erreur (§10 chantier "horaires réels des mosquées").
+      mosqueId: name ? makeMosqueId(name, city) : undefined,
+    });
+  };
+
+  /**
+   * Import manuel d'un calendrier réellement publié par la mosquée — JAMAIS
+   * récupéré automatiquement (aucune source publique/autorisée exploitable
+   * trouvée, voir l'analyse préalable). L'utilisateur colle ici le
+   * calendrier qu'il a obtenu directement de sa mosquée.
+   */
+  const importCalendar = () => {
+    if (!settings.mosqueId || !settings.mosqueName) {
+      setCalendarError("Enregistrez d'abord le nom de votre mosquée ci-dessus.");
+      return;
+    }
+    const result = parseMosqueCalendarInput(calendarInput, settings.mosqueId, settings.mosqueName);
+    if ("error" in result) {
+      setCalendarError(result.error);
+      setCalendarImported(null);
+      return;
+    }
+    setMosqueCalendar(result.calendar);
+    setCalendarState(result.calendar);
+    setCalendarError(null);
+    setCalendarImported(result.daysCount);
+    setCalendarInput("");
+    void queryClient.invalidateQueries({ queryKey: ["prayer-timings"] });
+  };
+
+  /**
+   * Mosquées pré-remplies (sur demande explicite) — capturées une fois
+   * depuis la page publique mawaqit.net de chacune (jamais un appel
+   * automatisé à l'API MAWAQIT, voir la provenance détaillée dans
+   * src/data/mosque-calendars-preset.ts).
+   */
+  const selectPreset = (preset: (typeof MOSQUE_PRESETS)[number]) => {
+    setMosqueDraft({ name: preset.name, city: preset.city });
+    setSettings({
+      ...settings,
+      source: "mosque",
+      mosqueName: preset.name,
+      mosqueCity: preset.city,
+      mosqueId: preset.calendar.mosqueId,
+    });
+    setMosqueCalendar(preset.calendar);
+    setCalendarState(preset.calendar);
+    setCalendarError(null);
+    setCalendarImported(Object.keys(preset.calendar.days).length);
+    void queryClient.invalidateQueries({ queryKey: ["prayer-timings"] });
+  };
+
+  const removeCalendar = () => {
+    setMosqueCalendar(null);
+    setCalendarState(null);
+    setCalendarImported(null);
+    void queryClient.invalidateQueries({ queryKey: ["prayer-timings"] });
+  };
+
+  const useMyLocation = () => {
+    setGeoError(null);
+    if (!navigator.geolocation) {
+      setGeoError("Localisation non disponible sur cet appareil.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        updatePrayerSettings({
+          mode: "auto",
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+      },
+      () => setGeoError("Localisation refusée — utilisez une ville manuellement."),
+      { timeout: 10_000 },
+    );
+  };
+
+  const mosqueSelected = settings.source === "mosque" && !!settings.mosqueName;
+  const calendarStatus = getMosqueCalendarStatus(calendar, settings.mosqueId);
+
   useEffect(() => {
     if (scrolled.current || !search.section) return;
-    const el = document.getElementById(search.section);
-    if (el) {
-      el.scrollIntoView({ block: "start" });
-      scrolled.current = true;
-    }
+    // `scrollRestoration: true` (router.tsx) remet le scroll à sa position
+    // restaurée juste après le montage de la page — un `requestAnimationFrame`
+    // suffit à laisser cette restauration passer avant notre ancre contextuelle,
+    // sinon elle écrase systématiquement ce `scrollIntoView` (§"section=...").
+    const id = requestAnimationFrame(() => {
+      const el = document.getElementById(search.section!);
+      if (el) {
+        el.scrollIntoView({ block: "start" });
+        scrolled.current = true;
+      }
+    });
+    return () => cancelAnimationFrame(id);
   }, [search.section]);
 
   return (
@@ -451,16 +584,274 @@ function ParametresPage() {
           </div>
         </Section>
 
-        <Section id="horaires" title="Horaires">
-          <p className="text-sm text-muted-foreground">
-            Source des horaires (mosquée ou calcul automatique), localisation et méthode se règlent
-            directement sur la page Horaires.
+        <Section id="horaires" title="Horaires" subtitle="Mosquée, localisation, méthode">
+          <div className="surface-card space-y-1 bg-background p-4 text-center">
+            {mosqueSelected ? (
+              <>
+                <p className="flex items-center justify-center gap-1.5 text-sm font-semibold text-foreground">
+                  <Building2 className="size-4" /> {settings.mosqueName}
+                </p>
+                {settings.mosqueCity && (
+                  <p className="text-xs text-muted-foreground">{settings.mosqueCity}</p>
+                )}
+              </>
+            ) : (
+              <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+                <MapPin className="size-4" />{" "}
+                {settings.mode === "auto" && settings.latitude != null
+                  ? "Ma position"
+                  : (settings.city ?? "Ville non définie")}
+              </p>
+            )}
+          </div>
+
+          {mosqueSelected && mosqueActive && (
+            <p className="mt-2 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-center text-xs leading-relaxed text-foreground">
+              Horaires réellement publiés par {settings.mosqueName}, importés manuellement le{" "}
+              {calendar?.importedAt ? new Date(calendar.importedAt).toLocaleDateString("fr-FR") : ""}{" "}
+              — jamais recalculés tant que ce calendrier couvre le jour.
+            </p>
+          )}
+          {mosqueSelected && !mosqueActive && (
+            <p className="mt-2 rounded-2xl border border-gold/30 bg-gold/5 px-4 py-3 text-center text-xs leading-relaxed text-foreground">
+              Aucune source autorisée ne permet de récupérer automatiquement les horaires publiés
+              par cette mosquée (API MAWAQIT privée, non ouverte aux applications tierces ; la
+              plupart des sites de mosquées ne publient qu'une image, pas de données exploitables).
+              Importez un calendrier ci-dessous si vous en avez un, sinon les horaires affichés
+              sont le calcul automatique.
+            </p>
+          )}
+          {calendarStatus && calendarStatus.daysRemaining <= 30 && (
+            <p className="mt-2 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-xs leading-relaxed text-foreground">
+              {calendarStatus.daysRemaining <= 0
+                ? `Le calendrier de ${settings.mosqueName} s'est terminé le ${new Date(calendarStatus.lastDate + "T00:00:00").toLocaleDateString("fr-FR")} — demandez un nouveau calendrier à votre mosquée, sinon l'app repasse au calcul automatique.`
+                : `Le calendrier de ${settings.mosqueName} se termine le ${new Date(calendarStatus.lastDate + "T00:00:00").toLocaleDateString("fr-FR")} (dans ${calendarStatus.daysRemaining} j) — pensez à en importer un nouveau pour l'année suivante.`}
+            </p>
+          )}
+
+          <p className="mb-1.5 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Source des horaires
+          </p>
+          <div className="flex gap-1 rounded-full border border-border p-1">
+            <button
+              onClick={() => updatePrayerSettings({ source: "mosque" })}
+              className={cn(
+                "flex-1 rounded-full py-2 text-xs font-semibold transition",
+                settings.source === "mosque" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              Ma mosquée
+            </button>
+            <button
+              onClick={() => updatePrayerSettings({ source: "auto" })}
+              className={cn(
+                "flex-1 rounded-full py-2 text-xs font-semibold transition",
+                settings.source === "auto" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              Calcul automatique
+            </button>
+          </div>
+
+          {settings.source === "mosque" && (
+            <div className="mt-3 space-y-2 rounded-2xl border border-border bg-muted/30 p-3">
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Aucune recherche automatique de mosquées n'est disponible. Identifiez votre
+                mosquée ici, puis importez son calendrier ci-dessous si vous en avez un — ses
+                horaires ne peuvent pas être récupérés automatiquement (voir la note ci-dessus).
+              </p>
+
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Mosquées pré-remplies
+              </p>
+              <div className="space-y-1.5">
+                {MOSQUE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => selectPreset(preset)}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-xs transition",
+                      settings.mosqueId === preset.id ? "border-primary/50 bg-primary/5" : "border-border",
+                    )}
+                  >
+                    <span>
+                      <span className="block font-semibold text-foreground">{preset.name}</span>
+                      <span className="text-muted-foreground">{preset.city} · calendrier 2026</span>
+                    </span>
+                    {settings.mosqueId === preset.id && (
+                      <Check className="size-4 shrink-0 text-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Calendrier capturé une fois depuis la page publique de chaque mosquée — jamais
+                resynchronisé automatiquement, à remplacer l'année prochaine.
+              </p>
+
+              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Ou une autre mosquée
+              </p>
+              <input
+                value={mosqueDraft.name}
+                onChange={(e) => setMosqueDraft((d) => ({ ...d, name: e.target.value }))}
+                placeholder="Nom de la mosquée"
+                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              />
+              <input
+                value={mosqueDraft.city}
+                onChange={(e) => setMosqueDraft((d) => ({ ...d, city: e.target.value }))}
+                placeholder="Ville"
+                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              />
+              <button
+                onClick={saveMosque}
+                disabled={!mosqueDraft.name.trim()}
+                className="h-11 w-full rounded-xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-40"
+              >
+                Enregistrer cette mosquée
+              </button>
+
+              {calendar && calendar.mosqueId === settings.mosqueId ? (
+                <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                    <Check className="size-3.5 text-primary" /> Calendrier importé le{" "}
+                    {new Date(calendar.importedAt).toLocaleDateString("fr-FR")} (
+                    {Object.keys(calendar.days).length} jours)
+                  </p>
+                  <button
+                    onClick={removeCalendar}
+                    className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-destructive/40 text-xs font-semibold text-destructive"
+                  >
+                    <Trash2 className="size-3.5" /> Supprimer le calendrier
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2 border-t border-border pt-2">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Vous avez obtenu directement de votre mosquée un calendrier (horaires
+                    réellement publiés) ? Collez-le ici — jamais récupéré automatiquement. Format
+                    attendu, un tableau JSON :{" "}
+                    <code className="rounded bg-muted px-1 py-0.5 text-[10px]">
+                      [{"{"}"date":"2026-10-01","fajr":"06:17","sunrise":"07:50","dhuhr":"13:45","asr":"16:49","maghrib":"19:33","isha":"21:00"{"}"}
+                      , …]
+                    </code>
+                  </p>
+                  <textarea
+                    value={calendarInput}
+                    onChange={(e) => setCalendarInput(e.target.value)}
+                    placeholder='[{"date":"2026-10-01","fajr":"06:17",...}]'
+                    rows={4}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-xs"
+                  />
+                  {calendarError && <p className="text-xs text-destructive">{calendarError}</p>}
+                  {calendarImported !== null && !calendarError && (
+                    <p className="text-xs text-primary">
+                      {calendarImported} jour(s) importé(s) avec succès.
+                    </p>
+                  )}
+                  <button
+                    onClick={importCalendar}
+                    disabled={!calendarInput.trim()}
+                    className="h-10 w-full rounded-xl border border-primary/40 text-sm font-semibold text-primary disabled:opacity-40"
+                  >
+                    Importer ce calendrier
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <p className="mb-1.5 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Calcul automatique — localisation et méthode
+          </p>
+          <div className="flex gap-1 rounded-full border border-border p-1">
+            <button
+              onClick={() => updatePrayerSettings({ mode: "manual" })}
+              className={cn(
+                "flex-1 rounded-full py-2 text-xs font-semibold transition",
+                settings.mode === "manual" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              Ville manuelle
+            </button>
+            <button
+              onClick={useMyLocation}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1 rounded-full py-2 text-xs font-semibold transition",
+                settings.mode === "auto" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              <Navigation className="size-3.5" /> Ma position
+            </button>
+          </div>
+          {geoError && <p className="mt-1 text-xs text-destructive">{geoError}</p>}
+
+          {settings.mode === "manual" && (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <input
+                value={settings.city ?? ""}
+                onChange={(e) => updatePrayerSettings({ city: e.target.value })}
+                placeholder="Ville"
+                className="h-11 rounded-xl border border-border bg-background px-3 text-sm"
+              />
+              <input
+                value={settings.country ?? ""}
+                onChange={(e) => updatePrayerSettings({ country: e.target.value })}
+                placeholder="Pays"
+                className="h-11 rounded-xl border border-border bg-background px-3 text-sm"
+              />
+            </div>
+          )}
+
+          <p className="mb-1.5 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Méthode de calcul
+          </p>
+          <select
+            value={settings.methodId}
+            onChange={(e) => updatePrayerSettings({ methodId: Number(e.target.value) })}
+            className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+          >
+            {CALC_METHODS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+
+          <p className="mb-1.5 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            École ʿAsr
+          </p>
+          <div className="flex gap-1 rounded-full border border-border p-1">
+            <button
+              onClick={() => updatePrayerSettings({ school: 0 })}
+              className={cn(
+                "flex-1 rounded-full py-2 text-xs font-semibold transition",
+                settings.school === 0 ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              Shafi'i / Maliki / Hanbali
+            </button>
+            <button
+              onClick={() => updatePrayerSettings({ school: 1 })}
+              className={cn(
+                "flex-1 rounded-full py-2 text-xs font-semibold transition",
+                settings.school === 1 ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              Hanafi
+            </button>
+          </div>
+
+          <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">
+            Horaires fournis par Al Adhan API (Islamic Network) — méthode affichée ici, jamais
+            calculée par l'application.
           </p>
           <a
             href="/horaires"
-            className="mt-3 inline-block rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            className="mt-2 block text-center text-xs font-medium text-primary underline-offset-2 hover:underline"
           >
-            Ouvrir Horaires de prière
+            Voir la page Horaires
           </a>
         </Section>
 

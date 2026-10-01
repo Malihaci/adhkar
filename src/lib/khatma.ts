@@ -115,6 +115,52 @@ export function effectiveSchedule(state: WirdState): WirdDay[] {
   return getSchedule(state, state.redistributedFrom);
 }
 
+export interface WirdResumeTarget {
+  startPage: number;
+  endPage: number;
+  /** Page à ouvrir directement — la dernière page Mushaf visitée si elle
+   * tombe dans la portion du jour (jamais reparti de `startPage` quand une
+   * progression existe), sinon `startPage`. */
+  resumePage: number;
+  notStarted: boolean;
+}
+
+/**
+ * Portion du jour + page de reprise — partagé entre le moteur de rappels
+ * intelligents (smartReminders.ts) et l'accès direct "Lecture du jour"
+ * (accueil, chantier "Simplifier Horaires + Accueil"). `null` si aucun Wird
+ * actif ou si la journée du jour est déjà marquée terminée (§11 : aucune
+ * portion à proposer dans ce cas).
+ */
+export function getWirdResumeTarget(
+  wird: WirdState | null,
+  lastMushafPage: number | null,
+): WirdResumeTarget | null {
+  if (!wird) return null;
+  const schedule = effectiveSchedule(wird);
+  const totalDays = schedule.length;
+  if (wird.lastCompletedDay >= totalDays) return null; // Khatma entière terminée
+  const currentDayNum = Math.min(wird.lastCompletedDay + 1, totalDays);
+  if (wird.lastCompletedDay >= currentDayNum) return null; // déjà marqué terminé aujourd'hui
+  const today = schedule.find((d) => d.day === currentDayNum);
+  if (!today) return null;
+  // Reprendre exactement où l'utilisateur en est — jamais reparti de
+  // startPage si une progression existe déjà (§10 mission "horaires réels
+  // des mosquées" ; réutilisé ici pour "Lecture du jour"). Seul signal de
+  // progression disponible sans nouvelle architecture : la dernière page
+  // Mushaf réellement visitée (déjà utilisée ainsi par CoranSheet/BottomNav).
+  const resumePage =
+    lastMushafPage != null && lastMushafPage >= today.startPage && lastMushafPage <= today.endPage
+      ? lastMushafPage
+      : today.startPage;
+  return {
+    startPage: today.startPage,
+    endPage: today.endPage,
+    resumePage,
+    notStarted: resumePage === today.startPage,
+  };
+}
+
 // --- Partage (Khatma de groupe) — aucune donnée sensible, aucun backend :
 // le lien encode juste nom + durée + date de départ ; le planning est
 // recalculé de façon déterministe (buildKhatmaSchedule) sur chaque appareil.
