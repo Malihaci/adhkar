@@ -16,6 +16,7 @@ import { Route as EcouteRouteImport } from './routes/ecoute'
 import { Route as FavorisRouteImport } from './routes/favoris'
 import { Route as FavorisLectureRouteImport } from './routes/favoris-lecture'
 import { Route as HorairesRouteImport } from './routes/horaires'
+import { Route as InstallRouteImport } from './routes/install'
 import { Route as KhatmaRouteImport } from './routes/khatma'
 import { Route as MatinRouteImport } from './routes/matin'
 import { Route as ParametresRouteImport } from './routes/parametres'
@@ -66,6 +67,11 @@ const FavorisLectureRoute = FavorisLectureRouteImport.update({
 const HorairesRoute = HorairesRouteImport.update({
   id: '/horaires',
   path: '/horaires',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstallRoute = InstallRouteImport.update({
+  id: '/install',
+  path: '/install',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KhatmaRoute = KhatmaRouteImport.update({
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
   '/horaires': typeof HorairesRoute
+  '/install': typeof InstallRoute
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/parametres': typeof ParametresRouteWithChildren
@@ -182,6 +189,7 @@ export interface FileRoutesByTo {
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
   '/horaires': typeof HorairesRoute
+  '/install': typeof InstallRoute
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/parametres': typeof ParametresRouteWithChildren
@@ -208,6 +216,7 @@ export interface FileRoutesById {
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
   '/horaires': typeof HorairesRoute
+  '/install': typeof InstallRoute
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/parametres': typeof ParametresRouteWithChildren
@@ -235,6 +244,7 @@ export interface FileRouteTypes {
     | '/favoris'
     | '/favoris-lecture'
     | '/horaires'
+    | '/install'
     | '/khatma'
     | '/matin'
     | '/parametres'
@@ -260,6 +270,7 @@ export interface FileRouteTypes {
     | '/favoris'
     | '/favoris-lecture'
     | '/horaires'
+    | '/install'
     | '/khatma'
     | '/matin'
     | '/parametres'
@@ -285,6 +296,7 @@ export interface FileRouteTypes {
     | '/favoris'
     | '/favoris-lecture'
     | '/horaires'
+    | '/install'
     | '/khatma'
     | '/matin'
     | '/parametres'
@@ -311,6 +323,7 @@ export interface RootRouteChildren {
   FavorisRoute: typeof FavorisRoute
   FavorisLectureRoute: typeof FavorisLectureRoute
   HorairesRoute: typeof HorairesRoute
+  InstallRoute: typeof InstallRoute
   KhatmaRoute: typeof KhatmaRoute
   MatinRoute: typeof MatinRoute
   ParametresRoute: typeof ParametresRouteWithChildren
@@ -377,6 +390,13 @@ declare module '@tanstack/react-router' {
       path: '/horaires'
       fullPath: '/horaires'
       preLoaderRoute: typeof HorairesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/install': {
+      id: '/install'
+      path: '/install'
+      fullPath: '/install'
+      preLoaderRoute: typeof InstallRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/khatma': {
@@ -514,6 +534,7 @@ const rootRouteChildren: RootRouteChildren = {
   FavorisRoute: FavorisRoute,
   FavorisLectureRoute: FavorisLectureRoute,
   HorairesRoute: HorairesRoute,
+  InstallRoute: InstallRoute,
   KhatmaRoute: KhatmaRoute,
   MatinRoute: MatinRoute,
   ParametresRoute: ParametresRouteWithChildren,

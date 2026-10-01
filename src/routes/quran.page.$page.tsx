@@ -222,6 +222,65 @@ function MushafPage() {
   const setSpeed = (s: number) => updateQuran({ speed: s });
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [pageLifeOpen, setPageLifeOpen] = useState(false);
+
+  /* --------------------------------------------- mode immersif (portrait
+   * ET paysage, chantier "Plein écran paysage + Installation" §1) : un tap
+   * sur le Mushaf masque/affiche l'en-tête et le bas de page, qui flottent
+   * alors en overlay (translucide, jamais de reflow du texte dessous —
+   * voir `fixed` + `translate` plus bas) au lieu de pousser le contenu.
+   * Repli automatique après quelques secondes d'inactivité ; délai plus
+   * court en paysage, où l'espace vertical est le plus précieux. Jamais
+   * masqué pendant une interaction en cours (sélection, menu, recherche,
+   * navigation, "Vivre cette page", plein écran) — l'utilisateur garde
+   * alors toujours ses commandes sous les yeux. */
+  const [controlsHidden, setControlsHidden] = useState(false);
+  const hideTimerRef = useRef<number | null>(null);
+  const immersiveBlocked =
+    selected.length > 0 || !!menuFor || optionsOpen || searchOpen || showNav || pageLifeOpen;
+  const immersiveBlockedRef = useRef(immersiveBlocked);
+  immersiveBlockedRef.current = immersiveBlocked;
+
+  const clearHideTimer = () => {
+    if (hideTimerRef.current != null) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  };
+  const scheduleHide = () => {
+    clearHideTimer();
+    if (immersiveBlockedRef.current) return;
+    const isLandscapeNow =
+      typeof window !== "undefined" && window.matchMedia("(orientation: landscape)").matches;
+    const delay = isLandscapeNow ? 1800 : 4000;
+    hideTimerRef.current = window.setTimeout(() => setControlsHidden(true), delay);
+  };
+  const revealControls = () => {
+    setControlsHidden(false);
+    scheduleHide();
+  };
+  const toggleControls = () => {
+    if (controlsHidden) revealControls();
+    else {
+      clearHideTimer();
+      setControlsHidden(true);
+    }
+  };
+
+  // Une interaction démarre (sélection/menu/panneau) : toujours ré-afficher
+  // et suspendre le repli tant qu'elle dure ; une fois terminée, reprendre
+  // le cycle normal d'auto-masquage.
+  useEffect(() => {
+    if (immersiveBlocked) {
+      clearHideTimer();
+      setControlsHidden(false);
+    } else {
+      scheduleHide();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [immersiveBlocked]);
+
+  useEffect(() => clearHideTimer, []);
+
   const [autoTurn, setAutoTurn] = useState(false);
   const [readMode, setReadMode] = useState<ReadMode>("toEnd");
   const [rangeStart, setRangeStart] = useState("");
@@ -976,6 +1035,9 @@ function MushafPage() {
       suppressNextClick.current = false;
       return;
     }
+    // Sélectionner une ayah doit toujours montrer la barre d'actions, jamais
+    // la laisser masquée par le mode immersif (§1 mission).
+    revealControls();
     setSelected((prev) => (prev.length === 1 && prev[0] === key ? [] : [key]));
   };
 
@@ -1054,7 +1116,7 @@ function MushafPage() {
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-background">
+    <div className="relative h-[100dvh] overflow-hidden bg-background">
       <audio
         ref={audioRef}
         preload="none"
@@ -1068,7 +1130,12 @@ function MushafPage() {
 
       {/* En-tête ultra-compacte : sourate/page + recherche, une seule fois.
           Plus fine en paysage pour laisser le maximum d'espace au Mushaf. */}
-      <header className="shrink-0 border-b border-border/40 bg-card/80 px-2 py-1 backdrop-blur-xl [@media(orientation:landscape)_and_(max-height:500px)]:py-0.5">
+      <header
+        className={cn(
+          "fixed inset-x-0 top-0 z-20 border-b border-border/40 bg-card/80 px-2 py-1 backdrop-blur-xl transition-transform duration-300 [@media(orientation:landscape)_and_(max-height:500px)]:py-0.5",
+          controlsHidden && "-translate-y-full",
+        )}
+      >
         <div className="mx-auto flex max-w-2xl items-center gap-1.5">
           <button
             onClick={() => setShowNav(true)}
@@ -1149,15 +1216,24 @@ function MushafPage() {
           déborder en largeur (voir le fit ci-dessus, seule contrainte dure). */}
       <div
         ref={boxRef}
-        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-1.5 py-1"
+        className="absolute inset-0 overflow-x-hidden overflow-y-auto px-1.5 py-1"
         onTouchStart={onSheetTouchStart}
         onTouchEnd={onSheetTouchEnd}
         onClick={(e) => {
+          // Un swipe de changement de page ne doit jamais aussi basculer le
+          // mode immersif (même protection que onWordClick, §1 mission).
+          if (suppressNextClick.current) {
+            suppressNextClick.current = false;
+            return;
+          }
           // Tap/clic en dehors d'un mot = ferme la sélection (§14) — ne fait
           // rien si le tap a atteint un mot (son propre onClick gère déjà ce cas).
-          if (selected.length && !(e.target as HTMLElement).closest("[data-word-key]")) {
-            setSelected([]);
-          }
+          const isWordTap = !!(e.target as HTMLElement).closest("[data-word-key]");
+          if (isWordTap) return;
+          if (selected.length) setSelected([]);
+          // Mode immersif (§1) : un tap sur le Mushaf bascule l'affichage de
+          // l'en-tête/bas de page — jamais sur un tap consommé par un mot.
+          toggleControls();
         }}
       >
         {isPending && (
@@ -1270,7 +1346,12 @@ function MushafPage() {
           actions de l'ayah sélectionnée REMPLACENT les contrôles Mushaf,
           jamais les deux empilés. */}
       {selected.length > 0 && selKey ? (
-        <nav className="shrink-0 border-t border-border/40 bg-card/90 px-3 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
+        <nav
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-20 border-t border-border/40 bg-card/90 px-3 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
+            controlsHidden && "translate-y-full",
+          )}
+        >
           <div className="mx-auto flex max-w-2xl items-center gap-1">
             <button
               onClick={() => setSelected([])}
@@ -1326,7 +1407,12 @@ function MushafPage() {
           </div>
         </nav>
       ) : (
-        <nav className="shrink-0 border-t border-border/40 bg-card/90 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
+        <nav
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-20 border-t border-border/40 bg-card/90 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
+            controlsHidden && "translate-y-full",
+          )}
+        >
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-1">
             <Link
               to="/"

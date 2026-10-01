@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, BookMarked, Clock, Heart, Search, Settings, Sparkles, X } from "lucide-react";
+import { Bell, BookMarked, Clock, Download, Heart, Search, Settings, Sparkles, X } from "lucide-react";
+import { useInstallPrompt } from "@/lib/pwaInstall";
 
 /**
  * "Plus" — point d'accès unique aux contenus/réglages secondaires (§5/§I
@@ -10,7 +11,14 @@ import { Bell, BookMarked, Clock, Heart, Search, Settings, Sparkles, X } from "l
  * rien de ce contenu n'a été retiré ni rendu injoignable.
  */
 export function PlusSheet({ onClose }: { onClose: () => void }) {
+  const { canInstall, isStandalone } = useInstallPrompt();
   const items = [
+    // Entrée discrète (§3 mission "Installation") — seulement quand le
+    // navigateur a réellement déclenché `beforeinstallprompt`, jamais un
+    // bouton toujours visible qui ne mènerait à rien sur Safari/desktop.
+    ...(canInstall && !isStandalone
+      ? [{ to: "/install" as const, label: "Installer l'application", icon: Download }]
+      : []),
     { to: "/favoris" as const, label: "Favoris", icon: Heart },
     { to: "/tadabbur" as const, label: "Comprendre — Tadabbur", icon: Sparkles },
     { to: "/horaires" as const, label: "Horaires de prière", icon: Clock },

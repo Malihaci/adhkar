@@ -82,10 +82,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#0f2a23" },
       // Installation en PWA (Android/Chrome + iOS Safari) : app en mode
-      // standalone une fois ajoutée à l'écran d'accueil. Pas d'icône dédiée
-      // ici (apple-touch-icon nécessite un vrai PNG haute résolution qui
-      // n'existe pas encore — voir rapport final, aucune identité de
-      // remplacement fabriquée).
+      // standalone une fois ajoutée à l'écran d'accueil (chantier "Plein
+      // écran paysage + Installation" — icônes 192/512/maskable générées à
+      // partir du favicon existant, aucune nouvelle identité graphique).
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
@@ -108,6 +107,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
@@ -145,6 +146,7 @@ function RootComponent() {
       <ReminderEngine />
       <SmartReminderEngine />
       <ReduceMotionEffect />
+      <ServiceWorkerRegistration />
       <Outlet />
     </QueryClientProvider>
   );
@@ -177,5 +179,22 @@ function ReminderEngine() {
  * moteur "premier plan uniquement" que ReminderEngine ci-dessus). */
 function SmartReminderEngine() {
   useSmartReminderEngine();
+  return null;
+}
+
+/** Service Worker minimal (chantier "Plein écran paysage + Installation",
+ * §6) — enregistré une seule fois, sans aucune stratégie de cache (voir
+ * public/sw.js) : uniquement pour remplir le critère d'installabilité PWA,
+ * jamais pour servir une version figée de l'app ni toucher aux données
+ * utilisateur (favoris/progression/Wird/paramètres restent en
+ * localStorage). */
+function ServiceWorkerRegistration() {
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Échec silencieux : l'app reste pleinement fonctionnelle sans SW,
+      // seule l'installation PWA peut rester indisponible.
+    });
+  }, []);
   return null;
 }
