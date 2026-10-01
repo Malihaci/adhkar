@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Building2, Clock, MapPin, Navigation, Settings2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Building2, Check, Clock, MapPin, Navigation, Settings2, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import {
   CALC_METHODS,
@@ -8,8 +9,13 @@ import {
   PRAYER_LABELS,
   describeTimeSource,
   formatCountdown,
+  getMosqueCalendar,
   getNextPrayer,
+  makeMosqueId,
+  parseMosqueCalendarInput,
+  setMosqueCalendar,
   usePrayerTimings,
+  type MosqueCalendar,
   type PrayerSettings,
 } from "@/lib/prayerTimes";
 import { cn } from "@/lib/utils";
@@ -25,7 +31,7 @@ export const Route = createFileRoute("/horaires")({
 });
 
 function HorairesPage() {
-  const { settings, setSettings, timings, isPending, isError } = usePrayerTimings();
+  const { settings, setSettings, timings, isPending, isError, mosqueActive } = usePrayerTimings();
   const [now, setNow] = useState(() => new Date());
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -33,6 +39,11 @@ function HorairesPage() {
     name: settings.mosqueName ?? "",
     city: settings.mosqueCity ?? "",
   });
+  const [calendar, setCalendarState] = useState<MosqueCalendar | null>(() => getMosqueCalendar());
+  const [calendarInput, setCalendarInput] = useState("");
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [calendarImported, setCalendarImported] = useState<number | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     // Toutes les 15 s : le compte à rebours reste fluide et bascule sur la
@@ -50,11 +61,57 @@ function HorairesPage() {
   };
 
   const saveMosque = () => {
+    const name = mosqueDraft.name.trim();
+    const city = mosqueDraft.city.trim();
     updateSettings({
       source: "mosque",
-      mosqueName: mosqueDraft.name.trim() || undefined,
-      mosqueCity: mosqueDraft.city.trim() || undefined,
+      mosqueName: name || undefined,
+      mosqueCity: city || undefined,
+      // Nouvel identifiant dès que nom/ville change — un calendrier déjà
+      // importé pour une AUTRE mosquée ne doit jamais être réutilisé par
+      // erreur (§10 chantier "horaires réels des mosquées").
+      mosqueId: name ? makeMosqueId(name, city) : undefined,
     });
+  };
+
+  /**
+   * Import manuel d'un calendrier réellement publié par la mosquée (§2/§6
+   * du chantier "horaires réels des mosquées") — JAMAIS récupéré
+   * automatiquement : aucune source publique/autorisée exploitable n'a été
+   * trouvée (voir l'analyse préalable, cas Grande Mosquée de Paris : image
+   * mensuelle non structurée ; MAWAQIT privé, non autorisé pour un tiers).
+   * L'utilisateur colle ici le calendrier qu'il a obtenu directement de sa
+   * mosquée.
+   */
+  const importCalendar = () => {
+    if (!settings.mosqueId || !settings.mosqueName) {
+      setCalendarError("Enregistrez d'abord le nom de votre mosquée ci-dessus.");
+      return;
+    }
+    const result = parseMosqueCalendarInput(calendarInput, settings.mosqueId, settings.mosqueName);
+    if ("error" in result) {
+      setCalendarError(result.error);
+      setCalendarImported(null);
+      return;
+    }
+    setMosqueCalendar(result.calendar);
+    setCalendarState(result.calendar);
+    setCalendarError(null);
+    setCalendarImported(result.daysCount);
+    setCalendarInput("");
+    // Le calendrier vit dans une clé séparée de `settings` (adhkar:mosque-
+    // calendar) : la query ["prayer-timings", settings] ne le "voit" pas
+    // tout seule (même clé de requête, mêmes valeurs) — on force le
+    // recalcul explicitement, sinon les anciens horaires resteraient
+    // affichés jusqu'au prochain changement de réglage ou reload.
+    void queryClient.invalidateQueries({ queryKey: ["prayer-timings"] });
+  };
+
+  const removeCalendar = () => {
+    setMosqueCalendar(null);
+    setCalendarState(null);
+    setCalendarImported(null);
+    void queryClient.invalidateQueries({ queryKey: ["prayer-timings"] });
   };
 
   const useMyLocation = () => {
@@ -101,15 +158,25 @@ function HorairesPage() {
               <MapPin className="size-4" /> {locationLabel}
             </p>
           )}
-          <p className="text-[11px] text-muted-foreground">{describeTimeSource(settings)}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {describeTimeSource(settings, mosqueActive)}
+          </p>
         </div>
 
-        {mosqueSelected && (
+        {mosqueSelected && mosqueActive && (
+          <p className="rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-center text-xs leading-relaxed text-foreground">
+            Horaires réellement publiés par {settings.mosqueName}, importés manuellement le{" "}
+            {calendar?.importedAt ? new Date(calendar.importedAt).toLocaleDateString("fr-FR") : ""} —
+            jamais recalculés tant que ce calendrier couvre le jour.
+          </p>
+        )}
+        {mosqueSelected && !mosqueActive && (
           <p className="rounded-2xl border border-gold/30 bg-gold/5 px-4 py-3 text-center text-xs leading-relaxed text-foreground">
-            Aucune source autorisée ne permet aujourd'hui de récupérer automatiquement les
-            horaires publiés par cette mosquée (API MAWAQIT privée, non ouverte aux applications
-            tierces). Les horaires ci-dessous sont donc le calcul automatique, affiché en attendant
-            une intégration officielle par mosquée.
+            Aucune source autorisée ne permet de récupérer automatiquement les horaires publiés par
+            cette mosquée (API MAWAQIT privée, non ouverte aux applications tierces ; la plupart des
+            sites de mosquées ne publient qu'une image, pas de données exploitables). Importez un
+            calendrier ci-dessous si vous en avez un, sinon les horaires affichés sont le calcul
+            automatique.
           </p>
         )}
 
@@ -206,10 +273,10 @@ function HorairesPage() {
             {settings.source === "mosque" && (
               <div className="space-y-2 rounded-2xl border border-border bg-muted/30 p-3">
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Aucune recherche automatique de mosquées n'est disponible (aucune source
-                  officielle ouverte). Vous pouvez identifier votre mosquée ici ; ses horaires
-                  publiés ne peuvent pas encore être récupérés automatiquement — voir la note
-                  ci-dessus.
+                  Aucune recherche automatique de mosquées n'est disponible. Identifiez votre
+                  mosquée ici, puis importez son calendrier ci-dessous si vous en avez un —
+                  ses horaires ne peuvent pas être récupérés automatiquement (voir la note
+                  ci-dessus).
                 </p>
                 <input
                   value={mosqueDraft.name}
@@ -230,6 +297,54 @@ function HorairesPage() {
                 >
                   Enregistrer cette mosquée
                 </button>
+
+                {calendar && calendar.mosqueId === settings.mosqueId ? (
+                  <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                      <Check className="size-3.5 text-primary" /> Calendrier importé le{" "}
+                      {new Date(calendar.importedAt).toLocaleDateString("fr-FR")} (
+                      {Object.keys(calendar.days).length} jours)
+                    </p>
+                    <button
+                      onClick={removeCalendar}
+                      className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-destructive/40 text-xs font-semibold text-destructive"
+                    >
+                      <Trash2 className="size-3.5" /> Supprimer le calendrier
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2 border-t border-border pt-2">
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      Vous avez obtenu directement de votre mosquée un calendrier (horaires
+                      réellement publiés) ? Collez-le ici — jamais récupéré automatiquement.
+                      Format attendu, un tableau JSON :{" "}
+                      <code className="rounded bg-muted px-1 py-0.5 text-[10px]">
+                        [{"{"}"date":"2026-10-01","fajr":"06:17","sunrise":"07:50","dhuhr":"13:45","asr":"16:49","maghrib":"19:33","isha":"21:00"{"}"}
+                        , …]
+                      </code>
+                    </p>
+                    <textarea
+                      value={calendarInput}
+                      onChange={(e) => setCalendarInput(e.target.value)}
+                      placeholder='[{"date":"2026-10-01","fajr":"06:17",...}]'
+                      rows={4}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-xs"
+                    />
+                    {calendarError && <p className="text-xs text-destructive">{calendarError}</p>}
+                    {calendarImported !== null && !calendarError && (
+                      <p className="text-xs text-primary">
+                        {calendarImported} jour(s) importé(s) avec succès.
+                      </p>
+                    )}
+                    <button
+                      onClick={importCalendar}
+                      disabled={!calendarInput.trim()}
+                      className="h-10 w-full rounded-xl border border-primary/40 text-sm font-semibold text-primary disabled:opacity-40"
+                    >
+                      Importer ce calendrier
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

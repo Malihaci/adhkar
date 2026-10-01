@@ -69,6 +69,12 @@ export interface PrayerSettings {
   source: TimeSource;
   mosqueName?: string;
   mosqueCity?: string;
+  /** Identifiant stable généré à l'enregistrement de la mosquée (voir
+   * `saveMosqueIdentity`) — lie un calendrier importé (`MosqueCalendar.
+   * mosqueId`) à CETTE mosquée précise. Change dès que nom/ville change,
+   * pour ne jamais réutiliser par erreur le calendrier d'une autre
+   * mosquée après un renommage (§10 chantier "horaires réels mosquées"). */
+  mosqueId?: string;
   mode: LocationMode;
   city?: string;
   country?: string;
@@ -77,6 +83,135 @@ export interface PrayerSettings {
   methodId: number;
   /** École ʿAsr — 0 = Shafi'i/Maliki/Hanbali (défaut API), 1 = Hanafi. */
   school: 0 | 1;
+}
+
+/**
+ * Calendrier RÉELLEMENT PUBLIÉ par une mosquée, importé manuellement par
+ * l'utilisateur (chantier "horaires réels des mosquées" — analyse
+ * préalable : aucune source publique/autorisée automatisable trouvée pour
+ * le cas étudié, Grande Mosquée de Paris — son site ne publie qu'une image
+ * mensuelle, et MAWAQIT est privé, non autorisé pour un tiers). Jamais
+ * récupéré automatiquement, jamais scrapé : l'utilisateur colle lui-même
+ * le calendrier qu'il a obtenu directement de sa mosquée.
+ */
+export interface MosqueCalendarDay {
+  fajr: string;
+  sunrise?: string;
+  dhuhr: string;
+  asr: string;
+  maghrib: string;
+  isha: string;
+  /** Jumuʿa (1re khoutba) si fournie — informatif, non utilisé ailleurs
+   * dans l'app pour l'instant. */
+  jumua?: string;
+}
+
+export interface MosqueCalendar {
+  mosqueId: string;
+  mosqueName: string;
+  /** Date d'import (ISO complet) — affichée pour ne jamais faire croire à
+   * une synchronisation automatique récente. */
+  importedAt: string;
+  /** Clé = "YYYY-MM-DD" exact — jamais réutilisé d'une année sur l'autre
+   * par erreur (les horaires varient légèrement chaque année). */
+  days: Record<string, MosqueCalendarDay>;
+}
+
+const MOSQUE_CALENDAR_KEY = "adhkar:mosque-calendar";
+
+export function getMosqueCalendar(): MosqueCalendar | null {
+  return readJSON<MosqueCalendar | null>(MOSQUE_CALENDAR_KEY, null);
+}
+
+export function setMosqueCalendar(calendar: MosqueCalendar | null) {
+  writeJSON(MOSQUE_CALENDAR_KEY, calendar);
+}
+
+/** Horaires du jour pour CETTE mosquée précise si le calendrier importé la
+ * couvre — `null` sinon (mosquée différente, jour hors calendrier, ou
+ * calendrier absent) : jamais un repli silencieux vers une autre donnée. */
+export function getMosqueTimingsForDate(
+  calendar: MosqueCalendar | null,
+  mosqueId: string | undefined,
+  dateISO: string,
+): PrayerTimings | null {
+  if (!calendar || !mosqueId || calendar.mosqueId !== mosqueId) return null;
+  const day = calendar.days[dateISO];
+  if (!day) return null;
+  return {
+    Fajr: day.fajr,
+    Sunrise: day.sunrise ?? "",
+    Dhuhr: day.dhuhr,
+    Asr: day.asr,
+    Maghrib: day.maghrib,
+    Isha: day.isha,
+  };
+}
+
+/** Génère un identifiant stable à partir du nom/ville saisis — change dès
+ * que l'un des deux change, voir le commentaire sur `PrayerSettings.mosqueId`. */
+export function makeMosqueId(name: string, city: string | undefined): string {
+  return `${name.trim().toLowerCase()}|${(city ?? "").trim().toLowerCase()}`;
+}
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{1,2}:\d{2}$/;
+
+/**
+ * Valide un calendrier collé par l'utilisateur — format attendu : un
+ * tableau de jours `{ date: "YYYY-MM-DD", fajr, sunrise?, dhuhr, asr,
+ * maghrib, isha, jumua? }`. Rejette tout jour mal formé plutôt que
+ * d'accepter une heure invalide silencieusement (jamais d'horaire
+ * inventé/corrompu présenté comme réel).
+ */
+export function parseMosqueCalendarInput(
+  raw: string,
+  mosqueId: string,
+  mosqueName: string,
+): { calendar: MosqueCalendar; daysCount: number } | { error: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { error: "JSON invalide — vérifiez le format (virgules, guillemets, crochets)." };
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    return { error: "Le calendrier doit être un tableau non vide de jours." };
+  }
+  const days: Record<string, MosqueCalendarDay> = {};
+  for (const [i, entry] of parsed.entries()) {
+    if (!entry || typeof entry !== "object") return { error: `Jour #${i + 1} invalide.` };
+    const e = entry as Record<string, unknown>;
+    const required = ["date", "fajr", "dhuhr", "asr", "maghrib", "isha"] as const;
+    for (const field of required) {
+      if (typeof e[field] !== "string") {
+        return { error: `Jour #${i + 1} : champ "${field}" manquant ou invalide.` };
+      }
+    }
+    const date = e.date as string;
+    if (!DAY_RE.test(date)) return { error: `Jour #${i + 1} : date "${date}" invalide (attendu YYYY-MM-DD).` };
+    for (const field of ["fajr", "dhuhr", "asr", "maghrib", "isha"] as const) {
+      if (!TIME_RE.test(e[field] as string)) {
+        return { error: `Jour #${i + 1} : heure "${field}" invalide (attendu HH:MM).` };
+      }
+    }
+    if (e.sunrise !== undefined && !TIME_RE.test(e.sunrise as string)) {
+      return { error: `Jour #${i + 1} : heure "sunrise" invalide (attendu HH:MM).` };
+    }
+    days[date] = {
+      fajr: e.fajr as string,
+      dhuhr: e.dhuhr as string,
+      asr: e.asr as string,
+      maghrib: e.maghrib as string,
+      isha: e.isha as string,
+      sunrise: e.sunrise as string | undefined,
+      jumua: typeof e.jumua === "string" ? e.jumua : undefined,
+    };
+  }
+  return {
+    calendar: { mosqueId, mosqueName, importedAt: new Date().toISOString(), days },
+    daysCount: Object.keys(days).length,
+  };
 }
 
 const SETTINGS_KEY = "adhkar:prayer-settings";
@@ -90,10 +225,18 @@ export const DEFAULT_PRAYER_SETTINGS: PrayerSettings = {
   school: 0,
 };
 
-/** Libellé honnête de la provenance réellement affichée (§ "jamais MAWAQIT prétendu"). */
-export function describeTimeSource(s: PrayerSettings): string {
+/**
+ * Libellé honnête de la provenance réellement affichée (§ "jamais MAWAQIT
+ * prétendu"). `mosqueActive` = un calendrier importé couvre réellement la
+ * date du jour pour CETTE mosquée (voir `getMosqueTimingsForDate`) — sans
+ * ça, même avec `source === "mosque"`, on affiche "Horaires calculés",
+ * jamais "horaires de la mosquée" (chantier "horaires réels des mosquées").
+ */
+export function describeTimeSource(s: PrayerSettings, mosqueActive = false): string {
   if (s.source === "mosque" && s.mosqueName) {
-    return `Repli calcul automatique (mosquée "${s.mosqueName}" non connectée)`;
+    return mosqueActive
+      ? `Mosquée · ${s.mosqueName} (calendrier importé)`
+      : `Horaires calculés (calendrier "${s.mosqueName}" absent ou périmé)`;
   }
   const method = CALC_METHODS.find((m) => m.id === s.methodId);
   return `Calcul automatique${method ? " · " + method.name : ""}`;
@@ -133,6 +276,17 @@ function settingsCacheKey(s: PrayerSettings): string {
  * ou si aucune localisation n'est configurée : jamais d'horaire inventé.
  */
 export async function fetchTodayTimings(settings: PrayerSettings): Promise<PrayerTimings | null> {
+  // Calendrier mosquée importé (chantier "horaires réels des mosquées") :
+  // priorité absolue, zéro appel réseau — ce sont les VRAIS horaires
+  // publiés, jamais remplacés par un calcul tant qu'ils couvrent le jour.
+  if (settings.source === "mosque" && settings.mosqueId) {
+    const mosqueTimings = getMosqueTimingsForDate(
+      getMosqueCalendar(),
+      settings.mosqueId,
+      todayISO(),
+    );
+    if (mosqueTimings) return mosqueTimings;
+  }
   const key = settingsCacheKey(settings);
   const cached = readJSON<CachedTimings | null>(CACHE_KEY, null);
   if (cached && cached.dateISO === todayISO() && cached.settingsKey === key) {
@@ -223,9 +377,10 @@ export function formatCountdown(ms: number): string {
  * Source temporelle UNIQUE réutilisée par l'accueil, la page Horaires et le
  * moteur de rappels (§ "une seule source centrale, jamais deux calculs
  * indépendants"). `source` ("mosquée"/"calcul") n'affecte que le libellé
- * affiché par les appelants (voir `describeTimeSource`) — la donnée
- * réellement récupérée reste identique tant qu'aucune source autorisée par
- * mosquée n'existe, jamais substituée en silence.
+ * affiché par les appelants (voir `describeTimeSource`) — si un calendrier
+ * mosquée importé couvre le jour (chantier "horaires réels des mosquées"),
+ * `fetchTodayTimings` renvoie directement ces vraies valeurs ; sinon repli
+ * calcul automatique, jamais substitué en silence (`mosqueActive` le dit).
  */
 export function usePrayerTimings() {
   // useLocalState (pas une simple lecture) : tout changement de réglages
@@ -238,11 +393,15 @@ export function usePrayerTimings() {
     queryFn: () => fetchTodayTimings(settings),
     staleTime: 30 * 60_000,
   });
+  const mosqueActive =
+    settings.source === "mosque" &&
+    !!getMosqueTimingsForDate(getMosqueCalendar(), settings.mosqueId, todayISO());
   return {
     settings,
     setSettings,
     timings: query.data ?? null,
     isPending: query.isPending,
     isError: query.isError,
+    mosqueActive,
   };
 }
