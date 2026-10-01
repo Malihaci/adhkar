@@ -18,6 +18,7 @@ import {
   type MosqueCalendar,
   type PrayerSettings,
 } from "@/lib/prayerTimes";
+import { MOSQUE_PRESETS } from "@/data/mosque-calendars-preset";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/horaires")({
@@ -104,6 +105,29 @@ function HorairesPage() {
     // tout seule (même clé de requête, mêmes valeurs) — on force le
     // recalcul explicitement, sinon les anciens horaires resteraient
     // affichés jusqu'au prochain changement de réglage ou reload.
+    void queryClient.invalidateQueries({ queryKey: ["prayer-timings"] });
+  };
+
+  /**
+   * Mosquées pré-remplies (sur demande explicite) — capturées une fois
+   * depuis la page publique mawaqit.net de chacune (jamais un appel
+   * automatisé à l'API MAWAQIT, voir la provenance détaillée dans
+   * src/data/mosque-calendars-preset.ts). Un clic enregistre l'identité ET
+   * applique directement le calendrier annuel, sans coller de JSON.
+   */
+  const selectPreset = (preset: (typeof MOSQUE_PRESETS)[number]) => {
+    setMosqueDraft({ name: preset.name, city: preset.city });
+    setSettings({
+      ...settings,
+      source: "mosque",
+      mosqueName: preset.name,
+      mosqueCity: preset.city,
+      mosqueId: preset.calendar.mosqueId,
+    });
+    setMosqueCalendar(preset.calendar);
+    setCalendarState(preset.calendar);
+    setCalendarError(null);
+    setCalendarImported(Object.keys(preset.calendar.days).length);
     void queryClient.invalidateQueries({ queryKey: ["prayer-timings"] });
   };
 
@@ -277,6 +301,40 @@ function HorairesPage() {
                   mosquée ici, puis importez son calendrier ci-dessous si vous en avez un —
                   ses horaires ne peuvent pas être récupérés automatiquement (voir la note
                   ci-dessus).
+                </p>
+
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Mosquées pré-remplies
+                </p>
+                <div className="space-y-1.5">
+                  {MOSQUE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => selectPreset(preset)}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-xs transition",
+                        settings.mosqueId === preset.id
+                          ? "border-primary/50 bg-primary/5"
+                          : "border-border",
+                      )}
+                    >
+                      <span>
+                        <span className="block font-semibold text-foreground">{preset.name}</span>
+                        <span className="text-muted-foreground">{preset.city} · calendrier 2026</span>
+                      </span>
+                      {settings.mosqueId === preset.id && (
+                        <Check className="size-4 shrink-0 text-primary" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Calendrier capturé une fois depuis la page publique de chaque mosquée — jamais
+                  resynchronisé automatiquement, à remplacer l'année prochaine.
+                </p>
+
+                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Ou une autre mosquée
                 </p>
                 <input
                   value={mosqueDraft.name}
