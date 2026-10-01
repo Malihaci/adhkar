@@ -10,6 +10,7 @@ import {
   describeTimeSource,
   formatCountdown,
   getMosqueCalendar,
+  getMosqueCalendarStatus,
   getNextPrayer,
   makeMosqueId,
   parseMosqueCalendarInput,
@@ -163,6 +164,10 @@ function HorairesPage() {
       ? "Ma position"
       : (settings.city ?? "Ville non définie");
   const mosqueSelected = settings.source === "mosque" && !!settings.mosqueName;
+  // Jamais de renouvellement automatique (voir le refus explicite de
+  // scraper MAWAQIT à grande échelle/sans supervision) — juste un rappel
+  // honnête avant que le calendrier importé ne couvre plus le jour.
+  const calendarStatus = getMosqueCalendarStatus(calendar, settings.mosqueId);
 
   return (
     <AppShell title="Horaires de prière" subtitle="مواقيت الصلاة">
@@ -201,6 +206,14 @@ function HorairesPage() {
             sites de mosquées ne publient qu'une image, pas de données exploitables). Importez un
             calendrier ci-dessous si vous en avez un, sinon les horaires affichés sont le calcul
             automatique.
+          </p>
+        )}
+
+        {calendarStatus && calendarStatus.daysRemaining <= 30 && (
+          <p className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-xs leading-relaxed text-foreground">
+            {calendarStatus.daysRemaining <= 0
+              ? `Le calendrier de ${settings.mosqueName} s'est terminé le ${new Date(calendarStatus.lastDate + "T00:00:00").toLocaleDateString("fr-FR")} — demandez un nouveau calendrier à votre mosquée, sinon l'app repasse au calcul automatique.`
+              : `Le calendrier de ${settings.mosqueName} se termine le ${new Date(calendarStatus.lastDate + "T00:00:00").toLocaleDateString("fr-FR")} (dans ${calendarStatus.daysRemaining} j) — pensez à en importer un nouveau pour l'année suivante.`}
           </p>
         )}
 

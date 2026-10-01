@@ -148,6 +148,27 @@ export function getMosqueTimingsForDate(
   };
 }
 
+/**
+ * Expiration du calendrier importé — jamais de renouvellement automatique
+ * (ça supposerait de rescraper MAWAQIT sans supervision, explicitement
+ * écarté) : juste un signal honnête pour que l'utilisateur pense à en
+ * redemander un nouveau avant que le calendrier ne couvre plus le jour.
+ */
+export function getMosqueCalendarStatus(
+  calendar: MosqueCalendar | null,
+  mosqueId: string | undefined,
+): { lastDate: string; daysRemaining: number } | null {
+  if (!calendar || !mosqueId || calendar.mosqueId !== mosqueId) return null;
+  const dates = Object.keys(calendar.days).sort();
+  if (!dates.length) return null;
+  const lastDate = dates[dates.length - 1];
+  const daysRemaining = Math.round(
+    (new Date(lastDate + "T00:00:00").getTime() - new Date(todayISO() + "T00:00:00").getTime()) /
+      86_400_000,
+  );
+  return { lastDate, daysRemaining };
+}
+
 /** Génère un identifiant stable à partir du nom/ville saisis — change dès
  * que l'un des deux change, voir le commentaire sur `PrayerSettings.mosqueId`. */
 export function makeMosqueId(name: string, city: string | undefined): string {
