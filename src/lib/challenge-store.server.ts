@@ -45,10 +45,27 @@ interface Store {
 
 export class StorageUnavailableError extends Error {}
 
+/** Accepte les noms standards, mais aussi un préfixe personnalisé ajouté par
+ * l'intégration Vercel (ex. `STORAGE_KV_REST_API_URL`). Jamais le jeton
+ * lecture seule : il faut pouvoir écrire. */
+const URL_SUFFIXES = ["KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"];
+const TOKEN_SUFFIXES = ["KV_REST_API_TOKEN", "UPSTASH_REDIS_REST_TOKEN"];
+
 function redisConfig() {
-  const url = process.env["KV_REST_API_URL"] ?? process.env["UPSTASH_REDIS_REST_URL"];
-  const token = process.env["KV_REST_API_TOKEN"] ?? process.env["UPSTASH_REDIS_REST_TOKEN"];
-  return url && token ? { url: url.replace(/\/$/, ""), token } : null;
+  const env = process.env;
+  for (const key of Object.keys(env)) {
+    const suffix = URL_SUFFIXES.find((s) => key.endsWith(s));
+    if (!suffix || !env[key]) continue;
+    const prefix = key.slice(0, key.length - suffix.length);
+    const tokenKey = TOKEN_SUFFIXES.map((s) => prefix + s).find((k) => env[k]);
+    if (tokenKey) return { url: env[key]!.replace(/\/$/, ""), token: env[tokenKey]! };
+  }
+  return null;
+}
+
+/** Noms (jamais les valeurs) des variables de stockage visibles — diagnostic. */
+function visibleStorageEnvNames(): string[] {
+  return Object.keys(process.env).filter((k) => /REDIS|KV_|UPSTASH/i.test(k));
 }
 
 function redisStore(cfg: { url: string; token: string }): Store {
@@ -128,7 +145,11 @@ const json = (body: unknown, status = 200) =>
 function fail(e: unknown): Response {
   if (e instanceof StorageUnavailableError) {
     return json(
-      { error: "Les défis partagés ne sont pas encore activés sur ce serveur.", code: "storage_unavailable" },
+      {
+        error: "Les défis partagés ne sont pas encore activés sur ce serveur.",
+        code: "storage_unavailable",
+        envNamesSeen: visibleStorageEnvNames(),
+      },
       503,
     );
   }
