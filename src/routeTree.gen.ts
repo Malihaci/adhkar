@@ -28,11 +28,20 @@ import { Route as SortieRouteImport } from './routes/sortie'
 import { Route as TadabburRouteImport } from './routes/tadabbur'
 import { Route as VoyageRouteImport } from './routes/voyage'
 import { Route as WirdRouteImport } from './routes/wird'
+import { Route as ApiChallengesRouteImport } from './routes/api.challenges'
+import { Route as ChallengeIdRouteImport } from './routes/challenge.$id'
+import { Route as CompteurIndexRouteImport } from './routes/compteur.index'
+import { Route as CompteurDhikrIdRouteImport } from './routes/compteur.$dhikrId'
+import { Route as DefisIndexRouteImport } from './routes/defis.index'
+import { Route as DefisNouveauRouteImport } from './routes/defis.nouveau'
 import { Route as ParametresApparenceRouteImport } from './routes/parametres.apparence'
 import { Route as SourateSurahRouteImport } from './routes/sourate.$surah'
+import { Route as ApiChallengesIdRouteImport } from './routes/api.challenges.$id'
 import { Route as EtudeSurahAyahRouteImport } from './routes/etude.$surah.$ayah'
 import { Route as QuranLireSurahRouteImport } from './routes/quran.lire.$surah'
 import { Route as QuranPagePageRouteImport } from './routes/quran.page.$page'
+import { Route as ApiChallengesIdJoinRouteImport } from './routes/api.challenges.$id.join'
+import { Route as ApiChallengesIdProgressRouteImport } from './routes/api.challenges.$id.progress'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -129,6 +138,36 @@ const WirdRoute = WirdRouteImport.update({
   path: '/wird',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChallengesRoute = ApiChallengesRouteImport.update({
+  id: '/api/challenges',
+  path: '/api/challenges',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChallengeIdRoute = ChallengeIdRouteImport.update({
+  id: '/challenge/$id',
+  path: '/challenge/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompteurIndexRoute = CompteurIndexRouteImport.update({
+  id: '/compteur/',
+  path: '/compteur/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompteurDhikrIdRoute = CompteurDhikrIdRouteImport.update({
+  id: '/compteur/$dhikrId',
+  path: '/compteur/$dhikrId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DefisIndexRoute = DefisIndexRouteImport.update({
+  id: '/defis/',
+  path: '/defis/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DefisNouveauRoute = DefisNouveauRouteImport.update({
+  id: '/defis/nouveau',
+  path: '/defis/nouveau',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ParametresApparenceRoute = ParametresApparenceRouteImport.update({
   id: '/apparence',
   path: '/apparence',
@@ -138,6 +177,11 @@ const SourateSurahRoute = SourateSurahRouteImport.update({
   id: '/sourate/$surah',
   path: '/sourate/$surah',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChallengesIdRoute = ApiChallengesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiChallengesRoute,
 } as any)
 const EtudeSurahAyahRoute = EtudeSurahAyahRouteImport.update({
   id: '/etude/$surah/$ayah',
@@ -153,6 +197,16 @@ const QuranPagePageRoute = QuranPagePageRouteImport.update({
   id: '/quran/page/$page',
   path: '/quran/page/$page',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChallengesIdJoinRoute = ApiChallengesIdJoinRouteImport.update({
+  id: '/join',
+  path: '/join',
+  getParentRoute: () => ApiChallengesIdRoute,
+} as any)
+const ApiChallengesIdProgressRoute = ApiChallengesIdProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => ApiChallengesIdRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -175,11 +229,20 @@ export interface FileRoutesByFullPath {
   '/tadabbur': typeof TadabburRoute
   '/voyage': typeof VoyageRoute
   '/wird': typeof WirdRoute
+  '/api/challenges': typeof ApiChallengesRouteWithChildren
+  '/challenge/$id': typeof ChallengeIdRoute
+  '/compteur/$dhikrId': typeof CompteurDhikrIdRoute
+  '/defis/nouveau': typeof DefisNouveauRoute
   '/parametres/apparence': typeof ParametresApparenceRoute
   '/sourate/$surah': typeof SourateSurahRoute
+  '/compteur/': typeof CompteurIndexRoute
+  '/defis/': typeof DefisIndexRoute
+  '/api/challenges/$id': typeof ApiChallengesIdRouteWithChildren
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/lire/$surah': typeof QuranLireSurahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
+  '/api/challenges/$id/join': typeof ApiChallengesIdJoinRoute
+  '/api/challenges/$id/progress': typeof ApiChallengesIdProgressRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -201,11 +264,20 @@ export interface FileRoutesByTo {
   '/tadabbur': typeof TadabburRoute
   '/voyage': typeof VoyageRoute
   '/wird': typeof WirdRoute
+  '/api/challenges': typeof ApiChallengesRouteWithChildren
+  '/challenge/$id': typeof ChallengeIdRoute
+  '/compteur/$dhikrId': typeof CompteurDhikrIdRoute
+  '/defis/nouveau': typeof DefisNouveauRoute
   '/parametres/apparence': typeof ParametresApparenceRoute
   '/sourate/$surah': typeof SourateSurahRoute
+  '/compteur': typeof CompteurIndexRoute
+  '/defis': typeof DefisIndexRoute
+  '/api/challenges/$id': typeof ApiChallengesIdRouteWithChildren
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/lire/$surah': typeof QuranLireSurahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
+  '/api/challenges/$id/join': typeof ApiChallengesIdJoinRoute
+  '/api/challenges/$id/progress': typeof ApiChallengesIdProgressRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -228,11 +300,20 @@ export interface FileRoutesById {
   '/tadabbur': typeof TadabburRoute
   '/voyage': typeof VoyageRoute
   '/wird': typeof WirdRoute
+  '/api/challenges': typeof ApiChallengesRouteWithChildren
+  '/challenge/$id': typeof ChallengeIdRoute
+  '/compteur/$dhikrId': typeof CompteurDhikrIdRoute
+  '/defis/nouveau': typeof DefisNouveauRoute
   '/parametres/apparence': typeof ParametresApparenceRoute
   '/sourate/$surah': typeof SourateSurahRoute
+  '/compteur/': typeof CompteurIndexRoute
+  '/defis/': typeof DefisIndexRoute
+  '/api/challenges/$id': typeof ApiChallengesIdRouteWithChildren
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/lire/$surah': typeof QuranLireSurahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
+  '/api/challenges/$id/join': typeof ApiChallengesIdJoinRoute
+  '/api/challenges/$id/progress': typeof ApiChallengesIdProgressRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -256,11 +337,20 @@ export interface FileRouteTypes {
     | '/tadabbur'
     | '/voyage'
     | '/wird'
+    | '/api/challenges'
+    | '/challenge/$id'
+    | '/compteur/$dhikrId'
+    | '/defis/nouveau'
     | '/parametres/apparence'
     | '/sourate/$surah'
+    | '/compteur/'
+    | '/defis/'
+    | '/api/challenges/$id'
     | '/etude/$surah/$ayah'
     | '/quran/lire/$surah'
     | '/quran/page/$page'
+    | '/api/challenges/$id/join'
+    | '/api/challenges/$id/progress'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -282,11 +372,20 @@ export interface FileRouteTypes {
     | '/tadabbur'
     | '/voyage'
     | '/wird'
+    | '/api/challenges'
+    | '/challenge/$id'
+    | '/compteur/$dhikrId'
+    | '/defis/nouveau'
     | '/parametres/apparence'
     | '/sourate/$surah'
+    | '/compteur'
+    | '/defis'
+    | '/api/challenges/$id'
     | '/etude/$surah/$ayah'
     | '/quran/lire/$surah'
     | '/quran/page/$page'
+    | '/api/challenges/$id/join'
+    | '/api/challenges/$id/progress'
   id:
     | '__root__'
     | '/'
@@ -308,11 +407,20 @@ export interface FileRouteTypes {
     | '/tadabbur'
     | '/voyage'
     | '/wird'
+    | '/api/challenges'
+    | '/challenge/$id'
+    | '/compteur/$dhikrId'
+    | '/defis/nouveau'
     | '/parametres/apparence'
     | '/sourate/$surah'
+    | '/compteur/'
+    | '/defis/'
+    | '/api/challenges/$id'
     | '/etude/$surah/$ayah'
     | '/quran/lire/$surah'
     | '/quran/page/$page'
+    | '/api/challenges/$id/join'
+    | '/api/challenges/$id/progress'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -335,7 +443,13 @@ export interface RootRouteChildren {
   TadabburRoute: typeof TadabburRoute
   VoyageRoute: typeof VoyageRoute
   WirdRoute: typeof WirdRoute
+  ApiChallengesRoute: typeof ApiChallengesRouteWithChildren
+  ChallengeIdRoute: typeof ChallengeIdRoute
+  CompteurDhikrIdRoute: typeof CompteurDhikrIdRoute
+  DefisNouveauRoute: typeof DefisNouveauRoute
   SourateSurahRoute: typeof SourateSurahRoute
+  CompteurIndexRoute: typeof CompteurIndexRoute
+  DefisIndexRoute: typeof DefisIndexRoute
   EtudeSurahAyahRoute: typeof EtudeSurahAyahRoute
   QuranLireSurahRoute: typeof QuranLireSurahRoute
   QuranPagePageRoute: typeof QuranPagePageRoute
@@ -476,6 +590,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WirdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/challenges': {
+      id: '/api/challenges'
+      path: '/api/challenges'
+      fullPath: '/api/challenges'
+      preLoaderRoute: typeof ApiChallengesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/challenge/$id': {
+      id: '/challenge/$id'
+      path: '/challenge/$id'
+      fullPath: '/challenge/$id'
+      preLoaderRoute: typeof ChallengeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compteur/': {
+      id: '/compteur/'
+      path: '/compteur'
+      fullPath: '/compteur/'
+      preLoaderRoute: typeof CompteurIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compteur/$dhikrId': {
+      id: '/compteur/$dhikrId'
+      path: '/compteur/$dhikrId'
+      fullPath: '/compteur/$dhikrId'
+      preLoaderRoute: typeof CompteurDhikrIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/defis/': {
+      id: '/defis/'
+      path: '/defis'
+      fullPath: '/defis/'
+      preLoaderRoute: typeof DefisIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/defis/nouveau': {
+      id: '/defis/nouveau'
+      path: '/defis/nouveau'
+      fullPath: '/defis/nouveau'
+      preLoaderRoute: typeof DefisNouveauRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/parametres/apparence': {
       id: '/parametres/apparence'
       path: '/apparence'
@@ -489,6 +645,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sourate/$surah'
       preLoaderRoute: typeof SourateSurahRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/challenges/$id': {
+      id: '/api/challenges/$id'
+      path: '/$id'
+      fullPath: '/api/challenges/$id'
+      preLoaderRoute: typeof ApiChallengesIdRouteImport
+      parentRoute: typeof ApiChallengesRoute
     }
     '/etude/$surah/$ayah': {
       id: '/etude/$surah/$ayah'
@@ -511,6 +674,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuranPagePageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/challenges/$id/join': {
+      id: '/api/challenges/$id/join'
+      path: '/join'
+      fullPath: '/api/challenges/$id/join'
+      preLoaderRoute: typeof ApiChallengesIdJoinRouteImport
+      parentRoute: typeof ApiChallengesIdRoute
+    }
+    '/api/challenges/$id/progress': {
+      id: '/api/challenges/$id/progress'
+      path: '/progress'
+      fullPath: '/api/challenges/$id/progress'
+      preLoaderRoute: typeof ApiChallengesIdProgressRouteImport
+      parentRoute: typeof ApiChallengesIdRoute
+    }
   }
 }
 
@@ -524,6 +701,32 @@ const ParametresRouteChildren: ParametresRouteChildren = {
 
 const ParametresRouteWithChildren = ParametresRoute._addFileChildren(
   ParametresRouteChildren,
+)
+
+interface ApiChallengesIdRouteChildren {
+  ApiChallengesIdJoinRoute: typeof ApiChallengesIdJoinRoute
+  ApiChallengesIdProgressRoute: typeof ApiChallengesIdProgressRoute
+}
+
+const ApiChallengesIdRouteChildren: ApiChallengesIdRouteChildren = {
+  ApiChallengesIdJoinRoute: ApiChallengesIdJoinRoute,
+  ApiChallengesIdProgressRoute: ApiChallengesIdProgressRoute,
+}
+
+const ApiChallengesIdRouteWithChildren = ApiChallengesIdRoute._addFileChildren(
+  ApiChallengesIdRouteChildren,
+)
+
+interface ApiChallengesRouteChildren {
+  ApiChallengesIdRoute: typeof ApiChallengesIdRouteWithChildren
+}
+
+const ApiChallengesRouteChildren: ApiChallengesRouteChildren = {
+  ApiChallengesIdRoute: ApiChallengesIdRouteWithChildren,
+}
+
+const ApiChallengesRouteWithChildren = ApiChallengesRoute._addFileChildren(
+  ApiChallengesRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
@@ -546,7 +749,13 @@ const rootRouteChildren: RootRouteChildren = {
   TadabburRoute: TadabburRoute,
   VoyageRoute: VoyageRoute,
   WirdRoute: WirdRoute,
+  ApiChallengesRoute: ApiChallengesRouteWithChildren,
+  ChallengeIdRoute: ChallengeIdRoute,
+  CompteurDhikrIdRoute: CompteurDhikrIdRoute,
+  DefisNouveauRoute: DefisNouveauRoute,
   SourateSurahRoute: SourateSurahRoute,
+  CompteurIndexRoute: CompteurIndexRoute,
+  DefisIndexRoute: DefisIndexRoute,
   EtudeSurahAyahRoute: EtudeSurahAyahRoute,
   QuranLireSurahRoute: QuranLireSurahRoute,
   QuranPagePageRoute: QuranPagePageRoute,

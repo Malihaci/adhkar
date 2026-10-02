@@ -25,6 +25,7 @@ import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { readJSON, useLocalState, type DailyProgress } from "@/lib/storage";
 import { fetchTodayTimings, getPrayerSettings, type PrayerTimings } from "@/lib/prayerTimes";
 import { getWirdResumeTarget, type WirdState } from "@/lib/khatma";
+import { challengeReminderCandidate } from "@/lib/dhikrReminders";
 
 /** Dupliqué à l'identique depuis reminders.ts (pas importé) pour éviter une
  * dépendance circulaire entre les deux moteurs — reminders.ts a besoin des
@@ -42,6 +43,8 @@ export interface SmartReminderPrefs {
   prayers: boolean;
   adhkar: boolean;
   wird: boolean;
+  /** Défis Dhikr (chantier Compteur & Défis) — absent = activé. */
+  challenges?: boolean;
   /** "Ne pas déranger" — aucune notification intelligente dans cette
    * plage horaire quotidienne (peut chevaucher minuit). */
   quietStart: string;
@@ -125,7 +128,7 @@ export interface SmartCandidate {
   body: string;
   deepLink: string;
   /** 1 = le plus prioritaire (prière), 3 = le moins (Wird). */
-  priority: 1 | 2 | 3;
+  priority: 1 | 2 | 3 | 4;
 }
 
 /** Un délai minimal après l'heure de bascule (Fajr/ʿAsr) — évite de coller
@@ -243,6 +246,10 @@ export function useSmartReminderEngine() {
     if (prefs.wird) {
       const w = wirdCandidate(now, wird, morningDone, timings ?? null, lastMushafPage, prefs);
       if (w) candidates.push(w);
+    }
+    if (prefs.challenges !== false) {
+      const ch = challengeReminderCandidate(now);
+      if (ch) candidates.push(ch);
     }
     if (!candidates.length) return;
 

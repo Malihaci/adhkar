@@ -7,6 +7,7 @@ import {
   Home,
   Check,
   Leaf,
+  Hash,
   MoreHorizontal,
   Pause,
   Play,
@@ -23,6 +24,7 @@ import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { shareDhikr } from "@/lib/share";
 import { useDhikrVerseAudio } from "@/lib/dhikrAudio";
 import { GHAMIDI_UNAVAILABLE_REASON } from "@/lib/adhkarGhamidi";
+import { COUNTER_DHIKR_IDS } from "@/lib/dhikrCounter";
 import { cn } from "@/lib/utils";
 
 const ARABIC_SIZE: Record<ReadingSize, string> = {
@@ -466,6 +468,19 @@ export function DhikrViewer({
               className="w-full rounded-t-3xl border-t border-border bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
               onClick={(e) => e.stopPropagation()}
             >
+              {(COUNTER_DHIKR_IDS as readonly string[]).includes(dhikr.id) && (
+                <Link
+                  to="/compteur/$dhikrId"
+                  params={{ dhikrId: dhikr.id }}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted"
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
+                    <Hash className="size-4" />
+                  </span>
+                  <span className="text-sm font-medium text-foreground">Compter ce dhikr</span>
+                </Link>
+              )}
               <button
                 onClick={() => {
                   toggle("dhikr", dhikr.id);

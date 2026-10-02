@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { DoorOpen, Headphones, Luggage, Moon, Settings2, Sparkles, Sunrise, X } from "lucide-react";
+import { DoorOpen, Hash, Headphones, Swords, Luggage, Moon, Settings2, Sparkles, Sunrise, X } from "lucide-react";
 
 /**
  * Choix Adhkār — Quotidien (Matin/Soir) + Occasions. Composant partagé entre
@@ -93,6 +93,29 @@ export function AdhkarSheet({
             <p className="text-xs text-muted-foreground">Récitation Al-'Afâsy, texte synchronisé</p>
           </div>
         </Link>
+
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Link
+            to="/compteur"
+            onClick={onClose}
+            className="surface-card flex min-h-16 items-center gap-2.5 rounded-2xl px-3 py-3 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
+          >
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
+              <Hash className="size-4" />
+            </span>
+            <span className="min-w-0 text-sm font-medium text-foreground">Compteur de dhikr</span>
+          </Link>
+          <Link
+            to="/defis"
+            onClick={onClose}
+            className="surface-card flex min-h-16 items-center gap-2.5 rounded-2xl px-3 py-3 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
+          >
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
+              <Swords className="size-4" />
+            </span>
+            <span className="min-w-0 text-sm font-medium text-foreground">Mes défis</span>
+          </Link>
+        </div>
 
         <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Occasions

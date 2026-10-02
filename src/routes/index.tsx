@@ -8,6 +8,7 @@ import { useDailyProgress, useLocalState } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import { HomeSuggestion } from "@/components/HomeSuggestion";
 import { NextPrayerWidget } from "@/components/NextPrayerWidget";
+import { DhikrChallengeCard } from "@/components/DhikrChallengeCard";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { usePreferences, resolveCoranMode } from "@/lib/preferences";
 import { getAsrDateFromTimings, usePrayerTimings } from "@/lib/prayerTimes";
@@ -109,6 +110,7 @@ function Index() {
       <div className="space-y-5">
         <NextPrayerWidget />
         <HomeSuggestion counts={progress.counts} />
+        <DhikrChallengeCard />
 
         {/* 4 portes principales, exactement — même style, même taille (§2) */}
         <div className="grid grid-cols-2 gap-4">
