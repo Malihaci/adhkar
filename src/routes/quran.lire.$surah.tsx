@@ -16,6 +16,7 @@ import { RECITERS, fetchChapters, fetchVersePage, verseAudioUrl } from "@/lib/mu
 import { fetchHamidullahSura } from "@/lib/hamidullah";
 import { useFavorites, writeJSON } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
+import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/quran/lire/$surah")({
@@ -50,6 +51,7 @@ function LirePage() {
   const setLayer = (key: "arabic" | "francais" | "phonetique", value: boolean) =>
     updateQuran({ [key]: value });
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const [audioEl] = useState(() => (typeof Audio !== "undefined" ? new Audio() : null));
@@ -130,20 +132,22 @@ function LirePage() {
     }
   };
 
-  /** UNE seule action "Copier" (§20 mission) — plus de "Copier arabe" /
-   * "Copier traduction" séparés : combine uniquement les couches réellement
-   * affichées (jamais une couche désactivée ou indisponible), dans l'ordre
-   * arabe → phonétique → français. La phonétique n'existe pas encore pour
-   * une āyah générique (voir le message honnête ci-dessous) donc elle n'est
-   * jamais ajoutée pour l'instant — code volontairement générique si une
-   * source fiable est intégrée plus tard. */
-  const copyAyah = async (arabic: string, translation: string) => {
-    const parts = [arabic];
-    if (layers.francais) parts.push(`Français :\n${translation}`);
+  /** COPIER = exactement les couches AFFICHÉES, dans l'ordre référence →
+   * arabe → phonétique → français, sans libellés ni couche désactivée. Le
+   * français copié est celui affiché (Hamidullah). La phonétique du Coran n'a
+   * aucune source fiable dans l'app (message affiché à la place) : elle n'est
+   * donc jamais copiée ni inventée. */
+  const copyAyah = async (verseKey: string, arabic: string, translation: string) => {
+    const parts = [verseKey];
+    if (layers.arabic) parts.push(arabic);
+    if (layers.francais) parts.push(translation);
+    if (parts.length === 1) return;
     try {
       await navigator.clipboard.writeText(parts.join("\n\n"));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      /* annulé */
+      /* refusé */
     }
   };
 
@@ -187,28 +191,7 @@ function LirePage() {
         </div>
         {optionsOpen && (
           <div className="mx-auto mt-2 max-w-2xl px-1">
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ["arabic", "Arabe"],
-                  ["francais", "Français"],
-                  ["phonetique", "Phonétique"],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setLayer(key, !layers[key])}
-                  className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition",
-                    layers[key]
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <QuranDisplayModes quran={layers} onChange={(next) => updateQuran(next)} compact />
 
             <p className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Taille de lecture
@@ -337,11 +320,12 @@ function LirePage() {
                       <Share2 className="size-3.5" />
                     </button>
                     <button
-                      onClick={() => copyAyah(v.arabic, v.translation)}
+                      onClick={() => copyAyah(verseKey, v.arabic, v.translation)}
+                      disabled={!layers.arabic && !layers.francais}
                       aria-label="Copier"
-                      className="flex h-8 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium text-foreground"
+                      className="flex h-9 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium text-foreground disabled:opacity-40"
                     >
-                      <Copy className="size-3.5" />
+                      <Copy className="size-3.5" /> Copier
                     </button>
                     <Link
                       to="/etude/$surah/$ayah"
@@ -357,6 +341,11 @@ function LirePage() {
           )}
         </div>
       </div>
+      {copied && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-8 z-50 flex justify-center">
+          <span className="rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground">Copié</span>
+        </div>
+      )}
     </div>
   );
 }

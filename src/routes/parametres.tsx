@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Building2, Check, ChevronDown, Laptop, MapPin, Moon, Navigation, Sun, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { useTheme, type ThemeMode } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { useSmartReminderPrefs, type WirdReminderMode } from "@/lib/smartReminders";
@@ -327,23 +328,13 @@ function ParametresPage() {
     <AppShell title="Paramètres" subtitle="الإعدادات">
       <div className="space-y-4">
         <Section id="coran" title="Coran" subtitle="S'applique au Mushaf et au mode ayah par ayah">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Affichage
+          </p>
+          <QuranDisplayModes quran={prefs.quran} onChange={(layers) => updateQuran(layers)} />
+          <div className="h-2" />
           <ToggleRow
-            label="Arabe"
-            checked={prefs.quran.arabic}
-            onChange={(v) => updateQuran({ arabic: v })}
-          />
-          <ToggleRow
-            label="Français (traduction Hamidullah)"
-            checked={prefs.quran.francais}
-            onChange={(v) => updateQuran({ francais: v })}
-          />
-          <ToggleRow
-            label="Phonétique"
-            checked={prefs.quran.phonetique}
-            onChange={(v) => updateQuran({ phonetique: v })}
-          />
-          <ToggleRow
-            label="Tajwīd (couleurs, Mushaf uniquement)"
+            label="Tajwīd (couleurs, Mushaf (arabe) uniquement)"
             checked={prefs.quran.tajweed}
             onChange={(v) => updateQuran({ tajweed: v })}
           />
@@ -352,8 +343,8 @@ function ParametresPage() {
           </p>
           <SizeRow value={prefs.quran.textSize} onChange={(v) => updateQuran({ textSize: v })} />
           <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-            Arabe seul (± Tajwīd) → Mushaf de Médine traditionnel. Dès que Français ou Phonétique
-            est activé → mode ayah par ayah (jamais inséré dans les lignes du Mushaf).
+            « Mushaf (arabe) » = Mushaf de Médine fidèle (arabe seul, ± Tajwīd). Tous les autres
+            modes utilisent le lecteur ayah par ayah — jamais inséré dans les lignes du Mushaf.
           </p>
         </Section>
 

@@ -57,6 +57,7 @@ import { useLocalState, useFavorites } from "@/lib/storage";
 import { usePreferences } from "@/lib/preferences";
 import { getPageContent, type EtudeCategory } from "@/lib/etude-content";
 import { ContentList, AgirSection } from "@/routes/etude.$surah.$ayah";
+import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { cn } from "@/lib/utils";
 
 interface Search {
@@ -594,6 +595,31 @@ function MushafPage() {
    * française validée (Hamidullah, même source que partout ailleurs) +
    * sourate + numéro + lien existant — jamais de Tafsir/mérite/texte généré.
    */
+  /** COPIER = exactement les couches affichées. Ici : Mushaf (arabe) → référence
+   * + arabe seulement (Français/Phonétique basculent vers le lecteur ayah par
+   * ayah, jamais dans cette vue). Sélection native d'une partie du texte
+   * inchangée (appui long). */
+  const copySelectedVerse = async () => {
+    const v = verses?.find((x) => x.key === selKey);
+    if (!v) return;
+    try {
+      await navigator.clipboard.writeText(`${v.key}\n\n${v.arabic}`);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* refusé */
+    }
+  };
+
+  const studySelectedVerse = (key: string) => {
+    const [s, a] = key.split(":");
+    navigate({
+      to: "/etude/$surah/$ayah",
+      params: { surah: s, ayah: a },
+      search: { fromPage: String(page), r: reciterId, sel: key },
+    });
+  };
+
   const shareSelectedVerse = async (key: string) => {
     const v = verses?.find((vv) => vv.key === key);
     if (!v) return;
@@ -1449,63 +1475,79 @@ function MushafPage() {
           jamais les deux empilés. */}
       {selected.length > 0 && selKey ? (
         <nav
+          aria-label="Actions de l'āyah"
           className={cn(
-            "fixed inset-x-0 bottom-0 z-20 border-t border-border/40 bg-card/90 px-3 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
+            "fixed inset-x-0 bottom-0 z-20 border-t border-border/40 bg-card/95 px-2 pt-1 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
             controlsHidden && "translate-y-full",
           )}
         >
-          <div className="mx-auto flex max-w-2xl items-center gap-1">
-            <button
-              onClick={() => setSelected([])}
-              aria-label="Fermer la sélection"
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
-            >
-              <X className="size-[18px]" strokeWidth={1.75} />
-            </button>
-            <p className="min-w-0 flex-1 truncate text-center text-xs font-semibold text-primary">
-              {selLabel}
-            </p>
-            <button
-              onClick={() => {
-                if (playing && current === selKey) toggle();
-                else playAyah();
-              }}
-              aria-label={playing && current === selKey ? "Pause" : "Écouter cette ayah"}
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
-            >
-              {playing && current === selKey ? (
-                <Pause className="size-[18px]" strokeWidth={1.75} />
-              ) : (
-                <Play className="size-[18px]" strokeWidth={1.75} />
-              )}
-            </button>
-            <button
-              onClick={() => toggleFavorite("ayah", selKey)}
-              aria-label={isFavorite("ayah", selKey) ? "Retirer des favoris" : "Ajouter aux favoris"}
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
-            >
-              <Heart
-                className={cn(
-                  "size-[18px]",
-                  isFavorite("ayah", selKey) && "fill-gold text-gold",
-                )}
-                strokeWidth={1.75}
-              />
-            </button>
-            <button
-              onClick={() => shareSelectedVerse(selKey)}
-              aria-label="Partager"
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
-            >
-              <Share2 className="size-[18px]" strokeWidth={1.75} />
-            </button>
-            <button
-              onClick={() => setMenuFor(selKey)}
-              aria-label="Plus d'actions"
-              className="grid size-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-soft)] transition active:scale-95"
-            >
-              <MoreHorizontal className="size-[18px]" strokeWidth={1.75} />
-            </button>
+          <div className="mx-auto max-w-2xl">
+            <div className="flex items-center justify-between px-1">
+              <p className="min-w-0 flex-1 truncate text-center text-xs font-semibold text-primary">
+                {selLabel}
+              </p>
+              <button
+                onClick={() => setSelected([])}
+                aria-label="Fermer la sélection"
+                className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-[18px]" strokeWidth={1.75} />
+              </button>
+            </div>
+            <div className="grid grid-cols-5 gap-1">
+              {(
+                [
+                  {
+                    key: "play",
+                    label: playing && current === selKey ? "Pause" : "Écouter",
+                    icon: playing && current === selKey ? Pause : Play,
+                    onClick: () => {
+                      if (playing && current === selKey) toggle();
+                      else playAyah();
+                    },
+                  },
+                  {
+                    key: "fav",
+                    label: "Favori",
+                    icon: Heart,
+                    active: isFavorite("ayah", selKey),
+                    onClick: () => toggleFavorite("ayah", selKey),
+                  },
+                  { key: "copy", label: "Copier", icon: Copy, onClick: copySelectedVerse },
+                  {
+                    key: "share",
+                    label: "Partager",
+                    icon: Share2,
+                    onClick: () => shareSelectedVerse(selKey),
+                  },
+                  {
+                    key: "study",
+                    label: "Étudier",
+                    icon: Leaf,
+                    primary: true,
+                    onClick: () => studySelectedVerse(selKey),
+                  },
+                ] as const
+              ).map((a) => (
+                <button
+                  key={a.key}
+                  onClick={a.onClick}
+                  aria-label={a.label}
+                  className={cn(
+                    "flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-[11px] font-semibold transition active:scale-95",
+                    "primary" in a && a.primary
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground hover:bg-muted",
+                  )}
+                >
+                  <a.icon
+                    className={cn("size-5", "active" in a && a.active && "fill-gold text-gold")}
+                    strokeWidth={1.75}
+                  />
+                  {a.label}
+                </button>
+              ))}
+            </div>
           </div>
         </nav>
       ) : (
@@ -1825,35 +1867,15 @@ function MushafPage() {
               )}
 
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Français / Phonétique
+                Affichage
               </p>
-              <div className="mb-1.5 flex gap-1 rounded-full border border-border p-1">
-                {(
-                  [
-                    ["francais", "Français"],
-                    ["phonetique", "Phonétique"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => updateQuran({ [key]: !prefs.quran[key] })}
-                    aria-pressed={prefs.quran[key]}
-                    className={cn(
-                      "flex-1 rounded-full py-2 text-sm font-semibold transition",
-                      prefs.quran[key]
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <div className="mb-2">
+                <QuranDisplayModes
+                  quran={prefs.quran}
+                  onChange={(layers) => updateQuran(layers)}
+                  compact
+                />
               </div>
-              {/* Plus de message "ouvrir le mode ayah par ayah" (§4 mission
-                  "Coran direct") : activer Français/Phonétique ci-dessus
-                  bascule automatiquement vers ce mode (effet juste après le
-                  hook `updateQuran`, voir plus haut) — aucun clic
-                  supplémentaire, jamais un message affiché sans action. */}
 
               <Link
                 to="/parametres"
