@@ -157,22 +157,10 @@ function MushafPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [showNav, setShowNav] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [menuFor, setMenuFor] = useState<string | null>(null);
-  /** Position d'ouverture desktop (clic droit) — reste `null` pour l'appui
-   * long mobile, qui garde la bottom sheet existante. Les deux modes sont
-   * distingués par le geste réel, jamais par la largeur d'écran. */
-  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
-  const closeMenu = () => {
-    setMenuFor(null);
-    setMenuAnchor(null);
-  };
-  // Changement de page = fermeture de la sélection/menu en cours (§14) —
-  // cette route reste montée d'une page à l'autre (seul `page` change).
+  // Changement de page = fermeture de la sélection en cours — cette route
+  // reste montée d'une page à l'autre (seul `page` change).
   useEffect(() => {
     setSelected([]);
-    setMenuFor(null);
-    setMenuAnchor(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchNavigating, setSearchNavigating] = useState<string | null>(null);
@@ -239,7 +227,7 @@ function MushafPage() {
   const [controlsHidden, setControlsHidden] = useState(true);
   const hideTimerRef = useRef<number | null>(null);
   const immersiveBlocked =
-    selected.length > 0 || !!menuFor || optionsOpen || searchOpen || showNav || pageLifeOpen;
+    selected.length > 0 || optionsOpen || searchOpen || showNav || pageLifeOpen;
   const immersiveBlockedRef = useRef(immersiveBlocked);
   immersiveBlockedRef.current = immersiveBlocked;
 
@@ -847,6 +835,16 @@ function MushafPage() {
    * rigoureusement la même. (Découper en <span> modifiait de 1 à 4 px
    * la largeur de certains mots : kerning/jonctions rompus.) Repli en
    * <span> uniquement si l'API n'existe pas. */
+  // Aucune sélection de texte NATIVE dans le renderer Mushaf (poignées, menu
+  // système) — uniquement ici : traductions, tafsīr, Étudier restent intacts.
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    const block = (e: Event) => e.preventDefault();
+    sheet.addEventListener("selectstart", block);
+    return () => sheet.removeEventListener("selectstart", block);
+  }, [lines]);
+
   const [hlSupported, setHlSupported] = useState(false);
   useEffect(() => {
     setHlSupported(typeof CSS !== "undefined" && "highlights" in CSS);
@@ -1078,7 +1076,7 @@ function MushafPage() {
         !!target &&
         (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
       if (e.key === "Escape") {
-        if (menuFor) closeMenu();
+        if (selected.length) setSelected([]);
         else if (optionsOpen) setOptionsOpen(false);
         else if (searchOpen) setSearchOpen(false);
         else if (showNav) setShowNav(false);
@@ -1101,24 +1099,95 @@ function MushafPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [menuFor, optionsOpen, searchOpen, showNav, pageLifeOpen]);
+  }, [selected.length, optionsOpen, searchOpen, showNav, pageLifeOpen]);
 
-  const suppressNextClick = useRef(false);
+  /* ------------------------------------------------------------- gestes
+   * TAP = commandes générales (jamais de sélection) ; APPUI LONG sur une
+   * āyah = sélection + barre d'actions ; SWIPE = page ; PINCH = zoom natif
+   * du navigateur (aucun zoom maison). Un appui long est annulé si le doigt
+   * bouge (scroll/swipe), si un second doigt arrive (pinch) ou s'il est
+   * relâché avant le seuil ; après un appui long réussi ou un swipe/pinch,
+   * le « click » synthétique qui suit est ignoré (pas de double déclenchement). */
+  const LONG_PRESS_MS = 500;
+  const LONG_PRESS_SLOP_PX = 10;
+  const longPress = useRef<{ timer: number | null; fired: boolean }>({ timer: null, fired: false });
+  const multiTouch = useRef(false);
+  const suppressClickUntil = useRef(0);
+  const touchContextUntil = useRef(0);
+  const clearLongPress = () => {
+    if (longPress.current.timer != null) {
+      window.clearTimeout(longPress.current.timer);
+      longPress.current.timer = null;
+    }
+  };
+  const wordKeyOf = (target: EventTarget | null) =>
+    (target as HTMLElement | null)?.closest<HTMLElement>("[data-word-key]")?.dataset.wordKey;
 
   const onSheetTouchStart = (e: React.TouchEvent) => {
+    touchContextUntil.current = Date.now() + 1500;
+    if (e.touches.length > 1) {
+      multiTouch.current = true;
+      clearLongPress();
+      return;
+    }
+    multiTouch.current = false;
+    longPress.current.fired = false;
+    clearLongPress();
     const t = e.touches[0];
     gesture.current.x = t.clientX;
     gesture.current.y = t.clientY;
+    const key = wordKeyOf(e.target);
+    if (!key) return;
+    longPress.current.timer = window.setTimeout(() => {
+      longPress.current.timer = null;
+      longPress.current.fired = true;
+      try {
+        navigator.vibrate?.(12);
+      } catch {
+        /* indisponible */
+      }
+      setSelected([key]);
+    }, LONG_PRESS_MS);
+  };
+
+  const onSheetTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length > 1) {
+      multiTouch.current = true;
+      clearLongPress();
+      return;
+    }
+    const t = e.touches[0];
+    if (Math.hypot(t.clientX - gesture.current.x, t.clientY - gesture.current.y) > LONG_PRESS_SLOP_PX) {
+      clearLongPress();
+    }
+  };
+
+  const onSheetTouchCancel = () => {
+    clearLongPress();
+    multiTouch.current = false;
   };
 
   const onSheetTouchEnd = (e: React.TouchEvent) => {
+    clearLongPress();
+    touchContextUntil.current = Date.now() + 1500;
+    if (e.touches.length > 0) return; // pinch en cours : d'autres doigts restent posés
+    if (multiTouch.current) {
+      multiTouch.current = false;
+      suppressClickUntil.current = Date.now() + 500;
+      return;
+    }
+    if (longPress.current.fired) {
+      suppressClickUntil.current = Date.now() + 500;
+      e.preventDefault();
+      return;
+    }
     const t = e.changedTouches[0];
     const dx = t.clientX - gesture.current.x;
     const dy = t.clientY - gesture.current.y;
     // Seuil élevé + ratio horizontal dominant : un scroll vertical ne doit
     // jamais être interprété comme un changement de page.
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      suppressNextClick.current = true;
+      suppressClickUntil.current = Date.now() + 500;
       e.preventDefault();
       // Swipe vers la droite = page suivante ; swipe vers la gauche = page
       // précédente (volontairement indépendant du sens des boutons).
@@ -1126,92 +1195,26 @@ function MushafPage() {
     }
   };
 
-  /** Tap/clic court = sélectionne CETTE ayah seule (jamais une extension de
-   * plage) et affiche la barre d'actions compacte — un second tap sur la
-   * même ayah referme la sélection (§1/§14 mission menu d'actions). */
-  const onWordClick = (key: string) => {
-    if (suppressNextClick.current) {
-      suppressNextClick.current = false;
+  /** Tap/clic simple : ferme la sélection s'il y en a une, sinon bascule les
+   * commandes générales. Ne sélectionne JAMAIS une āyah, même sur un mot. */
+  const onSheetClick = () => {
+    if (Date.now() < suppressClickUntil.current) return;
+    if (selected.length) {
+      setSelected([]);
+      setControlsHidden(true);
       return;
     }
-    // Sélectionner une ayah doit toujours montrer la barre d'actions, jamais
-    // la laisser masquée par le mode immersif (§1 mission).
-    revealControls();
-    setSelected((prev) => (prev.length === 1 && prev[0] === key ? [] : [key]));
+    toggleControls();
   };
 
-  /** Clic droit desktop : sélectionne l'ayah et ouvre le menu près du curseur
-   * (jamais le gros menu plein écran) — équivalent desktop de l'appui long. */
-  const onWordContextMenu = (e: React.MouseEvent, key: string) => {
+  /** Texte du Mushaf : jamais de sélection native (poignées bleues, menu
+   * système). Clic droit souris = sélection de l'āyah (équivalent desktop de
+   * l'appui long) ; sur un écran tactile, c'est le timer ci-dessus qui fait foi. */
+  const onSheetContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    setSelected((prev) => (prev.includes(key) ? prev : [key]));
-    setMenuFor(key);
-    setMenuAnchor({ x: e.clientX, y: e.clientY });
-  };
-
-  /**
-   * Menu "Plus" (§3 mission menu ayah) — Étudier / Copier l'ayah / Copier
-   * la traduction. Favori/Partager/Écouter vivent désormais sur la barre
-   * d'actions compacte (§2) ; ce menu reste le complément, pas un doublon.
-   * Même contenu pour les deux présentations (bottom sheet mobile, popover
-   * clic droit desktop).
-   */
-  const menuActions = (key: string) => (
-    <>
-      <p className="mb-2 text-center text-xs font-semibold text-muted-foreground">
-        {key}
-        {menuVerse &&
-          (() => {
-            const meta = chapters?.find((c) => c.id === menuVerse.surah);
-            return meta ? ` · ${meta.nameFrench} · ${meta.nameArabic}` : "";
-          })()}
-      </p>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          onClick={() => {
-            const [s, a] = key.split(":");
-            closeMenu();
-            navigate({
-              to: "/etude/$surah/$ayah",
-              params: { surah: s, ayah: a },
-              search: { fromPage: String(page), r: reciterId, sel: key },
-            });
-          }}
-          className="flex flex-col items-center gap-1 rounded-2xl border border-primary/40 bg-primary/5 py-3 text-xs font-semibold text-primary transition hover:bg-primary/10"
-        >
-          <Sparkles className="size-5" />
-          Étudier
-        </button>
-        <button
-          onClick={copyVerse}
-          className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 text-center text-xs font-semibold transition hover:border-primary/50 hover:text-primary"
-        >
-          <Copy className="size-5" />
-          Copier
-        </button>
-      </div>
-    </>
-  );
-
-  const menuVerse = verses?.find((v) => v.key === menuFor);
-  /**
-   * UNE seule action "Copier" (§20 mission "Coran direct") — plus de
-   * "Copier l'ayah"/"Copier la traduction" séparés. Le Mushaf n'affiche
-   * jamais que l'arabe (Français/Phonétique basculent automatiquement vers
-   * /quran/lire, voir l'effet plus haut), donc ce contexte copie
-   * uniquement le texte arabe exact (text_uthmani) — jamais une couche
-   * désactivée ou absente de cet écran.
-   */
-  const copyVerse = async () => {
-    if (!menuVerse) return;
-    try {
-      await navigator.clipboard.writeText(menuVerse.arabic);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* refusé */
-    }
-    closeMenu();
+    if (Date.now() < touchContextUntil.current) return;
+    const key = wordKeyOf(e.target);
+    if (key) setSelected([key]);
   };
 
   return (
@@ -1232,7 +1235,7 @@ function MushafPage() {
       <header
         className={cn(
           "fixed inset-x-0 top-0 z-20 border-b border-border/40 bg-card/80 px-2 py-1 backdrop-blur-xl transition-transform duration-300 [@media(orientation:landscape)_and_(max-height:500px)]:py-0.5",
-          controlsHidden && "-translate-y-full",
+          (controlsHidden || selected.length > 0) && "-translate-y-full",
         )}
       >
         <div className="mx-auto flex max-w-2xl items-center gap-1.5">
@@ -1317,23 +1320,10 @@ function MushafPage() {
         ref={boxRef}
         className="absolute inset-0 overflow-x-hidden overflow-y-auto px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-[max(0.25rem,env(safe-area-inset-top))]"
         onTouchStart={onSheetTouchStart}
+        onTouchMove={onSheetTouchMove}
         onTouchEnd={onSheetTouchEnd}
-        onClick={(e) => {
-          // Un swipe de changement de page ne doit jamais aussi basculer le
-          // mode immersif (même protection que onWordClick, §1 mission).
-          if (suppressNextClick.current) {
-            suppressNextClick.current = false;
-            return;
-          }
-          // Tap/clic en dehors d'un mot = ferme la sélection (§14) — ne fait
-          // rien si le tap a atteint un mot (son propre onClick gère déjà ce cas).
-          const isWordTap = !!(e.target as HTMLElement).closest("[data-word-key]");
-          if (isWordTap) return;
-          if (selected.length) setSelected([]);
-          // Mode immersif (§1) : un tap sur le Mushaf bascule l'affichage de
-          // l'en-tête/bas de page — jamais sur un tap consommé par un mot.
-          toggleControls();
-        }}
+        onTouchCancel={onSheetTouchCancel}
+        onClick={onSheetClick}
       >
         {isPending && (
           <p className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
@@ -1369,7 +1359,8 @@ function MushafPage() {
             // (l'ancien `mushaf-no-callout`/user-select:none empêchait
             // aussi bien le menu natif Android que toute sélection
             // partielle, ce qui est désormais explicitement indésirable).
-            className="flex w-full flex-1 flex-col justify-between gap-[0.35em]"
+            className="flex w-full flex-1 select-none flex-col justify-between gap-[0.35em] [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent]"
+            onContextMenu={onSheetContextMenu}
           >
             {(lines ?? []).map((line, li) => {
               const startSurah = surahStartAtLine.get(li);
@@ -1416,15 +1407,13 @@ function MushafPage() {
                           tabIndex={-1}
                           data-word-key={w.key}
                           data-tj={tajweedMode && hlSupported && !w.end ? w.tajweed : undefined}
-                          onClick={() => onWordClick(w.key)}
-                          onContextMenu={(e) => onWordContextMenu(e, w.key)}
                           className={cn(
                             // Surlignage de sélection volontairement très discret
                             // (simple teinte, pas de changement de couleur de texte)
                             // pour éviter l'effet "gros rectangles" — même boîte,
                             // même rayon, aucun reflow (§12 mission menu ayah).
-                            "cursor-pointer rounded px-[0.05em] transition-colors",
-                            isSel && "bg-primary/10",
+                            "rounded px-[0.05em] transition-colors",
+                            isSel && "bg-primary/15",
                             isPlaying && "bg-gold/20 text-gold",
                             w.end && "text-gold",
                           )}
@@ -1609,43 +1598,7 @@ function MushafPage() {
         </div>
       )}
 
-      {menuFor && !menuAnchor && (
-        // Appui long mobile — bottom sheet. Pas de voile gris/assombrissement :
-        // le Mushaf et l'ayah sélectionnée (déjà surlignée via `isSel`)
-        // restent pleinement visibles. Le calque transparent ne sert qu'à
-        // détecter le tap "en dehors" pour fermer.
-        <div className="fixed inset-0 z-50" onClick={closeMenu}>
-          <div
-            className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-border bg-card p-3 pb-4 shadow-[var(--shadow-elevated)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {menuActions(menuFor)}
-          </div>
-        </div>
-      )}
 
-      {menuFor && menuAnchor && (
-        // Clic droit desktop — petit menu ancré près du curseur, jamais un
-        // grand panneau qui cacherait le Mushaf.
-        <div className="fixed inset-0 z-50" onClick={closeMenu}>
-          <div
-            className="absolute w-56 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-elevated)]"
-            style={{
-              left: Math.min(
-                menuAnchor.x,
-                (typeof window !== "undefined" ? window.innerWidth : 0) - 232,
-              ),
-              top: Math.min(
-                menuAnchor.y,
-                (typeof window !== "undefined" ? window.innerHeight : 0) - 190,
-              ),
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {menuActions(menuFor)}
-          </div>
-        </div>
-      )}
 
       {showNav && (
         <GoToPanel
