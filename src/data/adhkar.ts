@@ -66,6 +66,21 @@ const FALAQ =
 const NAS =
   "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ. قُلْ أَعُوذُ بِرَبِّ النَّاسِ • مَلِكِ النَّاسِ • إِلَٰهِ النَّاسِ • مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ • الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ • مِنَ الْجِنَّةِ وَالنَّاسِ.";
 
+// Sources canoniques UNIQUES des trois sourates (matin ET soir) : même arabe,
+// même phonétique, même traduction — jamais de renvoi "voir matin".
+const IKHLAS_PH =
+  "Qul Huwa-llâhu Ahad, Allâhu-s-Samad, lam yalid wa lam yûlad, wa lam yakun lahu kufuwan Ahad.";
+const IKHLAS_FR =
+  "« Dis : Lui, Allah est Un. Allah, le Soutien universel. Il n'a pas engendré et n'a pas été engendré, et nul n'est égal à Lui. »";
+const FALAQ_PH =
+  "Qul a'ûdhu bi Rabbi-l-falaq, min sharri mâ khalaq, wa min sharri ghâsiqin idhâ waqab, wa min sharri-n-naffâthâti fi-l-'uqad, wa min sharri hâsidin idhâ hasad.";
+const FALAQ_FR =
+  "« Dis : Je cherche refuge auprès du Seigneur de l'aube contre le mal de ce qu'Il a créé, contre le mal de l'obscurité quand elle s'étend, contre le mal des souffleuses sur les nœuds et contre le mal de l'envieux quand il envie. »";
+const NAS_PH =
+  "Qul a'ûdhu bi Rabbi-n-nâs, Maliki-n-nâs, Ilâhi-n-nâs, min sharri-l-waswâsi-l-khannâs, alladhî yuwaswisu fî sudûri-n-nâs, mina-l-jinnati wa-n-nâs.";
+const NAS_FR =
+  "« Dis : Je cherche refuge auprès du Seigneur des hommes, Souverain des hommes, Dieu des hommes, contre le mal du chuchoteur furtif qui souffle le mal dans les poitrines des hommes, qu'il soit des djinns ou des hommes. »";
+
 const AYAT_KURSI_PH =
   "Allâhu lâ ilâha illâ Huwa, al-Hayyu al-Qayyûm. Lâ ta'khudhuhu sinatun wa lâ nawm. Lahu mâ fis-samâwâti wa mâ fil-ard. Man dhal-ladhî yashfa'u 'indahu illâ bi-idhnih. Ya'lamu mâ bayna aydîhim wa mâ khalfahum, wa lâ yuhîtûna bi-shay'in min 'ilmihi illâ bimâ shâ'. Wasi'a kursiyyuhu-s-samâwâti wal-ard, wa lâ ya'ûduhu hifzuhumâ, wa Huwa-l-'Aliyyu-l-'Azîm.";
 
@@ -222,10 +237,8 @@ const morning: Dhikr[] = [
     title: "2. Sourate Al-Ikhlâs",
     verseKeys: ["112:1", "112:2", "112:3", "112:4"],
     arabic: IKHLAS,
-    phonetic:
-      "Qul Huwa-llâhu Ahad, Allâhu-s-Samad, lam yalid wa lam yûlad, wa lam yakun lahu kufuwan Ahad.",
-    translation:
-      "« Dis : Lui, Allah est Un. Allah, le Soutien universel. Il n'a pas engendré et n'a pas été engendré, et nul n'est égal à Lui. »",
+    phonetic: IKHLAS_PH,
+    translation: IKHLAS_FR,
     repetitions: 3,
     explanation:
       "L'affirmation pure de l'Unicité. Récitée avec les deux mu'awwidhât (Al-Falaq, An-Nâs), elle constitue un refuge complet.",
@@ -238,10 +251,8 @@ const morning: Dhikr[] = [
     title: "3. Sourate Al-Falaq",
     verseKeys: ["113:1", "113:2", "113:3", "113:4", "113:5"],
     arabic: FALAQ,
-    phonetic:
-      "Qul a'ûdhu bi Rabbi-l-falaq, min sharri mâ khalaq, wa min sharri ghâsiqin idhâ waqab, wa min sharri-n-naffâthâti fi-l-'uqad, wa min sharri hâsidin idhâ hasad.",
-    translation:
-      "« Dis : Je cherche refuge auprès du Seigneur de l'aube contre le mal de ce qu'Il a créé, contre le mal de l'obscurité quand elle s'étend, contre le mal des souffleuses sur les nœuds et contre le mal de l'envieux quand il envie. »",
+    phonetic: FALAQ_PH,
+    translation: FALAQ_FR,
     repetitions: 3,
     explanation: "Refuge contre les maux visibles et invisibles, la sorcellerie et l'envie.",
     merits: "Les mu'awwidhât suffisent contre tout mal matin et soir.",
@@ -253,10 +264,8 @@ const morning: Dhikr[] = [
     title: "4. Sourate An-Nâs",
     verseKeys: ["114:1", "114:2", "114:3", "114:4", "114:5", "114:6"],
     arabic: NAS,
-    phonetic:
-      "Qul a'ûdhu bi Rabbi-n-nâs, Maliki-n-nâs, Ilâhi-n-nâs, min sharri-l-waswâsi-l-khannâs, alladhî yuwaswisu fî sudûri-n-nâs, mina-l-jinnati wa-n-nâs.",
-    translation:
-      "« Dis : Je cherche refuge auprès du Seigneur des hommes, Souverain des hommes, Dieu des hommes, contre le mal du chuchoteur furtif qui souffle le mal dans les poitrines des hommes, qu'il soit des djinns ou des hommes. »",
+    phonetic: NAS_PH,
+    translation: NAS_FR,
     repetitions: 3,
     explanation: "Refuge spécifique contre le waswâs (chuchotement) de Shaytân dans les cœurs.",
     merits: "Aucun refuge n'égale celui offert par ces trois sourates.",
@@ -655,9 +664,8 @@ const evening: Dhikr[] = [
     title: "3. Sourate Al-Ikhlâs",
     verseKeys: ["112:1", "112:2", "112:3", "112:4"],
     arabic: IKHLAS,
-    phonetic:
-      "Qul Huwa-llâhu Ahad, Allâhu-s-Samad, lam yalid wa lam yûlad, wa lam yakun lahu kufuwan Ahad.",
-    translation: "Sourate de la Pure Unicité — voir matin n°2.",
+    phonetic: IKHLAS_PH,
+    translation: IKHLAS_FR,
     repetitions: 3,
     explanation:
       "Le Prophète ﷺ soufflait dans ses mains après les avoir récitées, avant de dormir.",
@@ -670,8 +678,8 @@ const evening: Dhikr[] = [
     title: "4. Sourate Al-Falaq",
     verseKeys: ["113:1", "113:2", "113:3", "113:4", "113:5"],
     arabic: FALAQ,
-    phonetic: "Qul a'ûdhu bi Rabbi-l-falaq…",
-    translation: "Refuge contre tous les maux — voir matin n°3.",
+    phonetic: FALAQ_PH,
+    translation: FALAQ_FR,
     repetitions: 3,
     explanation: "Récitée trois fois le soir avec les deux autres mu'awwidhât.",
     merits: "Protection totale pour la nuit.",
@@ -683,8 +691,8 @@ const evening: Dhikr[] = [
     title: "5. Sourate An-Nâs",
     verseKeys: ["114:1", "114:2", "114:3", "114:4", "114:5", "114:6"],
     arabic: NAS,
-    phonetic: "Qul a'ûdhu bi Rabbi-n-nâs…",
-    translation: "Refuge contre le waswâs — voir matin n°4.",
+    phonetic: NAS_PH,
+    translation: NAS_FR,
     repetitions: 3,
     explanation: "Complète le trio protecteur du soir.",
     merits: "Refuge complet contre tout mal jusqu'au matin.",

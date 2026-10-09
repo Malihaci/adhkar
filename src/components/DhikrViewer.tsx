@@ -28,10 +28,22 @@ import { COUNTER_DHIKR_IDS } from "@/lib/dhikrCounter";
 import { cn } from "@/lib/utils";
 
 const ARABIC_SIZE: Record<ReadingSize, string> = {
-  normal: "text-[1.5rem] leading-[2] sm:text-[1.9rem] sm:leading-[2]",
-  large: "text-[1.9rem] leading-[1.95] sm:text-[2.3rem] sm:leading-[1.95]",
-  xlarge: "text-[2.3rem] leading-[1.9] sm:text-[2.8rem] sm:leading-[1.9]",
+  normal: "text-[calc(1.5rem*var(--ar-k))] leading-[2] sm:text-[calc(1.9rem*var(--ar-k))] sm:leading-[2]",
+  large: "text-[calc(1.9rem*var(--ar-k))] leading-[1.95] sm:text-[calc(2.3rem*var(--ar-k))] sm:leading-[1.95]",
+  xlarge: "text-[calc(2.3rem*var(--ar-k))] leading-[1.9] sm:text-[calc(2.8rem*var(--ar-k))] sm:leading-[1.9]",
 };
+/** Facteur d'échelle selon la LONGUEUR du texte : une sourate courte (Al-Ikhlâs)
+ * reste très grande ; Âyat al-Kursî ou 2:285-286 descendent un peu pour rester
+ * confortables — jamais sous 0.74 (lisibilité). "Normal/Grand/Très grand"
+ * restent des intentions, ce facteur ne fait que les adapter au contenu. */
+function arabicScale(text: string): number {
+  const n = text.length;
+  if (n <= 160) return 1;
+  if (n <= 320) return 0.92;
+  if (n <= 600) return 0.84;
+  return 0.76;
+}
+
 const TEXT_SIZE: Record<ReadingSize, string> = {
   normal: "text-[15px]",
   large: "text-[18px]",
@@ -75,7 +87,7 @@ export function DhikrViewer({
    * ci-dessous qui gère restauration ET persistance ensemble.
    */
   const [idx, setIdx] = useState(initialIndex ?? 0);
-  const { prefs } = usePreferences();
+  const { prefs, updateAdhkar } = usePreferences();
   const showFrancais = prefs.adhkar.francais;
   const showPhonetic = prefs.adhkar.phonetique;
   const fontSize = prefs.adhkar.textSize;
@@ -252,7 +264,9 @@ export function DhikrViewer({
 
         {/* Content */}
         <div className="flex-1 space-y-4 overflow-y-auto px-3 py-3 sm:px-6">
-          <AyahText text={dhikr.arabic} className={ARABIC_SIZE[fontSize]} />
+          <div style={{ ["--ar-k" as string]: arabicScale(dhikr.arabic) } as React.CSSProperties}>
+            <AyahText text={dhikr.arabic} className={ARABIC_SIZE[fontSize]} />
+          </div>
 
           {showPhonetic && (
             <p
@@ -465,9 +479,87 @@ export function DhikrViewer({
             onClick={() => setMenuOpen(false)}
           >
             <div
-              className="w-full rounded-t-3xl border-t border-border bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+              className="max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl border-t border-border bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
               onClick={(e) => e.stopPropagation()}
             >
+              {/* Réglages GLOBAUX des Adhkār (mêmes préférences que ⚙️ Paramètres >
+                  Adhkār — jamais propres à un dhikr). */}
+              <div className="mb-2 space-y-2 rounded-2xl border border-border/60 p-2.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Affichage</p>
+                <div className="flex gap-1">
+                  {([
+                    ["arabic", "Arabe"],
+                    ["francais", "Français"],
+                    ["phonetique", "Phonétique"],
+                  ] as const).map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => updateAdhkar({ [key]: !prefs.adhkar[key] })}
+                      aria-pressed={prefs.adhkar[key]}
+                      className={cn(
+                        "min-h-11 flex-1 rounded-full border px-1 text-xs font-semibold transition",
+                        prefs.adhkar[key] ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Taille</p>
+                <div className="flex gap-1">
+                  {([
+                    ["normal", "Normal"],
+                    ["large", "Grand"],
+                    ["xlarge", "Très grand"],
+                  ] as const).map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => updateAdhkar({ textSize: key })}
+                      aria-pressed={prefs.adhkar.textSize === key}
+                      className={cn(
+                        "min-h-11 flex-1 rounded-full border px-1 text-xs font-semibold transition",
+                        prefs.adhkar.textSize === key ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Audio</p>
+                <div className="flex gap-1">
+                  {([
+                    ["afasy", "Version actuelle"],
+                    ["ghamdi", "Al-Ghâmidî"],
+                  ] as const).map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => updateAdhkar({ audioProfile: key })}
+                      aria-pressed={prefs.adhkar.audioProfile === key}
+                      className={cn(
+                        "min-h-11 flex-1 rounded-full border px-1 text-xs font-semibold transition",
+                        prefs.adhkar.audioProfile === key ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1">
+                  {[0.75, 1, 1.25, 1.5].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => updateAdhkar({ speed: s })}
+                      aria-pressed={prefs.adhkar.speed === s}
+                      className={cn(
+                        "min-h-11 flex-1 rounded-full border px-1 text-xs font-semibold transition",
+                        prefs.adhkar.speed === s ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                      )}
+                    >
+                      {s}×
+                    </button>
+                  ))}
+                </div>
+              </div>
               {(COUNTER_DHIKR_IDS as readonly string[]).includes(dhikr.id) && (
                 <Link
                   to="/compteur/$dhikrId"

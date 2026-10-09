@@ -105,6 +105,8 @@ const toArabic = (n: number) =>
     .map((d) => ARABIC_DIGITS[Number(d)])
     .join("");
 
+const JUZ_ORDINALS_AR = ["", "الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع", "العاشر", "الحادي عشر", "الثاني عشر", "الثالث عشر", "الرابع عشر", "الخامس عشر", "السادس عشر", "السابع عشر", "الثامن عشر", "التاسع عشر", "العشرون", "الحادي والعشرون", "الثاني والعشرون", "الثالث والعشرون", "الرابع والعشرون", "الخامس والعشرون", "السادس والعشرون", "السابع والعشرون", "الثامن والعشرون", "التاسع والعشرون", "الثلاثون"];
+
 function parseSelection(sel: string | undefined, verses: PageVerse[]): string[] {
   if (!sel) return [];
   const keys = verses.map((v) => v.key);
@@ -233,7 +235,7 @@ function MushafPage() {
    * masqué pendant une interaction en cours (sélection, menu, recherche,
    * navigation, "Vivre cette page", plein écran) — l'utilisateur garde
    * alors toujours ses commandes sous les yeux. */
-  const [controlsHidden, setControlsHidden] = useState(false);
+  const [controlsHidden, setControlsHidden] = useState(true);
   const hideTimerRef = useRef<number | null>(null);
   const immersiveBlocked =
     selected.length > 0 || !!menuFor || optionsOpen || searchOpen || showNav || pageLifeOpen;
@@ -795,8 +797,8 @@ function MushafPage() {
    * et le lecteur ayah-par-ayah, mais chaque écran l'applique différemment
    * (§9 mission) : ici, une fraction sûre du plafond de largeur du Mushaf. */
   const TEXT_SIZE_LEVELS = [
-    { key: "normal" as const, value: 0.72, label: "Standard" },
-    { key: "large" as const, value: 0.86, label: "Grand" },
+    { key: "normal" as const, value: 0.9, label: "Standard" },
+    { key: "large" as const, value: 0.96, label: "Grand" },
     { key: "xlarge" as const, value: 1, label: "Très grand" },
   ] as const;
   const textSize =
@@ -812,6 +814,53 @@ function MushafPage() {
    * changement de line_number/texte/ordre. Voir src/lib/mushaf.ts. */
   const tajweedMode = prefs.quran.tajweed;
   const setTajweedMode = (v: boolean) => updateQuran({ tajweed: v });
+
+  /** Tajwīd par CSS Custom Highlight API : le texte de chaque mot reste UN
+   * SEUL nœud texte, strictement identique au mode Normal — seules les
+   * couleurs changent, la géométrie (largeur des mots, lignes) est donc
+   * rigoureusement la même. (Découper en <span> modifiait de 1 à 4 px
+   * la largeur de certains mots : kerning/jonctions rompus.) Repli en
+   * <span> uniquement si l'API n'existe pas. */
+  const [hlSupported, setHlSupported] = useState(false);
+  useEffect(() => {
+    setHlSupported(typeof CSS !== "undefined" && "highlights" in CSS);
+  }, []);
+  useEffect(() => {
+    if (!hlSupported) return;
+    const registry = (CSS as unknown as { highlights: Map<string, unknown> }).highlights;
+    const HighlightCtor = (window as unknown as { Highlight: new (...r: Range[]) => unknown }).Highlight;
+    const rules = Object.keys(TAJWEED_COLORS);
+    if (!document.getElementById("tj-highlight-styles")) {
+      const style = document.createElement("style");
+      style.id = "tj-highlight-styles";
+      style.textContent = rules
+        .map((r) => `::highlight(tj-${r}){color:${TAJWEED_COLORS[r]};}`)
+        .join("\n");
+      document.head.appendChild(style);
+    }
+    const clear = () => rules.forEach((r) => registry.delete(`tj-${r}`));
+    clear();
+    const sheet = sheetRef.current;
+    if (!tajweedMode || !sheet) return clear;
+    const ranges: Record<string, Range[]> = {};
+    sheet.querySelectorAll<HTMLElement>("[data-tj]").forEach((el) => {
+      const node = el.firstChild;
+      if (!node || node.nodeType !== Node.TEXT_NODE) return;
+      let off = 0;
+      for (const seg of parseTajweedSegments(el.dataset.tj ?? "")) {
+        const end = off + seg.text.length;
+        if (seg.rule && TAJWEED_COLORS[seg.rule] && end <= (node as Text).length) {
+          const r = document.createRange();
+          r.setStart(node, off);
+          r.setEnd(node, end);
+          (ranges[seg.rule] ??= []).push(r);
+        }
+        off = end;
+      }
+    });
+    for (const [rule, rs] of Object.entries(ranges)) registry.set(`tj-${rule}`, new HighlightCtor(...rs));
+    return clear;
+  }, [hlSupported, tajweedMode, lines, page]);
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -883,23 +932,47 @@ function MushafPage() {
     // recalcul dès que "Amiri Quran" est réellement disponible : sans cela,
     // le fit se base sur les métriques de la police de secours et le texte
     // peut déborder/être coupé une fois le swap de police effectué (FOUT).
+    // Rien n'est montré tant que la police n'est pas chargée ET mesurée : aucun
+    // rendu intermédiaire avec les métriques de la police de secours (qui
+    // pourrait déborder ou changer de taille à l'écran).
+    const sampleText = lines.map((l) => l.words.map((w) => w.text).join(" ")).join(" ");
+    sheet.style.visibility = "hidden";
+    const reveal = () => {
+      if (!cancelled) sheet.style.visibility = "visible";
+    };
+    const revealTimer = window.setTimeout(reveal, 2000);
     raf = requestAnimationFrame(fit);
     if (typeof document !== "undefined" && document.fonts) {
       Promise.all([
         document.fonts.ready,
-        document.fonts.load('700 16px "Amiri Quran"').catch(() => []),
+        // Le texte RÉEL de la page : sans lui, le navigateur ne charge que le
+        // sous-ensemble latin de la police (unicode-range) et le fit mesure la
+        // police de secours — cause de lignes trop larges/coupées au 1er rendu.
+        document.fonts.load('700 16px "Amiri Quran"', sampleText).catch(() => []),
       ]).then(() => {
-        if (!cancelled) requestAnimationFrame(fit);
+        if (cancelled) return;
+        requestAnimationFrame(() => {
+          fit();
+          reveal();
+        });
       });
+    } else {
+      reveal();
     }
     // Observe la boîte RÉELLE : redimensionnement de fenêtre ET rotation
     // portrait/paysage déclenchent tous les deux un recalcul du fitting.
+    const onFontsDone = () => {
+      if (!cancelled) requestAnimationFrame(fit);
+    };
+    document.fonts?.addEventListener?.("loadingdone", onFontsDone);
     const ro = new ResizeObserver(() => {
       if (!cancelled) requestAnimationFrame(fit);
     });
     ro.observe(box);
     return () => {
       cancelled = true;
+      window.clearTimeout(revealTimer);
+      document.fonts?.removeEventListener?.("loadingdone", onFontsDone);
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
@@ -1116,7 +1189,7 @@ function MushafPage() {
   };
 
   return (
-    <div className="relative h-[100dvh] overflow-hidden bg-background">
+    <div className="relative h-[100dvh] overflow-hidden bg-[#fcf9ef] dark:bg-background">
       <audio
         ref={audioRef}
         preload="none"
@@ -1216,7 +1289,7 @@ function MushafPage() {
           déborder en largeur (voir le fit ci-dessus, seule contrainte dure). */}
       <div
         ref={boxRef}
-        className="absolute inset-0 overflow-x-hidden overflow-y-auto px-1.5 py-1"
+        className="absolute inset-0 overflow-x-hidden overflow-y-auto px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-[max(0.25rem,env(safe-area-inset-top))]"
         onTouchStart={onSheetTouchStart}
         onTouchEnd={onSheetTouchEnd}
         onClick={(e) => {
@@ -1247,7 +1320,19 @@ function MushafPage() {
             rétrécir/agrandir s'annulait exactement, voir le commentaire sur
             `ceilingFontPx`). La composition (line_number, retours à la
             ligne) ne dépend que des données du Mushaf, jamais de la taille. */}
-        <div ref={fitBoxRef} className="mx-auto">
+        <div ref={fitBoxRef} className="mx-auto flex min-h-full flex-col">
+          {/* Métadonnées DANS la page (comme le Mushaf papier) : sourate à gauche,
+              juz' à droite — jamais une barre d'application permanente. */}
+          {verses?.[0] && (
+            <div
+              lang="ar"
+              dir="rtl"
+              className="flex min-h-9 shrink-0 items-center justify-between px-1 pb-1 font-arabic text-[13px] leading-none text-foreground/65"
+            >
+              <span>الجزء {JUZ_ORDINALS_AR[verses[0].juz] ?? toArabic(verses[0].juz)}</span>
+              <span>{surahMeta?.nameArabic ?? ""}</span>
+            </div>
+          )}
           <div
             ref={sheetRef}
             style={{ fontSize: fontPx } as React.CSSProperties}
@@ -1258,7 +1343,7 @@ function MushafPage() {
             // (l'ancien `mushaf-no-callout`/user-select:none empêchait
             // aussi bien le menu natif Android que toute sélection
             // partielle, ce qui est désormais explicitement indésirable).
-            className="flex w-full flex-col justify-start gap-[0.35em]"
+            className="flex w-full flex-1 flex-col justify-between gap-[0.35em]"
           >
             {(lines ?? []).map((line, li) => {
               const startSurah = surahStartAtLine.get(li);
@@ -1304,6 +1389,7 @@ function MushafPage() {
                           role="button"
                           tabIndex={-1}
                           data-word-key={w.key}
+                          data-tj={tajweedMode && hlSupported && !w.end ? w.tajweed : undefined}
                           onClick={() => onWordClick(w.key)}
                           onContextMenu={(e) => onWordContextMenu(e, w.key)}
                           className={cn(
@@ -1319,7 +1405,9 @@ function MushafPage() {
                         >
                           {w.end
                             ? `\u06DD${toArabic(w.ayah)}`
-                            : tajweedMode && w.tajweed
+                            : tajweedMode && w.tajweed && hlSupported
+                              ? w.text
+                              : tajweedMode && w.tajweed
                               ? parseTajweedSegments(w.tajweed).map((seg, si) => (
                                   <span
                                     key={si}
@@ -1339,6 +1427,20 @@ function MushafPage() {
               );
             })}
           </div>
+          {verses?.[0] && (
+            <div
+              lang="ar"
+              dir="rtl"
+              className="relative flex min-h-10 shrink-0 items-center justify-center px-1 pt-1 font-arabic text-[13px] leading-none text-foreground/65"
+            >
+              {verses[0].rub ? (
+                <span className="absolute left-1">
+                  {toArabic(((verses[0].rub - 1) % 4) + 1)}/٤ الحزب {toArabic(verses[0].hizb)}
+                </span>
+              ) : null}
+              <span className="text-[15px]">{toArabic(page)}</span>
+            </div>
+          )}
         </div>
       </div>
 

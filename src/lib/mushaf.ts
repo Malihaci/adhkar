@@ -13,6 +13,8 @@ export interface PageVerse {
   arabic: string;
   juz: number;
   hizb: number;
+  /** Quart de hizb (1-240) — pour l'indication "¼ الحزب" en pied de page. */
+  rub?: number;
 }
 
 export interface Chapter {
@@ -116,6 +118,7 @@ export async function fetchPageLayout(page: number): Promise<PageLayout> {
       arabic: (v.text_uthmani ?? "").trim(),
       juz: v.juz_number,
       hizb: v.hizb_number ?? 0,
+      rub: v.rub_el_hizb_number,
     });
     const words = (v.words as any[]) ?? [];
     words.forEach((w, i) => {
