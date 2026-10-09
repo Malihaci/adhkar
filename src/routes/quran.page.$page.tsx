@@ -202,6 +202,16 @@ function MushafPage() {
   const preloadRef = useRef<HTMLAudioElement | null>(null);
   const [queue, setQueue] = useState<string[]>([]);
   const [qIndex, setQIndex] = useState(0);
+  /** Miroirs SYNCHRONES de la file courante : les callbacks audio (ended,
+   * error) lisent toujours la session réelle, jamais une fermeture d'un
+   * rendu précédent. `playbackSessionId` change à CHAQUE nouvelle commande
+   * ou arrêt : tout résultat asynchrone (fetch sourate/juz'/hizb, retry) issu
+   * d'une ancienne session est ignoré. */
+  const queueRef = useRef<string[]>([]);
+  const qIndexRef = useRef(0);
+  const loopRef = useRef(false);
+  const loadedKeyRef = useRef<string | null>(null);
+  const playbackSessionId = useRef(0);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [loop, setLoop] = useState(false);
@@ -297,6 +307,7 @@ function MushafPage() {
       const el = audioRef.current;
       if (!el || !key) return;
       const sessionId = ++loadSessionRef.current;
+      loadedKeyRef.current = key;
       audioRetryRef.current = 0;
       el.src = key === BASMALA_BRIDGE_KEY ? basmalaAudioUrl(reciterId) : verseAudioUrl(reciterId, key);
       el.load();
@@ -344,14 +355,44 @@ function MushafPage() {
    * jusqu'à la fin du Coran n'a pas de sens) — la répétition par ayah,
    * elle, reste active dans tous les modes.
    */
+  /** Une seule tentative de reprise par ayah avant de passer à la suivante —
+   * jamais de boucle infinie sur un fichier durablement indisponible. */
+  const audioRetryRef = useRef(0);
+
+  /** Invalide TOTALEMENT la session audio en cours : file, index, source,
+   * position, préchargement, surbrillance, callbacks et retries en attente. */
+  const resetPlayback = () => {
+    playbackSessionId.current += 1;
+    loadSessionRef.current += 1;
+    activeQueueContext.current = null;
+    queueRef.current = [];
+    qIndexRef.current = 0;
+    loopRef.current = false;
+    loadedKeyRef.current = null;
+    audioRetryRef.current = 0;
+    const el = audioRef.current;
+    if (el) {
+      el.pause();
+      el.removeAttribute("src");
+      el.load();
+    }
+    const pre = preloadRef.current;
+    if (pre) {
+      pre.removeAttribute("src");
+      pre.load();
+    }
+    setQueue([]);
+    setQIndex(0);
+    setPlaying(false);
+    setProgress(0);
+    setLoop(false);
+  };
+
   const start = (keys: string[], opts?: { turnPages?: boolean; skipSelRepeat?: boolean }) => {
     if (!keys.length) return;
-    // Nouvelle commande explicite : invalide toute notion de "reprise" de
-    // l'ancienne file — le prochain ▶ ne pourra plus la confondre avec
-    // celle-ci tant que la portée, le point de départ ou les réglages
-    // (répétitions) n'auront pas de nouveau changé. Basé sur les PARAMÈTRES
-    // de la commande (pas sur la file résultante, parfois construite de
-    // façon asynchrone pour sourate/juz'/hizb).
+    // NOUVELLE commande : l'ancienne session est entièrement invalidée avant
+    // de construire la nouvelle file — jamais de reprise silencieuse.
+    resetPlayback();
     activeQueueContext.current = selectionSignature();
     const perAyah = ayahRepeat > 1 ? ayahRepeat : 1;
     // Le pont Basmala (voir withBasmalaBridges) ne doit jamais être répété
@@ -363,7 +404,10 @@ function MushafPage() {
     if (applySelRepeat && selRepeat > 1) {
       full = Array.from({ length: selRepeat }, () => full).flat();
     }
-    setLoop(applySelRepeat && selRepeat === 0);
+    queueRef.current = full;
+    qIndexRef.current = 0;
+    loopRef.current = applySelRepeat && selRepeat === 0;
+    setLoop(loopRef.current);
     setAutoTurn(!!opts?.turnPages);
     setQueue(full);
     setQIndex(0);
@@ -374,7 +418,7 @@ function MushafPage() {
 
   const toggle = () => {
     const el = audioRef.current;
-    if (!el || !queue.length) return;
+    if (!el || !queueRef.current.length) return;
     if (el.paused) {
       el.play().catch(() => setPlaying(false));
       setPlaying(true);
@@ -385,18 +429,19 @@ function MushafPage() {
   };
 
   const step = (d: number) => {
-    const next = qIndex + d;
-    if (next < 0 || next >= queue.length) return;
+    const next = qIndexRef.current + d;
+    if (next < 0 || next >= queueRef.current.length) return;
+    qIndexRef.current = next;
     setQIndex(next);
-    load(queue[next], true);
+    load(queueRef.current[next], true);
     setPlaying(true);
   };
 
   // changement de récitateur en cours de lecture
   useEffect(() => {
-    if (queue.length && audioRef.current) {
+    if (queueRef.current.length && audioRef.current) {
       const wasPlaying = playing;
-      load(queue[qIndex], wasPlaying);
+      load(queueRef.current[qIndexRef.current], wasPlaying);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reciterId]);
@@ -418,36 +463,29 @@ function MushafPage() {
   };
 
   const goTo = (i: number) => {
+    qIndexRef.current = i;
     setQIndex(i);
-    load(queue[i]);
-    followKey(queue[i]);
+    load(queueRef.current[i]);
+    followKey(queueRef.current[i]);
   };
 
-  /** Avance à l'ayah suivante, boucle, ou arrête proprement la session —
-   * partagé par la fin normale (onEnded) et l'abandon après échec réseau
-   * (onAudioError) : une ayah en erreur ne doit jamais geler toute la
-   * session, elle doit être sautée exactement comme si elle était finie. */
+  /** Avance à l'ayah suivante de la SESSION ACTUELLE, boucle, ou arrête
+   * proprement — partagé par la fin normale (onEnded) et l'abandon après
+   * échec réseau (onAudioError). */
   const advanceQueue = () => {
-    if (qIndex + 1 < queue.length) goTo(qIndex + 1);
-    else if (loop) goTo(0);
-    else {
-      setPlaying(false);
-      setProgress(0);
-      // Vide la file terminée : un futur ▶ doit démarrer une nouvelle
-      // lecture (mode courant) plutôt que "reprendre" une file épuisée.
-      setQueue([]);
-      setQIndex(0);
-    }
+    const len = queueRef.current.length;
+    if (!len) return;
+    if (qIndexRef.current + 1 < len) goTo(qIndexRef.current + 1);
+    else if (loopRef.current) goTo(0);
+    else resetPlayback(); // fin de file : arrêt propre, plus aucune surbrillance
   };
-
-  /** Une seule tentative de reprise par ayah avant de passer à la suivante —
-   * jamais de boucle infinie sur un fichier durablement indisponible. */
-  const audioRetryRef = useRef(0);
 
   const onAudioError = () => {
     const el = audioRef.current;
-    if (!el || !queue.length) return;
-    const failedKey = queue[qIndex];
+    const failedKey = queueRef.current[qIndexRef.current];
+    // Erreur d'une source qui n'est plus celle de la session (ancienne
+    // commande, reset) : ignorée.
+    if (!el || !failedKey || loadedKeyRef.current !== failedKey) return;
     const sessionId = loadSessionRef.current;
     if (import.meta.env.DEV) {
       // eslint-disable-next-line no-console
@@ -455,25 +493,16 @@ function MushafPage() {
         verseKey: failedKey,
         src: el.currentSrc || el.src,
         errorCode: el.error?.code,
-        errorMessage: el.error?.message,
         retry: audioRetryRef.current,
       });
     }
     if (audioRetryRef.current < 1) {
       audioRetryRef.current += 1;
       window.setTimeout(() => {
-        // Une commande plus récente a déjà remplacé cette session : n'agit
-        // jamais sur une ayah qui n'est plus celle réellement en cours.
         if (loadSessionRef.current !== sessionId) return;
         el.load();
         el.play().catch(() => {
           if (loadSessionRef.current === sessionId) {
-            if (import.meta.env.DEV) {
-              // eslint-disable-next-line no-console
-              console.warn("[audio] reprise échouée, passage à l'ayah suivante", {
-                verseKey: failedKey,
-              });
-            }
             audioRetryRef.current = 0;
             advanceQueue();
           }
@@ -481,20 +510,17 @@ function MushafPage() {
       }, 400);
       return;
     }
-    if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.warn("[audio] échec définitif après reprise, passage à l'ayah suivante", {
-        verseKey: failedKey,
-      });
-    }
     audioRetryRef.current = 0;
     advanceQueue();
   };
 
   const onEnded = () => {
+    const key = queueRef.current[qIndexRef.current];
+    // « ended » d'une ancienne source/session : ignoré.
+    if (!key || loadedKeyRef.current !== key) return;
     audioRetryRef.current = 0;
     if (ayahRepeat === 0) {
-      load(queue[qIndex]); // ∞ sur l'ayah en cours
+      load(key); // ∞ sur l'ayah en cours
       return;
     }
     advanceQueue();
@@ -658,21 +684,39 @@ function MushafPage() {
     hizb: anchorVerse?.hizb ?? 1,
   };
 
-  /** Signature des PARAMÈTRES de la commande actuellement affichée dans Options. */
+  /** Sourates présentes sur la page (ex. fin d'Al-Isrā' + début d'Al-Kahf). */
+  const pageSurahs = useMemo(
+    () => Array.from(new Set((verses ?? []).map((v) => v.surah))),
+    [verses],
+  );
+  /** Sourate choisie explicitement quand la page en contient plusieurs. */
+  const [surahPick, setSurahPick] = useState<number | null>(null);
+  /** « Cette sourate » : la sourate de l'āyah sélectionnée, sinon le choix
+   * explicite, sinon celle de la page. */
+  const scopeSurah = selected.length
+    ? anchor.surah
+    : surahPick != null && pageSurahs.includes(surahPick)
+      ? surahPick
+      : surahOnPage;
+
+  /** Signature des PARAMÈTRES de la commande (jamais dérivée de la page
+   * affichée : tourner la page en cours de lecture ne doit pas ressembler à
+   * une nouvelle commande). */
   const selectionSignature = () =>
     readMode === "range"
       ? `range|${rangeStart}|${rangeEnd}|${ayahRepeat}|${selRepeat}`
-      : `${readMode}|${anchor.key}|${ayahRepeat}|${selRepeat}`;
+      : `${readMode}|${selected[0] ?? "-"}|${readMode === "surah" ? scopeSurah : "-"}|${ayahRepeat}|${selRepeat}`;
 
   /**
-   * Vrai uniquement si la file en cours a été construite pour exactement la
-   * commande actuellement affichée : dans ce cas, et seulement dans ce cas,
-   * le ▶ doit se comporter comme Pause → Play (reprise exacte). Dès que la
-   * portée, le point de départ ou les réglages ont changé depuis, il s'agit
-   * d'une nouvelle commande qui doit reconstruire la file — jamais reprendre
-   * silencieusement l'ancienne lecture.
+   * Vrai uniquement si la file en cours correspond à la commande affichée ET
+   * que l'on regarde encore là où elle joue (ou qu'elle joue) : seul cas où
+   * ▶ = Pause → Play (reprise exacte). Toute nouvelle sélection, ou une page
+   * quittée pendant une pause, est une NOUVELLE commande.
    */
-  const isCurrentSession = queue.length > 0 && activeQueueContext.current === selectionSignature();
+  const isCurrentSession =
+    queue.length > 0 &&
+    activeQueueContext.current === selectionSignature() &&
+    (playing || !!verses?.some((v) => v.key === queue[qIndex]));
 
   /** Raison lisible si la commande actuelle ne peut pas construire de file. */
   const rangeInvalidReason = (() => {
@@ -701,20 +745,30 @@ function MushafPage() {
     start(keys, { turnPages: true });
   };
 
+  /** « Cette sourate » = de sa PREMIÈRE à sa DERNIÈRE āyah (jamais depuis le
+   * début de la page ni depuis l'āyah sélectionnée). */
   const playSurahFromAnchor = async () => {
-    const all = await fetchSurahVerseKeys(anchor.surah);
-    const idx = all.indexOf(anchor.key);
-    start(all.slice(idx < 0 ? 0 : idx), { turnPages: true });
+    resetPlayback();
+    const token = playbackSessionId.current;
+    const all = await fetchSurahVerseKeys(scopeSurah);
+    if (playbackSessionId.current !== token) return; // une commande plus récente a pris le relais
+    start(all, { turnPages: true });
   };
 
   const playJuzFromAnchor = async () => {
+    resetPlayback();
+    const token = playbackSessionId.current;
     const all = await fetchJuzVerseKeys(anchor.juz);
+    if (playbackSessionId.current !== token) return;
     const idx = all.indexOf(anchor.key);
     start(all.slice(idx < 0 ? 0 : idx), { turnPages: true });
   };
 
   const playHizbFromAnchor = async () => {
+    resetPlayback();
+    const token = playbackSessionId.current;
     const all = await fetchHizbVerseKeys(anchor.hizb);
+    if (playbackSessionId.current !== token) return;
     const idx = all.indexOf(anchor.key);
     start(all.slice(idx < 0 ? 0 : idx), { turnPages: true });
   };
@@ -784,6 +838,7 @@ function MushafPage() {
   const fitBoxRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState(26);
+  const scaleRowsRef = useRef<(() => void) | null>(null);
   /**
    * Cause réelle du texte trop petit sur mobile : l'ancien réglage "Taille
    * du Mushaf" rétrécissait la boîte de calcul par `zoom` PUIS agrandissait
@@ -905,8 +960,38 @@ function MushafPage() {
       for (const r of rows) if (r.scrollWidth > r.clientWidth) return false;
       return true;
     };
+    /** Chaque ligne Médine garde EXACTEMENT ses mots ; elle reçoit la plus
+     * grande taille (≤ +15 % de la base) qui la fait tenir à espacement
+     * naturel, marge sûre de 1,5 %. Une ligne courte reste centrée, jamais
+     * étirée mot par mot. */
+    const MAX_LINE_SCALE = 1.15;
+    const scaleRows = () => {
+      const rows = Array.from(sheet.querySelectorAll<HTMLElement>("[data-mushaf-line]"));
+      rows.forEach((r) => {
+        r.style.fontSize = "";
+      });
+      const scales = rows.map((r) => {
+        const cs = window.getComputedStyle(r);
+        const avail = r.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        const gap = parseFloat(cs.columnGap) || 0;
+        const kids = Array.from(r.children) as HTMLElement[];
+        const natural =
+          kids.reduce((n, c) => n + c.getBoundingClientRect().width, 0) +
+          gap * Math.max(0, kids.length - 1);
+        return natural > 0 ? Math.min(MAX_LINE_SCALE, (avail / natural) * 0.985) : 1;
+      });
+      rows.forEach((r, i) => {
+        if (scales[i] > 1.001) r.style.fontSize = `${scales[i]}em`;
+      });
+    };
+    scaleRowsRef.current = scaleRows;
     const fit = () => {
       if (cancelled) return;
+      // La recherche de taille de base se fait lignes à taille NEUTRE : sinon les
+      // échelles par ligne d'un passage précédent fausseraient la mesure.
+      sheet.querySelectorAll<HTMLElement>("[data-mushaf-line]").forEach((r) => {
+        r.style.fontSize = "";
+      });
       // En portrait, la largeur reste plafonnée (comme l'ancien max-w-2xl) ;
       // en paysage, le Mushaf utilise toute la largeur réellement disponible.
       const isLandscape =
@@ -951,6 +1036,7 @@ function MushafPage() {
       const safe = ceiling * textSizeRef.current;
       sheet.style.fontSize = `${safe}px`;
       setFontPx(safe);
+      scaleRows();
     };
     // 1er passage immédiat (police de repli le temps du chargement), puis
     // recalcul dès que "Amiri Quran" est réellement disponible : sans cela,
@@ -1012,6 +1098,7 @@ function MushafPage() {
   useEffect(() => {
     if (sheetRef.current) sheetRef.current.style.fontSize = `${ceilingFontPx * textSize}px`;
     setFontPx(ceilingFontPx * textSize);
+    scaleRowsRef.current?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textSize, ceilingFontPx]);
 
@@ -1395,7 +1482,7 @@ function MushafPage() {
                     data-mushaf-line
                     lang="ar"
                     dir="rtl"
-                    className="flex items-baseline justify-between gap-[0.12em] whitespace-nowrap px-[0.15em] font-arabic font-bold leading-[1.9] text-foreground"
+                    className="flex items-baseline justify-center gap-[0.24em] whitespace-nowrap px-[0.15em] font-arabic font-bold leading-[1.9] text-foreground"
                   >
                     {line.words.map((w, wi) => {
                       const isSel = selected.includes(w.key);
@@ -1444,16 +1531,13 @@ function MushafPage() {
           </div>
           {verses?.[0] && (
             <div
-              lang="ar"
-              dir="rtl"
-              className="relative flex min-h-10 shrink-0 items-center justify-center px-1 pt-1 font-arabic text-[13px] leading-none text-foreground/65"
+              lang="fr"
+              dir="ltr"
+              className="flex min-h-10 shrink-0 items-center justify-center px-1 pt-1 font-sans text-[12px] leading-none tabular-nums text-foreground/60"
             >
-              {verses[0].rub ? (
-                <span className="absolute left-1">
-                  {toArabic(((verses[0].rub - 1) % 4) + 1)}/٤ الحزب {toArabic(verses[0].hizb)}
-                </span>
-              ) : null}
-              <span className="text-[15px]">{toArabic(page)}</span>
+              Page {page}
+              {verses[0].hizb ? ` · Hizb ${verses[0].hizb}` : ""}
+              {verses[0].rub ? ` · ${((verses[0].rub - 1) % 4) + 1}/4` : ""}
             </div>
           )}
         </div>
@@ -1644,23 +1728,39 @@ function MushafPage() {
                   [
                     { id: "ayah", label: "Cette ayah", detail: anchor.key || undefined },
                     { id: "page", label: "Cette page", detail: `Page ${page}` },
-                    {
-                      id: "surah",
-                      label: "Cette sourate",
-                      detail: chapters?.find((c) => c.id === anchor.surah)?.nameFrench,
-                    },
+                    ...(pageSurahs.length > 1 && !selected.length
+                      ? pageSurahs.map((s) => ({
+                          id: "surah" as ReadMode,
+                          surah: s,
+                          label: "Cette sourate",
+                          detail: chapters?.find((c) => c.id === s)?.nameFrench,
+                        }))
+                      : [
+                          {
+                            id: "surah" as ReadMode,
+                            surah: scopeSurah,
+                            label: "Cette sourate",
+                            detail: chapters?.find((c) => c.id === scopeSurah)?.nameFrench,
+                          },
+                        ]),
                     { id: "juz", label: "Ce juz'", detail: `Juz ${anchor.juz}` },
                     { id: "hizb", label: "Ce hizb", detail: `Hizb ${anchor.hizb}` },
                     { id: "toEnd", label: "Jusqu'à la fin", detail: undefined },
-                  ] as { id: ReadMode; label: string; detail?: string }[]
-                ).map((m) => (
+                  ] as { id: ReadMode; label: string; detail?: string; surah?: number }[]
+                ).map((m) => {
+                  const active =
+                    readMode === m.id && (m.id !== "surah" || m.surah === scopeSurah);
+                  return (
                   <button
-                    key={m.id}
-                    onClick={() => setReadMode(m.id)}
-                    aria-pressed={readMode === m.id}
+                    key={m.id + (m.surah ?? "")}
+                    onClick={() => {
+                      setReadMode(m.id);
+                      if (m.id === "surah" && m.surah != null) setSurahPick(m.surah);
+                    }}
+                    aria-pressed={active}
                     className={cn(
                       "rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold transition",
-                      readMode === m.id
+                      active
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-border bg-background hover:border-primary/40",
                     )}
@@ -1672,7 +1772,8 @@ function MushafPage() {
                       </span>
                     )}
                   </button>
-                ))}
+                  );
+                })}
                 <button
                   onClick={() => {
                     setReadMode("range");
