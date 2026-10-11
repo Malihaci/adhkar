@@ -310,6 +310,7 @@ export function DhikrViewer({
             >
               <ChevronLeft className="size-6" />
             </button>
+            {dhikrAudio.available && (
             <button
               onClick={() => {
                 if (dhikrAudio.available) {
@@ -324,6 +325,7 @@ export function DhikrViewer({
             >
               {dhikrAudio.playing ? <Pause className="size-5" /> : <Play className="size-5" />}
             </button>
+            )}
 
             <button
               onClick={onCount}

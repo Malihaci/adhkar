@@ -52,6 +52,7 @@ export function DhikrCard({ dhikr, index }: Props) {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
+          {dhikrAudio.available && (
           <button
             onClick={() => {
               if (dhikrAudio.available) {
@@ -66,6 +67,7 @@ export function DhikrCard({ dhikr, index }: Props) {
           >
             {dhikrAudio.playing ? <Pause className="size-4" /> : <Play className="size-4" />}
           </button>
+          )}
           <button
             onClick={() => shareDhikr(dhikr, index)}
             aria-label="Partager"
