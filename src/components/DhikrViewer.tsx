@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Heart,
-  RotateCcw,
   ChevronLeft,
   ChevronRight,
   Home,
@@ -351,24 +350,6 @@ export function DhikrViewer({
                 ) : (
                   `Réciter ${count} / ${dhikr.repetitions}`
                 )}
-              </span>
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label="Réinitialiser le compteur"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  reset(dhikr.id);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.stopPropagation();
-                    reset(dhikr.id);
-                  }
-                }}
-                className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full text-white/70 transition hover:bg-white/15 hover:text-white"
-              >
-                <RotateCcw className="size-3.5" />
               </span>
             </button>
 

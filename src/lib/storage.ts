@@ -136,6 +136,14 @@ export interface LastRead {
 export function getLastReadIndex(category: DhikrCategory): number | null {
   const raw = readJSON<LastRead | null>("adhkar:last-read", null);
   if (!raw || raw.category !== category) return null;
+  // Position du dhikr du JOUR seulement : chaque nouvelle journée (jour local)
+  // repart du premier dhikr, comme le compteur de progression.
+  if (typeof raw.at !== "number") return null;
+  const d = new Date(raw.at);
+  const n = new Date();
+  if (d.getFullYear() !== n.getFullYear() || d.getMonth() !== n.getMonth() || d.getDate() !== n.getDate()) {
+    return null;
+  }
   return typeof raw.index === "number" ? raw.index : null;
 }
 

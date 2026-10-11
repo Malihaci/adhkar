@@ -302,6 +302,36 @@ function MushafPage() {
   const audioUrlForKey = (key: string) =>
     key === BASMALA_BRIDGE_KEY ? basmalaAudioUrl(reciterId) : verseAudioUrl(reciterId, key);
 
+  /** Enchaînement SANS coupure audible : les 2 ayat suivantes sont
+   * téléchargées EN ENTIER (blob local) pendant que l'ayah courante joue ;
+   * au changement d'ayah la source est locale (aucune attente réseau, même
+   * si le navigateur mobile ignore `preload`). Repli transparent sur l'URL
+   * distante si le téléchargement échoue (CORS/réseau). */
+  const blobCache = useRef(new Map<string, string>());
+  const blobPending = useRef(new Set<string>());
+  const prefetchBlob = (url: string) => {
+    if (blobCache.current.has(url) || blobPending.current.has(url)) return;
+    blobPending.current.add(url);
+    fetch(url)
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("audio"))))
+      .then((b) => {
+        blobCache.current.set(url, URL.createObjectURL(b));
+      })
+      .catch(() => {
+        /* repli : lecture directe de l'URL distante */
+      })
+      .finally(() => blobPending.current.delete(url));
+  };
+  const releaseBlobs = (keep: Set<string>) => {
+    for (const [url, obj] of blobCache.current) {
+      if (!keep.has(url)) {
+        URL.revokeObjectURL(obj);
+        blobCache.current.delete(url);
+      }
+    }
+  };
+  const playableUrl = (url: string) => blobCache.current.get(url) ?? url;
+
   const load = useCallback(
     (key: string, autoplay = true) => {
       const el = audioRef.current;
@@ -309,7 +339,9 @@ function MushafPage() {
       const sessionId = ++loadSessionRef.current;
       loadedKeyRef.current = key;
       audioRetryRef.current = 0;
-      el.src = key === BASMALA_BRIDGE_KEY ? basmalaAudioUrl(reciterId) : verseAudioUrl(reciterId, key);
+      el.src = playableUrl(
+        key === BASMALA_BRIDGE_KEY ? basmalaAudioUrl(reciterId) : verseAudioUrl(reciterId, key),
+      );
       el.load();
       el.playbackRate = speed;
       if (autoplay) {
@@ -332,6 +364,12 @@ function MushafPage() {
   // voir le commentaire sur `preloadRef` plus haut. Ne joue jamais ce second
   // élément, ne touche jamais à `audioRef` (celui réellement audible).
   useEffect(() => {
+    const wanted = new Set<string>();
+    for (const k of [queue[qIndex], queue[qIndex + 1], queue[qIndex + 2]]) {
+      if (k) wanted.add(audioUrlForKey(k));
+    }
+    releaseBlobs(wanted);
+    for (const k of [queue[qIndex + 1], queue[qIndex + 2]]) if (k) prefetchBlob(audioUrlForKey(k));
     const nextKey = queue[qIndex + 1];
     if (!nextKey) return;
     let el = preloadRef.current;
@@ -381,6 +419,7 @@ function MushafPage() {
       pre.removeAttribute("src");
       pre.load();
     }
+    releaseBlobs(new Set());
     setQueue([]);
     setQIndex(0);
     setPlaying(false);
@@ -479,6 +518,32 @@ function MushafPage() {
     else if (loopRef.current) goTo(0);
     else resetPlayback(); // fin de file : arrêt propre, plus aucune surbrillance
   };
+
+  const lastProgressRef = useRef<{ t: number; at: number }>({ t: -1, at: 0 });
+  useEffect(() => {
+    if (!playing) return;
+    const id = window.setInterval(() => {
+      const el = audioRef.current;
+      if (!el || el.paused || el.ended || !queueRef.current.length) return;
+      const now = Date.now();
+      if (el.currentTime !== lastProgressRef.current.t) {
+        lastProgressRef.current = { t: el.currentTime, at: now };
+        return;
+      }
+      if (now - lastProgressRef.current.at > 8000) {
+        // Lecture figée (réseau) : recharge la même source à la même position.
+        const t = el.currentTime;
+        const sessionId = loadSessionRef.current;
+        el.load();
+        el.currentTime = t;
+        el.play().catch(() => {
+          if (loadSessionRef.current === sessionId) setPlaying(false);
+        });
+        lastProgressRef.current = { t: -1, at: now };
+      }
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, [playing]);
 
   const onAudioError = () => {
     const el = audioRef.current;
@@ -1432,7 +1497,7 @@ function MushafPage() {
               dir="rtl"
               className="flex min-h-9 shrink-0 items-center justify-between px-1 pb-1 font-arabic text-[13px] leading-none text-foreground/65"
             >
-              <span>الجزء {JUZ_ORDINALS_AR[verses[0].juz] ?? toArabic(verses[0].juz)}</span>
+              <span />
               <span>{surahMeta?.nameArabic ?? ""}</span>
             </div>
           )}
@@ -1533,11 +1598,14 @@ function MushafPage() {
             <div
               lang="fr"
               dir="ltr"
-              className="flex min-h-10 shrink-0 items-center justify-center px-1 pt-1 font-sans text-[12px] leading-none tabular-nums text-foreground/60"
+              className="flex min-h-10 shrink-0 items-center justify-between px-2 pt-1 font-sans text-[12px] leading-none tabular-nums text-foreground/60"
             >
-              Page {page}
-              {verses[0].hizb ? ` · Hizb ${verses[0].hizb}` : ""}
-              {verses[0].rub ? ` · ${((verses[0].rub - 1) % 4) + 1}/4` : ""}
+              <span>{page}</span>
+              <span>
+                Juz {verses[0].juz}
+                {verses[0].hizb ? ` · Hizb ${verses[0].hizb}` : ""}
+                {verses[0].rub ? ` · ${((verses[0].rub - 1) % 4) + 1}/4` : ""}
+              </span>
             </div>
           )}
         </div>
