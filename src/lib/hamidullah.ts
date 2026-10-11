@@ -26,8 +26,11 @@ export interface HamidullahSuraAyah extends HamidullahAyah {
  * évite un appel par ayah pour la lecture continue française (§27
  * performance : pas de N+1 sur une sourate longue).
  */
+export const hamidullahSuraUrl = (surah: number) =>
+  `${QURANENC_API.replace("/aya/", "/sura/")}/${surah}`;
+
 export async function fetchHamidullahSura(surah: number): Promise<HamidullahSuraAyah[]> {
-  const res = await fetch(`${QURANENC_API.replace("/aya/", "/sura/")}/${surah}`);
+  const res = await fetch(hamidullahSuraUrl(surah));
   if (!res.ok) return [];
   const json = await res.json();
   const result = Array.isArray(json?.result) ? json.result : [];

@@ -17,6 +17,7 @@ import { fetchHamidullahSura } from "@/lib/hamidullah";
 import { useFavorites, writeJSON } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
+import { resolveAudioSrc } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/quran/lire/$surah")({
@@ -112,11 +113,16 @@ function LirePage() {
       setPlayingKey(null);
       return;
     }
-    audioEl.src = verseAudioUrl(prefs.quran.reciterId, verseKey);
+    const url = verseAudioUrl(prefs.quran.reciterId, verseKey);
     audioEl.playbackRate = prefs.quran.speed;
     audioEl.onended = () => setPlayingKey(null);
-    audioEl.play().catch(() => setPlayingKey(null));
     setPlayingKey(verseKey);
+    const start = (src: string) => {
+      audioEl.src = src;
+      audioEl.play().catch(() => setPlayingKey(null));
+    };
+    if (navigator.onLine) start(url);
+    else void resolveAudioSrc(url).then(start);
   };
 
   const shareAyah = async (verseKey: string, arabic: string, translation: string) => {

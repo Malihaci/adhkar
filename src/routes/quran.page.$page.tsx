@@ -58,6 +58,7 @@ import { usePreferences } from "@/lib/preferences";
 import { getPageContent, type EtudeCategory } from "@/lib/etude-content";
 import { ContentList, AgirSection } from "@/routes/etude.$surah.$ayah";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
+import { cachedAudioBlobUrl } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 
 interface Search {
@@ -312,10 +313,17 @@ function MushafPage() {
   const prefetchBlob = (url: string) => {
     if (blobCache.current.has(url) || blobPending.current.has(url)) return;
     blobPending.current.add(url);
-    fetch(url)
-      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("audio"))))
-      .then((b) => {
-        blobCache.current.set(url, URL.createObjectURL(b));
+    cachedAudioBlobUrl(url)
+      .then((local) => {
+        if (local) {
+          blobCache.current.set(url, local);
+          return;
+        }
+        return fetch(url)
+          .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("audio"))))
+          .then((b) => {
+            blobCache.current.set(url, URL.createObjectURL(b));
+          });
       })
       .catch(() => {
         /* repli : lecture directe de l'URL distante */
@@ -339,17 +347,30 @@ function MushafPage() {
       const sessionId = ++loadSessionRef.current;
       loadedKeyRef.current = key;
       audioRetryRef.current = 0;
-      el.src = playableUrl(
-        key === BASMALA_BRIDGE_KEY ? basmalaAudioUrl(reciterId) : verseAudioUrl(reciterId, key),
-      );
-      el.load();
-      el.playbackRate = speed;
-      if (autoplay) {
-        el.play().catch(() => {
-          // Une promesse issue d'un load() déjà remplacé par une commande
-          // plus récente ne doit jamais réinitialiser l'état de lecture.
-          if (loadSessionRef.current === sessionId) setPlaying(false);
+      const url = audioUrlForKey(key);
+      const apply = (src: string) => {
+        // Une source résolue après une commande plus récente est ignorée.
+        if (loadSessionRef.current !== sessionId) return;
+        el.src = src;
+        el.load();
+        el.playbackRate = speed;
+        if (autoplay) {
+          el.play().catch(() => {
+            if (loadSessionRef.current === sessionId) setPlaying(false);
+          });
+        }
+      };
+      const mem = blobCache.current.get(url);
+      if (mem) {
+        apply(mem);
+      } else if (typeof navigator !== "undefined" && !navigator.onLine) {
+        // Hors ligne : copie téléchargée (Paramètres > Hors ligne), sinon URL.
+        void cachedAudioBlobUrl(url).then((local) => {
+          if (local) blobCache.current.set(url, local);
+          apply(local ?? url);
         });
+      } else {
+        apply(url);
       }
     },
     [reciterId, speed],

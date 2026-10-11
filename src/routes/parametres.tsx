@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Building2, Check, ChevronDown, Laptop, MapPin, Moon, Navigation, Sun, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
+import { OfflineSettings } from "@/components/OfflineSettings";
 import { useTheme, type ThemeMode } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { useSmartReminderPrefs, type WirdReminderMode } from "@/lib/smartReminders";
@@ -844,6 +845,10 @@ function ParametresPage() {
           >
             Voir la page Horaires
           </a>
+        </Section>
+
+        <Section id="hors-ligne" title="Hors ligne" subtitle="Tout utiliser sans connexion">
+          <OfflineSettings />
         </Section>
 
         <Section id="general" title="Général / accessibilité">

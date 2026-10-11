@@ -14,6 +14,7 @@
  * réellement coraniques peuvent avoir cette voix ; les autres restent
  * "Audio indisponible", jamais un audio approximatif substitué.
  */
+import { resolveAudioSrc } from "@/lib/offline";
 import { useEffect, useRef, useState } from "react";
 import {
   BASMALA_BRIDGE_KEY,
@@ -117,10 +118,15 @@ export function useDhikrVerseAudio(
     queueRef.current = withBasmalaBridges(verseKeys);
     indexRef.current = 0;
     retryRef.current = 0;
-    el.src = resolveUrl(queueRef.current[0]);
     el.playbackRate = speed;
-    el.play().catch(() => setPlaying(false));
     setPlaying(true);
+    const begin = (src: string) => {
+      el.src = src;
+      el.play().catch(() => setPlaying(false));
+    };
+    const url = resolveUrl(queueRef.current[0]);
+    if (navigator.onLine) begin(url);
+    else void resolveAudioSrc(url).then(begin);
   };
 
   return { playing, toggle, available: !!verseKeys?.length };

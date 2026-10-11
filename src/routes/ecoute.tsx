@@ -1,3 +1,4 @@
+import { resolveAudioSrc } from "@/lib/offline";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -96,7 +97,12 @@ function EcoutePage() {
   // (Re)create the audio element when mode changes
   useEffect(() => {
     const el = new Audio();
-    el.src = audio.src;
+    if (navigator.onLine) el.src = audio.src;
+    else {
+      void resolveAudioSrc(audio.src).then((s) => {
+        if (audioRef.current === el) el.src = s;
+      });
+    }
     el.preload = "metadata";
     el.crossOrigin = "anonymous";
     audioRef.current = el;

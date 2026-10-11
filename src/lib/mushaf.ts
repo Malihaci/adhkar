@@ -32,8 +32,15 @@ export const TOTAL_PAGES = 604;
 
 export const clampPage = (p: number) => Math.min(TOTAL_PAGES, Math.max(1, Math.round(p) || 1));
 
+/** URLs exposées pour le « pack hors ligne » (src/lib/offline.ts) — une seule
+ * définition, partagée avec les appels réels. */
+export const chaptersUrl = () => `${API}/chapters?language=fr`;
+export const pageLayoutUrl = (page: number) =>
+  `${API}/verses/by_page/${clampPage(page)}?words=true&word_fields=text_uthmani,line_number,text_uthmani_tajweed&fields=text_uthmani&per_page=50`;
+export const fullQuranTextUrl = () => `${API}/quran/verses/uthmani`;
+
 export async function fetchChapters(): Promise<Chapter[]> {
-  const res = await fetch(`${API}/chapters?language=fr`);
+  const res = await fetch(chaptersUrl());
   if (!res.ok) throw new Error("Liste des sourates indisponible");
   const json = await res.json();
   return (json.chapters as any[]).map((c) => ({
@@ -102,9 +109,7 @@ export interface PageLayout {
  * on ne recalcule jamais les retours à la ligne.
  */
 export async function fetchPageLayout(page: number): Promise<PageLayout> {
-  const res = await fetch(
-    `${API}/verses/by_page/${clampPage(page)}?words=true&word_fields=text_uthmani,line_number,text_uthmani_tajweed&fields=text_uthmani&per_page=50`,
-  );
+  const res = await fetch(pageLayoutUrl(page));
   if (!res.ok) throw new Error("Page indisponible");
   const json = await res.json();
   const verses: PageVerse[] = [];
@@ -527,7 +532,7 @@ export interface FullVerseText {
  * téléchargement par session, jamais un par recherche.
  */
 export async function fetchFullQuranText(): Promise<FullVerseText[]> {
-  const res = await fetch(`${API}/quran/verses/uthmani`);
+  const res = await fetch(fullQuranTextUrl());
   if (!res.ok) throw new Error("Texte complet indisponible");
   const json = await res.json();
   return ((json.verses as any[]) ?? []).map((v) => ({
