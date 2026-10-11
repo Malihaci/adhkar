@@ -2,8 +2,10 @@ import type { Dhikr } from "@/data/adhkar";
 
 // Récitations authentiques de Cheikh Mishary Rashid Al-Afasy
 // Sources publiques hébergées sur archive.org (CORS activé, Range supporté)
-// `startOffset` : durée de l'introduction (ambiance, chant du coq, ta'awwudh)
-// à sauter pour démarrer directement sur Âyat al-Kursî.
+// `startOffset` : durée de l'introduction (chant du coq, oiseaux) à sauter pour
+// démarrer EXACTEMENT sur « A'ûdhu billâhi mina-sh-shaytâni-r-rajîm » (mesuré sur
+// l'enveloppe audio : silence/ambiance jusqu'à ~7,0 s (matin) et ~10,0 s (soir),
+// début de la voix à ~7,3 s et ~10,2 s).
 // Uniquement matin/soir — moteur audio non étendu aux nouvelles catégories
 // (coucher/sortie/voyage) dans ce chantier.
 export const AFASY_AUDIO: Record<
@@ -13,12 +15,12 @@ export const AFASY_AUDIO: Record<
   morning: {
     src: "https://ia800900.us.archive.org/26/items/sheikh-mishary-rashid-alafasy-azkar/Sheikh%20Mishary%20Rashid%20Alafasy%20-%20%D8%A3%D8%B0%D9%83%D8%A7%D8%B1%20%D8%A7%D9%84%D8%B5%D8%A8%D8%A7%D8%AD.mp3",
     duration: 1408.55,
-    startOffset: 41,
+    startOffset: 7.15,
   },
   evening: {
     src: "https://ia800900.us.archive.org/26/items/sheikh-mishary-rashid-alafasy-azkar/Sheikh%20Mishary%20Rashid%20Alafasy%20-%20%D8%A3%D8%B0%D9%83%D8%A7%D8%B1%20%D8%A7%D9%84%D9%85%D8%B3%D8%A7%D8%A1.mp3",
     duration: 1662.59,
-    startOffset: 41,
+    startOffset: 10.1,
   },
 };
 
