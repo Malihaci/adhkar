@@ -39,7 +39,8 @@ import {
   keysToEndOfQuran,
   normalizeArabicForSearch,
   parseQuranQuery,
-  parseTajweedSegments,
+  loadQcfFont,
+  type QcfVariant,
   searchQuranArabic,
   searchQuranFallback,
   TAJWEED_COLORS,
@@ -924,7 +925,6 @@ function MushafPage() {
   const fitBoxRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState(26);
-  const scaleRowsRef = useRef<(() => void) | null>(null);
   /**
    * Cause réelle du texte trop petit sur mobile : l'ancien réglage "Taille
    * du Mushaf" rétrécissait la boîte de calcul par `zoom` PUIS agrandissait
@@ -952,8 +952,8 @@ function MushafPage() {
    * et le lecteur ayah-par-ayah, mais chaque écran l'applique différemment
    * (§9 mission) : ici, une fraction sûre du plafond de largeur du Mushaf. */
   const TEXT_SIZE_LEVELS = [
-    { key: "normal" as const, value: 0.9, label: "Standard" },
-    { key: "large" as const, value: 0.96, label: "Grand" },
+    { key: "normal" as const, value: 0.92, label: "Standard" },
+    { key: "large" as const, value: 1, label: "Grand" },
     { key: "xlarge" as const, value: 1, label: "Très grand" },
   ] as const;
   const textSize =
@@ -970,68 +970,38 @@ function MushafPage() {
   const tajweedMode = prefs.quran.tajweed;
   const setTajweedMode = (v: boolean) => updateQuran({ tajweed: v });
 
-  /** Tajwīd par CSS Custom Highlight API : le texte de chaque mot reste UN
-   * SEUL nœud texte, strictement identique au mode Normal — seules les
-   * couleurs changent, la géométrie (largeur des mots, lignes) est donc
-   * rigoureusement la même. (Découper en <span> modifiait de 1 à 4 px
-   * la largeur de certains mots : kerning/jonctions rompus.) Repli en
-   * <span> uniquement si l'API n'existe pas. */
-  // Aucune sélection de texte NATIVE dans le renderer Mushaf (poignées, menu
-  // système) — uniquement ici : traductions, tafsīr, Étudier restent intacts.
+  /** Police officielle de la page (KFGQPC « QCF » v2 = noir, v4 = Tajwīd en
+   * couleurs, mêmes glyphes) : chaque mot est un glyphe imprimé, donc mêmes
+   * formes et mêmes justifications que le Mushaf papier. Rien n'est affiché
+   * tant que la police de CETTE page n'est pas chargée. */
+  const qcfVariant: QcfVariant = tajweedMode ? "v4" : "v2";
+  const [qcfLoadedName, setQcfLoadedName] = useState<string | null>(null);
   useEffect(() => {
-    const sheet = sheetRef.current;
-    if (!sheet) return;
-    const block = (e: Event) => e.preventDefault();
-    sheet.addEventListener("selectstart", block);
-    return () => sheet.removeEventListener("selectstart", block);
-  }, [lines]);
-
-  const [hlSupported, setHlSupported] = useState(false);
-  useEffect(() => {
-    setHlSupported(typeof CSS !== "undefined" && "highlights" in CSS);
-  }, []);
-  useEffect(() => {
-    if (!hlSupported) return;
-    const registry = (CSS as unknown as { highlights: Map<string, unknown> }).highlights;
-    const HighlightCtor = (window as unknown as { Highlight: new (...r: Range[]) => unknown }).Highlight;
-    const rules = Object.keys(TAJWEED_COLORS);
-    if (!document.getElementById("tj-highlight-styles")) {
-      const style = document.createElement("style");
-      style.id = "tj-highlight-styles";
-      style.textContent = rules
-        .map((r) => `::highlight(tj-${r}){color:${TAJWEED_COLORS[r]};}`)
-        .join("\n");
-      document.head.appendChild(style);
-    }
-    const clear = () => rules.forEach((r) => registry.delete(`tj-${r}`));
-    clear();
-    const sheet = sheetRef.current;
-    if (!tajweedMode || !sheet) return clear;
-    const ranges: Record<string, Range[]> = {};
-    sheet.querySelectorAll<HTMLElement>("[data-tj]").forEach((el) => {
-      const node = el.firstChild;
-      if (!node || node.nodeType !== Node.TEXT_NODE) return;
-      let off = 0;
-      for (const seg of parseTajweedSegments(el.dataset.tj ?? "")) {
-        const end = off + seg.text.length;
-        if (seg.rule && TAJWEED_COLORS[seg.rule] && end <= (node as Text).length) {
-          const r = document.createRange();
-          r.setStart(node, off);
-          r.setEnd(node, end);
-          (ranges[seg.rule] ??= []).push(r);
-        }
-        off = end;
-      }
-    });
-    for (const [rule, rs] of Object.entries(ranges)) registry.set(`tj-${rule}`, new HighlightCtor(...rs));
-    return clear;
-  }, [hlSupported, tajweedMode, lines, page]);
+    let cancelled = false;
+    setQcfLoadedName(null);
+    loadQcfFont(page, qcfVariant)
+      .catch(() => loadQcfFont(page, "v2")) // Tajwīd indisponible : même page en noir
+      .then((name) => {
+        if (!cancelled) setQcfLoadedName(name);
+      })
+      .catch(() => {
+        /* hors ligne sans police en cache : le Mushaf attend la connexion */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [page, qcfVariant]);
+  const qcfName = qcfLoadedName && qcfLoadedName.endsWith(`_p${page}`) ? qcfLoadedName : null;
 
   useLayoutEffect(() => {
     const box = boxRef.current;
     const fitBox = fitBoxRef.current;
     const sheet = sheetRef.current;
     if (!box || !fitBox || !sheet || !lines?.length) return;
+    if (!qcfName) {
+      sheet.style.visibility = "hidden";
+      return;
+    }
     let raf = 0;
     let cancelled = false;
     // scrollWidth === clientWidth dès qu'une ligne tient (pas de "marge"
@@ -1040,44 +1010,17 @@ function MushafPage() {
     // pour ne jamais laisser un mot/haraka effleurer le bord de la ligne.
     // La hauteur n'est plus vérifiée ici : un dépassement vertical fait
     // défiler la page (voir overflow-y-auto), jamais rétrécir le texte.
-    const SAFE_FACTOR = 0.97;
+    // Glyphes imprimés : la ligne la plus large occupe presque toute la largeur
+    // (marge 0,5 % seulement) ; les autres lignes ont déjà quasi la même largeur
+    // naturelle (justification gravée dans la police).
+    const SAFE_FACTOR = 0.995;
     const fitsWidth = () => {
       const rows = sheet.querySelectorAll<HTMLElement>("[data-mushaf-line]");
       for (const r of rows) if (r.scrollWidth > r.clientWidth) return false;
       return true;
     };
-    /** Chaque ligne Médine garde EXACTEMENT ses mots ; elle reçoit la plus
-     * grande taille (≤ +15 % de la base) qui la fait tenir à espacement
-     * naturel, marge sûre de 1,5 %. Une ligne courte reste centrée, jamais
-     * étirée mot par mot. */
-    const MAX_LINE_SCALE = 1.15;
-    const scaleRows = () => {
-      const rows = Array.from(sheet.querySelectorAll<HTMLElement>("[data-mushaf-line]"));
-      rows.forEach((r) => {
-        r.style.fontSize = "";
-      });
-      const scales = rows.map((r) => {
-        const cs = window.getComputedStyle(r);
-        const avail = r.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-        const gap = parseFloat(cs.columnGap) || 0;
-        const kids = Array.from(r.children) as HTMLElement[];
-        const natural =
-          kids.reduce((n, c) => n + c.getBoundingClientRect().width, 0) +
-          gap * Math.max(0, kids.length - 1);
-        return natural > 0 ? Math.min(MAX_LINE_SCALE, (avail / natural) * 0.985) : 1;
-      });
-      rows.forEach((r, i) => {
-        if (scales[i] > 1.001) r.style.fontSize = `${scales[i]}em`;
-      });
-    };
-    scaleRowsRef.current = scaleRows;
     const fit = () => {
       if (cancelled) return;
-      // La recherche de taille de base se fait lignes à taille NEUTRE : sinon les
-      // échelles par ligne d'un passage précédent fausseraient la mesure.
-      sheet.querySelectorAll<HTMLElement>("[data-mushaf-line]").forEach((r) => {
-        r.style.fontSize = "";
-      });
       // En portrait, la largeur reste plafonnée (comme l'ancien max-w-2xl) ;
       // en paysage, le Mushaf utilise toute la largeur réellement disponible.
       const isLandscape =
@@ -1122,7 +1065,6 @@ function MushafPage() {
       const safe = ceiling * textSizeRef.current;
       sheet.style.fontSize = `${safe}px`;
       setFontPx(safe);
-      scaleRows();
     };
     // 1er passage immédiat (police de repli le temps du chargement), puis
     // recalcul dès que "Amiri Quran" est réellement disponible : sans cela,
@@ -1131,21 +1073,13 @@ function MushafPage() {
     // Rien n'est montré tant que la police n'est pas chargée ET mesurée : aucun
     // rendu intermédiaire avec les métriques de la police de secours (qui
     // pourrait déborder ou changer de taille à l'écran).
-    const sampleText = lines.map((l) => l.words.map((w) => w.text).join(" ")).join(" ");
     sheet.style.visibility = "hidden";
     const reveal = () => {
       if (!cancelled) sheet.style.visibility = "visible";
     };
-    const revealTimer = window.setTimeout(reveal, 2000);
-    raf = requestAnimationFrame(fit);
+    const revealTimer = window.setTimeout(reveal, 2500);
     if (typeof document !== "undefined" && document.fonts) {
-      Promise.all([
-        document.fonts.ready,
-        // Le texte RÉEL de la page : sans lui, le navigateur ne charge que le
-        // sous-ensemble latin de la police (unicode-range) et le fit mesure la
-        // police de secours — cause de lignes trop larges/coupées au 1er rendu.
-        document.fonts.load('700 16px "Amiri Quran"', sampleText).catch(() => []),
-      ]).then(() => {
+      document.fonts.ready.then(() => {
         if (cancelled) return;
         requestAnimationFrame(() => {
           fit();
@@ -1153,7 +1087,10 @@ function MushafPage() {
         });
       });
     } else {
-      reveal();
+      raf = requestAnimationFrame(() => {
+        fit();
+        reveal();
+      });
     }
     // Observe la boîte RÉELLE : redimensionnement de fenêtre ET rotation
     // portrait/paysage déclenchent tous les deux un recalcul du fitting.
@@ -1176,7 +1113,7 @@ function MushafPage() {
     // dépend que de l'écran/police) — voir l'effet séparé ci-dessous qui se
     // contente de réappliquer `ceilingFontPx * textSize`, instantané.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines]);
+  }, [lines, qcfName]);
 
   // Changement de "Standard/Grand/Très grand" : pas besoin de refaire la
   // recherche en largeur, seulement réappliquer la fraction du plafond déjà
@@ -1184,7 +1121,6 @@ function MushafPage() {
   useEffect(() => {
     if (sheetRef.current) sheetRef.current.style.fontSize = `${ceilingFontPx * textSize}px`;
     setFontPx(ceilingFontPx * textSize);
-    scaleRowsRef.current?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textSize, ceilingFontPx]);
 
@@ -1532,7 +1468,7 @@ function MushafPage() {
             // (l'ancien `mushaf-no-callout`/user-select:none empêchait
             // aussi bien le menu natif Android que toute sélection
             // partielle, ce qui est désormais explicitement indésirable).
-            className="flex w-full flex-1 select-none flex-col justify-between gap-[0.35em] [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent]"
+            className="flex w-full flex-1 select-none flex-col justify-between gap-[0.12em] [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent]"
             onContextMenu={onSheetContextMenu}
           >
             {(lines ?? []).map((line, li) => {
@@ -1568,7 +1504,8 @@ function MushafPage() {
                     data-mushaf-line
                     lang="ar"
                     dir="rtl"
-                    className="flex items-baseline justify-center gap-[0.24em] whitespace-nowrap px-[0.15em] font-arabic font-bold leading-[1.9] text-foreground"
+                    style={qcfName ? { fontFamily: `"${qcfName}"`, fontWeight: 400 } : undefined}
+                    className="flex items-baseline justify-between whitespace-nowrap leading-[1.9] text-foreground"
                   >
                     {line.words.map((w, wi) => {
                       const isSel = selected.includes(w.key);
@@ -1579,7 +1516,6 @@ function MushafPage() {
                           role="button"
                           tabIndex={-1}
                           data-word-key={w.key}
-                          data-tj={tajweedMode && hlSupported && !w.end ? w.tajweed : undefined}
                           className={cn(
                             // Surlignage de sélection volontairement très discret
                             // (simple teinte, pas de changement de couleur de texte)
@@ -1588,25 +1524,9 @@ function MushafPage() {
                             "rounded px-[0.05em] transition-colors",
                             isSel && "bg-primary/15",
                             isPlaying && "bg-gold/20 text-gold",
-                            w.end && "text-gold",
                           )}
                         >
-                          {w.end
-                            ? `\u06DD${toArabic(w.ayah)}`
-                            : tajweedMode && w.tajweed && hlSupported
-                              ? w.text
-                              : tajweedMode && w.tajweed
-                              ? parseTajweedSegments(w.tajweed).map((seg, si) => (
-                                  <span
-                                    key={si}
-                                    style={
-                                      seg.rule ? { color: TAJWEED_COLORS[seg.rule] } : undefined
-                                    }
-                                  >
-                                    {seg.text}
-                                  </span>
-                                ))
-                              : w.text}
+                          {w.code ?? w.text}
                         </span>
                       );
                     })}

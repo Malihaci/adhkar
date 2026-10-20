@@ -13,7 +13,7 @@
 //    hors ligne est stocké par l'application dans AUDIO_CACHE et lu via des
 //    URL blob (voir src/lib/offline.ts).
 // Changer VERSION nettoie les anciens caches (AUDIO_CACHE est conservé).
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL = `adhkar-shell-${VERSION}`;
 const ASSETS = `adhkar-assets-${VERSION}`;
 const DATA = `adhkar-data-${VERSION}`;
@@ -119,6 +119,11 @@ self.addEventListener("fetch", (event) => {
     return; // /api/*, fonctions serveur, dev (/@vite…) : réseau
   }
 
+  // Polices du Mushaf par page (KFGQPC « QCF ») — immuables.
+  if (url.hostname === "verses.quran.com" && url.pathname.startsWith("/fonts/")) {
+    event.respondWith(cacheFirst(request, FONTS));
+    return;
+  }
   if (FONT_HOSTS.includes(url.hostname)) {
     event.respondWith(cacheFirst(request, FONTS));
     return;

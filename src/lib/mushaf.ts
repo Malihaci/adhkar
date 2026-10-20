@@ -36,7 +36,34 @@ export const clampPage = (p: number) => Math.min(TOTAL_PAGES, Math.max(1, Math.r
  * définition, partagée avec les appels réels. */
 export const chaptersUrl = () => `${API}/chapters?language=fr`;
 export const pageLayoutUrl = (page: number) =>
-  `${API}/verses/by_page/${clampPage(page)}?words=true&word_fields=text_uthmani,line_number,text_uthmani_tajweed&fields=text_uthmani&per_page=50`;
+  `${API}/verses/by_page/${clampPage(page)}?words=true&word_fields=text_uthmani,line_number,v2_page,code_v2&fields=text_uthmani&per_page=50`;
+
+/** Polices officielles par page du Mushaf de Médine (KFGQPC « QCF ») : chaque
+ * mot est UN glyphe imprimé — mêmes formes, mêmes justifications que le papier.
+ * v2 = noir ; v4 = Tajwīd en couleurs (mêmes glyphes, même géométrie). */
+export type QcfVariant = "v2" | "v4";
+export const qcfFontUrl = (page: number, variant: QcfVariant) =>
+  variant === "v2"
+    ? `https://verses.quran.com/fonts/quran/hafs/v2/woff2/p${clampPage(page)}.woff2`
+    : `https://verses.quran.com/fonts/quran/hafs/v4/colrv1/woff2/p${clampPage(page)}.woff2`;
+export const qcfFamily = (page: number, variant: QcfVariant) => `QCF_${variant}_p${clampPage(page)}`;
+
+const qcfLoaded = new Map<string, Promise<string>>();
+/** Charge (une seule fois) la police de la page ; renvoie le nom de famille. */
+export function loadQcfFont(page: number, variant: QcfVariant): Promise<string> {
+  const family = qcfFamily(page, variant);
+  let p = qcfLoaded.get(family);
+  if (!p) {
+    const face = new FontFace(family, `url(${qcfFontUrl(page, variant)}) format("woff2")`);
+    p = face.load().then(() => {
+      document.fonts.add(face);
+      return family;
+    });
+    p.catch(() => qcfLoaded.delete(family));
+    qcfLoaded.set(family, p);
+  }
+  return p;
+}
 export const fullQuranTextUrl = () => `${API}/quran/verses/uthmani`;
 
 export async function fetchChapters(): Promise<Chapter[]> {
@@ -84,6 +111,8 @@ export interface LayoutWord {
   end: boolean;
   /** premier mot du verset */
   first: boolean;
+  /** Glyphe imprimé du mot dans la police QCF de la page (mise en page V2). */
+  code?: string;
   /**
    * Texte du même mot avec balises `<rule class=X>...</rule>` — fourni
    * directement par api.quran.com (Hafs 'an 'Asim, alignement mot à mot
@@ -109,38 +138,50 @@ export interface PageLayout {
  * on ne recalcule jamais les retours à la ligne.
  */
 export async function fetchPageLayout(page: number): Promise<PageLayout> {
-  const res = await fetch(pageLayoutUrl(page));
-  if (!res.ok) throw new Error("Page indisponible");
-  const json = await res.json();
+  // Pagination V2 (Mushaf de Médine récent) : un verset coupé en fin de page V1
+  // peut ouvrir la page V2 suivante. Les mots d'une page V2 se trouvent donc
+  // dans les pages V1 voisines : on garde ceux dont `v2_page` est cette page.
+  const target = clampPage(page);
+  const neighbours = [target - 1, target, target + 1].filter((p) => p >= 1 && p <= TOTAL_PAGES);
+  const jsons = await Promise.all(
+    neighbours.map(async (p) => {
+      const res = await fetch(pageLayoutUrl(p));
+      if (!res.ok) throw new Error("Page indisponible");
+      return (await res.json()) as { verses: any[] };
+    }),
+  );
   const verses: PageVerse[] = [];
   const byLine = new Map<number, LayoutWord[]>();
-  for (const v of json.verses as any[]) {
-    const [s, a] = String(v.verse_key).split(":").map(Number);
-    verses.push({
-      key: v.verse_key,
-      surah: s,
-      ayah: a,
-      arabic: (v.text_uthmani ?? "").trim(),
-      juz: v.juz_number,
-      hizb: v.hizb_number ?? 0,
-      rub: v.rub_el_hizb_number,
-    });
-    const words = (v.words as any[]) ?? [];
-    words.forEach((w, i) => {
-      const line = Number(w.line_number) || 0;
-      if (!line) return;
-      const arr = byLine.get(line) ?? [];
-      arr.push({
+  for (const json of jsons) {
+    for (const v of json.verses as any[]) {
+      const words = ((v.words as any[]) ?? []).filter((w) => Number(w.v2_page) === target);
+      if (!words.length) continue;
+      const [s, a] = String(v.verse_key).split(":").map(Number);
+      verses.push({
         key: v.verse_key,
         surah: s,
         ayah: a,
-        text: w.text_uthmani ?? w.text ?? "",
-        end: w.char_type_name === "end",
-        first: i === 0,
-        tajweed: typeof w.text_uthmani_tajweed === "string" ? w.text_uthmani_tajweed : undefined,
+        arabic: (v.text_uthmani ?? "").trim(),
+        juz: v.juz_number,
+        hizb: v.hizb_number ?? 0,
+        rub: v.rub_el_hizb_number,
       });
-      byLine.set(line, arr);
-    });
+      for (const w of words) {
+        const line = Number(w.line_number) || 0;
+        if (!line) continue;
+        const arr = byLine.get(line) ?? [];
+        arr.push({
+          key: v.verse_key,
+          surah: s,
+          ayah: a,
+          text: w.text_uthmani ?? "",
+          code: typeof w.code_v2 === "string" ? w.code_v2 : undefined,
+          end: w.char_type_name === "end",
+          first: Number(w.position) === 1,
+        });
+        byLine.set(line, arr);
+      }
+    }
   }
   const lines = [...byLine.entries()]
     .sort((x, y) => x[0] - y[0])

@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useReminderEngine } from "@/lib/reminders";
 import { useSmartReminderEngine } from "@/lib/smartReminders";
 import { usePreferences } from "@/lib/preferences";
+import { maybeAutoDownloadCorePack } from "@/lib/offline";
 
 function NotFoundComponent() {
   return (
@@ -191,10 +192,18 @@ function SmartReminderEngine() {
 function ServiceWorkerRegistration() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      // Échec silencieux : l'app reste pleinement fonctionnelle sans SW,
-      // seule l'installation PWA peut rester indisponible.
-    });
+    let timer: number | undefined;
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then(() => {
+        // Hors ligne : après 20 s d'utilisation, télécharge l'app + le Coran une
+        // seule fois, en arrière-plan (désactivable dans Paramètres > Hors ligne).
+        timer = window.setTimeout(() => maybeAutoDownloadCorePack(), 20_000);
+      })
+      .catch(() => {
+        // Échec silencieux : l'app reste pleinement fonctionnelle sans SW.
+      });
+    return () => window.clearTimeout(timer);
   }, []);
   return null;
 }

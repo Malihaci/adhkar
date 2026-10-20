@@ -10,7 +10,9 @@ import {
   downloadCorePack,
   downloadSurahAudio,
   getOfflineStatus,
+  isAutoOfflineEnabled,
   offlineSupported,
+  setAutoOfflineEnabled,
   type OfflineStatus,
   type PackProgress,
 } from "@/lib/offline";
@@ -28,6 +30,8 @@ export function OfflineSettings() {
   const [surah, setSurah] = useState(18);
   const [surahCached, setSurahCached] = useState<number | null>(null);
   const stopRef = useRef(false);
+  const [auto, setAuto] = useState(true);
+  useEffect(() => setAuto(isAutoOfflineEnabled()), []);
 
   const refresh = useCallback(async () => {
     if (offlineSupported()) setStatus(await getOfflineStatus());
@@ -99,12 +103,25 @@ export function OfflineSettings() {
         </p>
       )}
 
+      <label className="flex min-h-11 items-center justify-between gap-3 text-sm font-medium text-foreground">
+        Téléchargement automatique (connexion correcte)
+        <input
+          type="checkbox"
+          className="size-6 accent-[var(--color-primary)]"
+          checked={auto}
+          onChange={(e) => {
+            setAuto(e.target.checked);
+            setAutoOfflineEnabled(e.target.checked);
+          }}
+        />
+      </label>
+
       <button
         className={btn}
         disabled={!!busy}
         onClick={() => run("core", () => downloadCorePack(setProgress, () => stopRef.current))}
       >
-        <Download className="size-4" /> Télécharger l'application et le Coran (≈ 60 Mo)
+        <Download className="size-4" /> Télécharger l'application et le Coran (≈ 130 Mo)
       </button>
 
       <button

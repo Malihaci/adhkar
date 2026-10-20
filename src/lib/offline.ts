@@ -14,6 +14,7 @@ import {
   fetchChapters,
   fullQuranTextUrl,
   pageLayoutUrl,
+  qcfFontUrl,
   verseAudioUrl,
   TOTAL_PAGES,
 } from "@/lib/mushaf";
@@ -147,6 +148,9 @@ export async function downloadCorePack(
     { url: chaptersUrl() },
     { url: fullQuranTextUrl() },
     ...Array.from({ length: TOTAL_PAGES }, (_, i) => ({ url: pageLayoutUrl(i + 1) })),
+    // Polices officielles du Mushaf (une par page). Le Tajwīd en couleurs (v4)
+    // se met en cache à la première utilisation.
+    ...Array.from({ length: TOTAL_PAGES }, (_, i) => ({ url: qcfFontUrl(i + 1, "v2") })),
     ...Array.from({ length: 114 }, (_, i) => ({ url: hamidullahSuraUrl(i + 1) })),
   ];
 
@@ -322,4 +326,44 @@ export async function clearOfflineData(): Promise<void> {
   if (!offlineSupported()) return;
   const keys = await caches.keys();
   await Promise.all(keys.filter((k) => k.startsWith("adhkar-")).map((k) => caches.delete(k)));
+}
+
+/* ----------------------------------------------- téléchargement automatique */
+const AUTO_KEY = "adhkar:offline:auto";
+const DONE_KEY = "adhkar:offline:core-done-v4";
+
+export function isAutoOfflineEnabled(): boolean {
+  try {
+    return localStorage.getItem(AUTO_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+export function setAutoOfflineEnabled(on: boolean) {
+  try {
+    localStorage.setItem(AUTO_KEY, on ? "on" : "off");
+  } catch {
+    /* ignoré */
+  }
+}
+
+/** Une seule fois, en arrière-plan, connexion correcte et hors économiseur de
+ * données : télécharge l'app + le Coran (texte, Mushaf, polices). Relancé
+ * seulement si un téléchargement précédent est resté incomplet. */
+export function maybeAutoDownloadCorePack(): void {
+  if (!offlineSupported() || !navigator.onLine || !isAutoOfflineEnabled()) return;
+  try {
+    if (localStorage.getItem(DONE_KEY) === "done") return;
+  } catch {
+    return;
+  }
+  const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string; type?: string } })
+    .connection;
+  if (conn?.saveData) return;
+  if (conn?.effectiveType && !["4g", "5g"].includes(conn.effectiveType) && conn.type !== "wifi") return;
+  void downloadCorePack(() => undefined)
+    .then(({ failed }) => {
+      if (failed === 0) localStorage.setItem(DONE_KEY, "done");
+    })
+    .catch(() => undefined);
 }
