@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { fetchChapters, fetchVerseDetail, verseAudioUrl, defaultReciter } from "@/lib/mushaf";
-import { fetchTafsir, sliceSaadiForAyah, tafsirGroupRange, type TafsirSlug } from "@/lib/quran";
+import { fetchMokhtasarLessons, fetchTafsir, sliceSaadiForAyah, tafsirGroupRange, type TafsirSlug } from "@/lib/quran";
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
 import { useActionsProgress, useFavorites, useLocalState } from "@/lib/storage";
 import { formatVerseScope, getEtudeContent, type EtudeContent } from "@/lib/etude-content";
@@ -217,6 +217,12 @@ function EtudePage() {
   };
 
   // Rubriques toujours affichées (objectif principal de l'étude), même sans contenu.
+  const { data: mkLessons } = useQuery({
+    queryKey: ["mokhtasar-lessons"],
+    queryFn: fetchMokhtasarLessons,
+    staleTime: Infinity,
+  });
+  const mkHasLessons = !!mkLessons?.some((x) => x.surah === surah && ayah >= x.from && ayah <= x.to);
   const plusSections: Section[] = ["asbab_nuzul", "lesson", "tadabbur", "amal", "today"];
   const plusCount: Record<string, number> = {
     asbab_nuzul: contexteItems.length,
@@ -469,13 +475,18 @@ function EtudePage() {
                       {SECTION_META[key].subtitle}
                     </span>
                   </h3>
-                  {plusCount[key] === 0 && (
+                  {plusCount[key] === 0 && !(key === "lesson" && mkHasLessons) && (
                     <p className="rounded-xl border border-dashed border-border px-3 py-3 text-xs text-muted-foreground">
                       Pas encore de contenu sourcé pour cette āyah.
                     </p>
                   )}
                   {key === "asbab_nuzul" && <ContentList items={contexteItems} />}
-                  {key === "lesson" && <ContentList items={lessonItems} />}
+                  {key === "lesson" && (
+                    <>
+                      <ContentList items={lessonItems} />
+                      <MokhtasarLessons surah={surah} ayah={ayah} />
+                    </>
+                  )}
                   {key === "tadabbur" && <ContentList items={meditateItems} />}
                   {key === "today" && <ContentList items={todayItems} />}
                   {key === "amal" && <AgirSection items={agirItems} />}
@@ -502,6 +513,29 @@ function EtudePage() {
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+function MokhtasarLessons({ surah, ayah }: { surah: number; ayah: number }) {
+  const { data } = useQuery({
+    queryKey: ["mokhtasar-lessons"],
+    queryFn: fetchMokhtasarLessons,
+    staleTime: Infinity,
+  });
+  const p = data?.find((x) => x.surah === surah && ayah >= x.from && ayah <= x.to);
+  if (!p) return null;
+  return (
+    <div className="mt-2 rounded-2xl border border-border bg-card p-4">
+      <p className="mb-2 text-[11px] font-medium text-muted-foreground">
+        Concerne les āyāt {surah}:{p.from}
+        {p.to > p.from ? `–${p.to}` : ""} · Tafsīr al-Mukhtasar (français)
+      </p>
+      <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-foreground">
+        {p.lessons.map((l, i) => (
+          <li key={i}>{l}</li>
+        ))}
+      </ol>
     </div>
   );
 }

@@ -146,3 +146,23 @@ export async function tafsirGroupRange(
   }
   return [a, b];
 }
+
+export interface MokhtasarPassage {
+  surah: number;
+  from: number;
+  to: number;
+  lessons: string[];
+}
+
+let lessonsPromise: Promise<MokhtasarPassage[]> | null = null;
+
+/** « Quelques enseignements déduits de ces versets » (Mukhtasar français), par passage. */
+export function fetchMokhtasarLessons(): Promise<MokhtasarPassage[]> {
+  lessonsPromise ??= fetch("/tafsir/mokhtasar-lessons.json")
+    .then((r) => (r.ok ? (r.json() as Promise<MokhtasarPassage[]>) : []))
+    .catch(() => {
+      lessonsPromise = null;
+      return [] as MokhtasarPassage[];
+    });
+  return lessonsPromise;
+}
