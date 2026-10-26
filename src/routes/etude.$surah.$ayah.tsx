@@ -216,12 +216,20 @@ function EtudePage() {
     });
   };
 
-  const plusSections: Section[] = sections.filter((s) => s !== "tafsir");
+  // Rubriques toujours affichées (objectif principal de l'étude), même sans contenu.
+  const plusSections: Section[] = ["asbab_nuzul", "lesson", "tadabbur", "amal", "today"];
+  const plusCount: Record<string, number> = {
+    asbab_nuzul: contexteItems.length,
+    lesson: lessonItems.length,
+    tadabbur: meditateItems.length,
+    amal: agirItems.length,
+    today: todayItems.length,
+  };
   const tabs: { key: StudyTab; label: string }[] = [
     { key: "mukhtasar", label: "Mukhtasar" },
     { key: "saadi", label: "As-Saʿdī" },
     { key: "ibnkathir", label: "Ibn Kathīr" },
-    ...(plusSections.length ? [{ key: "plus" as StudyTab, label: "Plus" }] : []),
+    { key: "plus" as StudyTab, label: "Leçons & actions" },
   ];
 
   const startPress = () => {
@@ -461,6 +469,11 @@ function EtudePage() {
                       {SECTION_META[key].subtitle}
                     </span>
                   </h3>
+                  {plusCount[key] === 0 && (
+                    <p className="rounded-xl border border-dashed border-border px-3 py-3 text-xs text-muted-foreground">
+                      Pas encore de contenu sourcé pour cette āyah.
+                    </p>
+                  )}
                   {key === "asbab_nuzul" && <ContentList items={contexteItems} />}
                   {key === "lesson" && <ContentList items={lessonItems} />}
                   {key === "tadabbur" && <ContentList items={meditateItems} />}
