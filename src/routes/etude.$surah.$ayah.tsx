@@ -681,9 +681,13 @@ function TafsirReader({
 
       {noFrench && (
         <div className="rounded-xl border border-border bg-card px-3.5 py-3 text-sm leading-relaxed text-muted-foreground">
-          Il n'existe pas de traduction française de ce tafsīr dans nos sources : le texte arabe est
+          Aucune édition française publiée de ce tafsīr dans nos sources : le texte arabe est
           affiché ci-dessous.
         </div>
+      )}
+
+      {noFrench && arText && (
+        <AutoTranslate cacheKey={`${arSlug}:${surah}:${ayah}`} text={arText} />
       )}
 
       {needArabic && (
@@ -710,6 +714,83 @@ function TafsirReader({
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * Traduction automatique FRANÇAISE, locale (API Translator de Chrome : gratuite,
+ * sur l'appareil, sans clé). Sauvegardée dans le navigateur, donc relisible hors
+ * ligne. Toujours étiquetée « non officielle » ; l'arabe reste la référence.
+ */
+function AutoTranslate({ cacheKey, text }: { cacheKey: string; text: string }) {
+  const storeKey = `tr-fr:${cacheKey}`;
+  const [fr, setFr] = useState<string | null>(null);
+  const [state, setState] = useState<"idle" | "busy" | "unsupported" | "error">("idle");
+  useEffect(() => {
+    setFr(null);
+    setState("idle");
+    try {
+      setFr(localStorage.getItem(storeKey));
+    } catch {
+      /* indisponible */
+    }
+  }, [storeKey]);
+
+  const run = async () => {
+    const T = (globalThis as unknown as { Translator?: any }).Translator;
+    if (!T) {
+      setState("unsupported");
+      return;
+    }
+    setState("busy");
+    try {
+      const opts = { sourceLanguage: "ar", targetLanguage: "fr" };
+      if ((await T.availability(opts)) === "unavailable") {
+        setState("unsupported");
+        return;
+      }
+      const tr = await T.create(opts);
+      const parts = text.split(/\n+/).filter((p) => p.trim());
+      const out: string[] = [];
+      for (const p of parts) out.push(await tr.translate(p));
+      const result = out.join("\n\n");
+      setFr(result);
+      setState("idle");
+      try {
+        localStorage.setItem(storeKey, result);
+      } catch {
+        /* quota */
+      }
+    } catch {
+      setState("error");
+    }
+  };
+
+  return (
+    <Block label="Français — traduction automatique (non officielle)">
+      {fr ? (
+        <p className="whitespace-pre-line text-[1.05rem] leading-[1.95] text-foreground">{fr}</p>
+      ) : (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={run}
+            disabled={state === "busy"}
+            className="min-h-11 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
+          >
+            {state === "busy" ? "Traduction en cours…" : "Traduire en français"}
+          </button>
+          {state === "unsupported" && (
+            <p className="text-xs text-muted-foreground">
+              La traduction sur l'appareil n'est disponible que dans Chrome / Edge sur ordinateur.
+            </p>
+          )}
+          {state === "error" && (
+            <p className="text-xs text-muted-foreground">Échec de la traduction, réessayez.</p>
+          )}
+        </div>
+      )}
+    </Block>
   );
 }
 
