@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -7,18 +7,21 @@ import {
   ChevronLeft,
   ChevronRight,
   Compass,
+  Copy,
   Heart,
+  MoreHorizontal,
   Pause,
   Play,
   Share2,
   Sparkles,
   Sun,
   Volume2,
+  X,
 } from "lucide-react";
 import { fetchChapters, fetchVerseDetail, verseAudioUrl, defaultReciter } from "@/lib/mushaf";
-import { fetchTafsir, type TafsirSlug } from "@/lib/quran";
+import { fetchTafsir, sliceSaadiForAyah, tafsirGroupRange, type TafsirSlug } from "@/lib/quran";
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
-import { useActionsProgress, useFavorites } from "@/lib/storage";
+import { useActionsProgress, useFavorites, useLocalState } from "@/lib/storage";
 import { formatVerseScope, getEtudeContent, type EtudeContent } from "@/lib/etude-content";
 import { SourceInfo } from "@/components/SourceInfo";
 import { Card, Empty, Loading } from "@/routes/tadabbur";
@@ -69,7 +72,19 @@ function EtudePage() {
   const ayah = Number(ayahParam);
   const verseKey = `${surah}:${ayah}`;
 
-  const [openSection, setOpenSection] = useState<Section | null>(null);
+  const [tab, setTab] = useState<StudyTab>("mukhtasar");
+  const [lang, setLang] = useLocalState<StudyLang>("etude:lang", "fr");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [ayahOpen, setAyahOpen] = useState(false);
+  const [trOpen, setTrOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const longPress = useRef<number | null>(null);
+  // Nouvelle āyah : blocs repliés.
+  useEffect(() => {
+    setMenuOpen(false);
+    setAyahOpen(false);
+    setTrOpen(false);
+  }, [surah, ayah]);
 
   const { data: chapters } = useQuery({
     queryKey: ["chapters-fr"],
@@ -117,6 +132,20 @@ function EtudePage() {
     } catch {
       /* annulé */
     }
+  };
+
+  /** Copier = référence + arabe + traduction (les couches affichées en en-tête). */
+  const copyAyah = async () => {
+    if (!verse) return;
+    const parts = [verseKey, verse.arabic, hamidullah?.translation].filter(Boolean);
+    try {
+      await navigator.clipboard.writeText(parts.join("\n\n"));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* refusé */
+    }
+    setMenuOpen(false);
   };
 
   const goToAyah = (delta: number) => {
@@ -187,6 +216,25 @@ function EtudePage() {
     });
   };
 
+  const plusSections: Section[] = sections.filter((s) => s !== "tafsir");
+  const tabs: { key: StudyTab; label: string }[] = [
+    { key: "mukhtasar", label: "Mukhtasar" },
+    { key: "saadi", label: "As-Saʿdī" },
+    { key: "ibnkathir", label: "Ibn Kathīr" },
+    ...(plusSections.length ? [{ key: "plus" as StudyTab, label: "Plus" }] : []),
+  ];
+
+  const startPress = () => {
+    longPress.current = window.setTimeout(() => setMenuOpen(true), 500);
+  };
+  const endPress = () => {
+    if (longPress.current != null) window.clearTimeout(longPress.current);
+    longPress.current = null;
+  };
+
+  const menuItem =
+    "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-foreground transition hover:bg-muted";
+
   return (
     <div className="flex h-[100dvh] flex-col bg-background">
       <audio
@@ -196,60 +244,137 @@ function EtudePage() {
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
       />
-      <header className="shrink-0 border-b border-border/40 bg-card/80 px-3 py-2 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-2xl items-center gap-2">
+
+      {/* En-tête minimal : 1 ligne. Les actions sont dans « ⋯ » (ou appui long sur l'āyah). */}
+      <header className="relative shrink-0 border-b border-border/40 bg-card/90 px-2 py-1.5 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-2xl items-center gap-1">
           <button
             onClick={backToMushaf}
-            aria-label="Retour au Mushaf"
-            className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            aria-label="Fermer et retourner au Mushaf"
+            className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <X className="size-5" />
+          </button>
+          <button
+            onClick={() => goToAyah(-1)}
+            disabled={ayah <= 1}
+            aria-label="Āyah précédente"
+            className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition disabled:opacity-30"
           >
             <ChevronLeft className="size-5" />
           </button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-foreground">
-              {chapterMeta?.nameFrench ?? `Sourate ${surah}`}{" "}
-              {chapterMeta && (
-                <span lang="ar" className="font-arabic text-xs text-muted-foreground">
-                  {chapterMeta.nameArabic}
-                </span>
-              )}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Ayah {ayah} · {verseKey}
-            </p>
-          </div>
+          <p className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-foreground">
+            {chapterMeta?.nameFrench ?? `Sourate ${surah}`} ·{" "}
+            <span className="tabular-nums">{verseKey}</span>
+          </p>
+          <button
+            onClick={() => goToAyah(1)}
+            disabled={!!chapterMeta && ayah >= chapterMeta.versesCount}
+            aria-label="Āyah suivante"
+            className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition disabled:opacity-30"
+          >
+            <ChevronRight className="size-5" />
+          </button>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Actions sur cette āyah"
+            aria-expanded={menuOpen}
+            className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <MoreHorizontal className="size-5" />
+          </button>
         </div>
+
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+            <div className="absolute right-2 top-full z-40 mt-1 w-56 rounded-2xl border border-border bg-card p-1.5 shadow-[var(--shadow-elevated)]">
+              <button
+                className={menuItem}
+                onClick={() => {
+                  toggleAudio();
+                  setMenuOpen(false);
+                }}
+              >
+                {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
+                {playing ? "Pause" : "Écouter la récitation"}
+              </button>
+              <button
+                className={menuItem}
+                onClick={() => {
+                  toggleFavorite("ayah", verseKey);
+                  setMenuOpen(false);
+                }}
+              >
+                <Heart className={cn("size-4", fav && "fill-gold text-gold")} />
+                {fav ? "Retirer des favoris" : "Ajouter aux favoris"}
+              </button>
+              <button className={menuItem} onClick={copyAyah}>
+                <Copy className="size-4" /> Copier
+              </button>
+              <button
+                className={menuItem}
+                onClick={() => {
+                  void shareAyah();
+                  setMenuOpen(false);
+                }}
+              >
+                <Share2 className="size-4" /> Partager
+              </button>
+              {speechSupported && explanationTexts.length > 0 && (
+                <button
+                  className={menuItem}
+                  onClick={() => {
+                    toggleExplanation();
+                    setMenuOpen(false);
+                  }}
+                >
+                  <Volume2 className="size-4" />{" "}
+                  {speaking ? "Arrêter la lecture" : "Écouter l'explication"}
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl space-y-3 px-4 py-4">
-          {/* Ayah + traduction Hamidullah */}
-          <div className="rounded-[28px] border border-border/40 bg-card px-5 py-5 text-center">
-            {versePending ? (
-              <Loading />
-            ) : (
-              <p
-                lang="ar"
-                dir="rtl"
-                className="font-arabic text-2xl font-bold leading-[2.2] text-foreground"
-              >
-                {verse?.arabic}
-              </p>
-            )}
-            <div className="my-4 h-px bg-[linear-gradient(90deg,transparent,color-mix(in_oklab,var(--gold)_45%,transparent),transparent)]" />
-            {hamidullahPending ? (
-              <Loading />
-            ) : hamidullah ? (
-              <>
-                <p className="text-[0.95rem] leading-[1.9] text-foreground/90">
-                  {hamidullah.translation}
-                </p>
-                {hamidullah.footnotes && (
-                  <p className="mt-3 text-left text-xs leading-relaxed text-muted-foreground">
-                    {hamidullah.footnotes}
-                  </p>
-                )}
-                <div className="mt-3 flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+      {/* L'āyah et sa traduction : compactes (2-3 lignes), dépliables d'un tap ; appui long = actions. */}
+      <section
+        className="shrink-0 select-none border-b border-border/40 bg-card/50 px-4 py-2.5"
+        onPointerDown={startPress}
+        onPointerUp={endPress}
+        onPointerLeave={endPress}
+        onPointerCancel={endPress}
+        onContextMenu={(ev) => {
+          ev.preventDefault();
+          setMenuOpen(true);
+        }}
+      >
+        <div className="mx-auto max-w-2xl">
+          {versePending ? (
+            <Loading />
+          ) : (
+            <p
+              lang="ar"
+              dir="rtl"
+              onClick={() => setAyahOpen((v) => !v)}
+              className={cn(
+                "cursor-pointer font-arabic text-[1.35rem] font-bold leading-[2] text-foreground",
+                !ayahOpen && "line-clamp-2",
+              )}
+            >
+              {verse?.arabic}
+            </p>
+          )}
+          {hamidullahPending ? null : hamidullah ? (
+            <div
+              onClick={() => setTrOpen((v) => !v)}
+              className="mt-1 cursor-pointer text-[0.9rem] leading-[1.6] text-muted-foreground"
+            >
+              <p className={cn(!trOpen && "line-clamp-3")}>{hamidullah.translation}</p>
+              {trOpen && hamidullah.footnotes && <p className="mt-2 text-xs">{hamidullah.footnotes}</p>}
+              {trOpen && (
+                <p className="mt-1.5 flex items-center gap-1 text-[11px] uppercase tracking-wide">
                   Traduction des sens — Muhammad Hamidullah
                   <SourceInfo
                     sourceTitle="Traduction française des sens du Coran"
@@ -257,243 +382,286 @@ function EtudePage() {
                     editorialSource="QuranEnc"
                     nature="Traduction publiée, réutilisée telle quelle."
                   />
-                </div>
-              </>
-            ) : (
-              <Empty text="Traduction indisponible pour le moment." />
-            )}
-
-            {/* Actions compactes — jamais un gros bouton Étudier (déjà ici) */}
-            <div className="mt-4 flex items-center justify-center gap-2 border-t border-border/40 pt-3">
-              <button
-                onClick={toggleAudio}
-                className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3.5 text-xs font-semibold text-foreground transition hover:border-primary/40"
-              >
-                {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-                Écouter
-              </button>
-              <button
-                onClick={() => toggleFavorite("ayah", verseKey)}
-                aria-pressed={fav}
-                className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3.5 text-xs font-semibold text-foreground transition hover:border-gold/50"
-              >
-                <Heart className={cn("size-3.5", fav && "fill-gold text-gold")} />
-                Favori
-              </button>
-              <button
-                onClick={shareAyah}
-                className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3.5 text-xs font-semibold text-foreground transition hover:border-primary/40"
-              >
-                <Share2 className="size-3.5" />
-                Partager
-              </button>
+                </p>
+              )}
             </div>
-            {speechSupported && explanationTexts.length > 0 && (
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Traduction indisponible pour le moment.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Onglets + langue : une seule ligne fine, toujours visible. */}
+      <div className="shrink-0 border-b border-border/40 bg-background px-3 py-1.5">
+        <div className="mx-auto flex max-w-2xl items-center gap-2">
+          <div role="tablist" aria-label="Tafsīr" className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+            {tabs.map((t) => (
               <button
-                onClick={toggleExplanation}
-                className="mx-auto mt-2 flex h-9 items-center gap-1.5 rounded-full bg-primary/10 px-3.5 text-xs font-semibold text-primary"
+                key={t.key}
+                role="tab"
+                aria-selected={tab === t.key}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  "min-h-10 shrink-0 rounded-full px-3 text-[13px] font-semibold transition",
+                  tab === t.key
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted",
+                )}
               >
-                <Volume2 className="size-3.5" />
-                {speaking ? "Arrêter" : "Écouter l'explication"}
+                {t.label}
               </button>
-            )}
+            ))}
           </div>
-
-          {/* Rubriques — une seule ouverte à la fois, jamais de rubrique vide */}
-          <div className="space-y-2">
-            {sections.map((key) => {
-              const meta = SECTION_META[key];
-              const open = openSection === key;
-              return (
-                <div
-                  key={key}
-                  className="overflow-hidden rounded-3xl border border-border/40 bg-card"
-                >
-                  <button
-                    onClick={() => setOpenSection(open ? null : key)}
-                    aria-expanded={open}
-                    className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
-                  >
-                    <span className="flex min-w-0 items-center gap-2.5">
-                      <meta.icon className="size-4 shrink-0 text-primary" />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-bold text-foreground">
-                          {meta.label}
-                        </span>
-                        <span
-                          lang="ar"
-                          className="block truncate font-arabic text-xs text-muted-foreground"
-                        >
-                          {meta.subtitle}
-                        </span>
-                      </span>
-                    </span>
-                    <ChevronDown
-                      className={cn(
-                        "size-4 shrink-0 text-muted-foreground transition-transform duration-300",
-                        open && "rotate-180",
-                      )}
-                    />
-                  </button>
-                  {open && (
-                    <div className="border-t border-border/40 px-5 py-4">
-                      {key === "tafsir" && <TafsirSection surah={surah} ayah={ayah} />}
-                      {key === "asbab_nuzul" && <ContentList items={contexteItems} />}
-                      {key === "lesson" && <ContentList items={lessonItems} />}
-                      {key === "tadabbur" && <ContentList items={meditateItems} />}
-                      {key === "today" && <ContentList items={todayItems} />}
-                      {key === "amal" && <AgirSection items={agirItems} />}
-                    </div>
+          {tab !== "plus" && (
+            <div
+              role="group"
+              aria-label="Langue"
+              className="flex shrink-0 rounded-full border border-border p-0.5"
+            >
+              {(
+                [
+                  ["fr", "FR"],
+                  ["ar", "ع"],
+                  ["both", "FR+ع"],
+                ] as const
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  aria-pressed={lang === k}
+                  aria-label={k === "fr" ? "Français" : k === "ar" ? "Arabe" : "Français et arabe"}
+                  onClick={() => setLang(k)}
+                  className={cn(
+                    "min-h-9 rounded-full px-2.5 text-xs font-bold transition",
+                    lang === k ? "bg-foreground text-background" : "text-muted-foreground",
                   )}
-                </div>
-              );
-            })}
-          </div>
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Navigation contextuelle — compacte, utilisable au pouce */}
-      <div className="shrink-0 border-t border-border/40 bg-card/80 px-4 py-2 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-2xl items-center justify-between">
-          <button
-            onClick={() => goToAyah(-1)}
-            disabled={ayah <= 1}
-            aria-label="Ayah précédente"
-            className="grid size-9 place-items-center rounded-full text-muted-foreground transition disabled:opacity-30"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
-          <span className="text-xs font-semibold tabular-nums text-foreground">{verseKey}</span>
-          <button
-            onClick={() => goToAyah(1)}
-            disabled={!!chapterMeta && ayah >= chapterMeta.versesCount}
-            aria-label="Ayah suivante"
-            className="grid size-9 place-items-center rounded-full text-muted-foreground transition disabled:opacity-30"
-          >
-            <ChevronRight className="size-5" />
-          </button>
+      {/* Le tafsīr occupe tout le reste de l'écran. */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-2xl px-4 py-4">
+          {tab === "plus" ? (
+            <div className="space-y-5">
+              {plusSections.map((key) => (
+                <div key={key}>
+                  <h3 className="mb-2 text-sm font-bold text-foreground">
+                    {SECTION_META[key].label}{" "}
+                    <span
+                      lang="ar"
+                      className="font-arabic text-xs font-normal text-muted-foreground"
+                    >
+                      {SECTION_META[key].subtitle}
+                    </span>
+                  </h3>
+                  {key === "asbab_nuzul" && <ContentList items={contexteItems} />}
+                  {key === "lesson" && <ContentList items={lessonItems} />}
+                  {key === "tadabbur" && <ContentList items={meditateItems} />}
+                  {key === "today" && <ContentList items={todayItems} />}
+                  {key === "amal" && <AgirSection items={agirItems} />}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <TafsirReader
+              key={tab + verseKey}
+              tab={tab}
+              lang={lang}
+              surah={surah}
+              ayah={ayah}
+              versesCount={chapterMeta?.versesCount ?? ayah}
+            />
+          )}
         </div>
       </div>
+
+      {copied && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center">
+          <span className="rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground">
+            Copié
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type StudyTab = "mukhtasar" | "saadi" | "ibnkathir" | "plus";
+type StudyLang = "fr" | "ar" | "both";
+
+const TAFSIR_META: Record<
+  Exclude<StudyTab, "plus">,
+  { title: string; note: string; hasFrench: boolean }
+> = {
+  mukhtasar: {
+    title: "Al-Mukhtasar fî at-tafsîr al-Qur'ân al-karîm",
+    note: "Markaz Tafsîr — un texte par āyah.",
+    hasFrench: true,
+  },
+  saadi: { title: "Tafsîr as-Saʿdî", note: "Cheikh ʿAbd ar-Rahmân as-Saʿdî.", hasFrench: false },
+  ibnkathir: { title: "Tafsîr Ibn Kathîr", note: "Al-Hâfiz Ibn Kathîr.", hasFrench: false },
+};
+
+/** Texte arabe avec les notes d'édition [[…]] atténuées (jamais supprimées). */
+function ArabicBody({ text }: { text: string }) {
+  const parts = text.split(/(\[\[[^\]]*\]\])/g);
+  return (
+    <p
+      lang="ar"
+      dir="rtl"
+      className="font-arabic text-right text-[1.3rem] leading-[2.2] text-foreground"
+    >
+      {parts.map((p, i) =>
+        p.startsWith("[[") ? (
+          <span key={i} className="text-[0.8em] text-muted-foreground">
+            {p}
+          </span>
+        ) : (
+          p
+        ),
+      )}
+    </p>
+  );
+}
+
+function FrenchBody({ text }: { text: string }) {
+  return <p className="text-[1.05rem] leading-[1.95] text-foreground">{text}</p>;
+}
+
+function Block({ children, label }: { children: ReactNode; label?: string }) {
+  return (
+    <div className="space-y-1.5">
+      {label && (
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">{label}</p>
+      )}
+      {children}
     </div>
   );
 }
 
 /**
- * [Al-Mukhtasar] [Al-Muyassar] [As-Sa'di] [Ibn Kathir] — chaque tafsir
- * reste indépendant, jamais fusionné. Al-Mukhtasar dispose d'une
- * traduction française déjà publiée ; les trois autres n'ont que
- * l'arabe vérifié pour l'instant (aucune traduction française publiée
- * et réutilisable identifiée) — affiché directement en arabe avec bouton
- * de bascule, sans grand panneau vide annonçant une attente.
+ * Lecture d'UN tafsīr, pour la seule āyah choisie. Chaque ouvrage reste
+ * indépendant, jamais fusionné. Français : seul Al-Mukhtasar a une édition
+ * française publiée dans nos sources ; pour As-Saʿdî et Ibn Kathîr on le dit
+ * clairement (jamais de traduction improvisée).
  */
-function TafsirSection({ surah, ayah }: { surah: number; ayah: number }) {
-  const [choice, setChoice] = useState<"mokhtasar" | "muyassar" | "saadi" | "ibnkathir">(
-    "mokhtasar",
-  );
-  const [showArabic, setShowArabic] = useState(false);
-  const arSlug: TafsirSlug | null =
-    choice === "saadi"
-      ? "ar-tafsir-as-saadi"
-      : choice === "ibnkathir"
-        ? "ar-tafsir-ibn-kathir"
-        : choice === "muyassar"
-          ? "ar-tafsir-muyassar"
-          : null;
+function TafsirReader({
+  tab,
+  lang,
+  surah,
+  ayah,
+  versesCount,
+}: {
+  tab: Exclude<StudyTab, "plus">;
+  lang: StudyLang;
+  surah: number;
+  ayah: number;
+  versesCount: number;
+}) {
+  const meta = TAFSIR_META[tab];
+  const wantFr = lang === "fr" || lang === "both";
+  const wantAr = lang === "ar" || lang === "both";
+  const arSlug: TafsirSlug =
+    tab === "mukhtasar"
+      ? "ar-tafsir-al-mukhtasar"
+      : tab === "saadi"
+        ? "ar-tafsir-as-saadi"
+        : "ar-tafsir-ibn-kathir";
 
-  const { data: arabicText, isPending: arabicPending } = useQuery({
+  const noFrench = wantFr && !meta.hasFrench;
+  const needArabic = wantAr || noFrench;
+
+  const { data: arRaw, isPending: arPending } = useQuery({
     queryKey: ["tafsir-etude", arSlug, surah, ayah],
-    queryFn: () => fetchTafsir(arSlug as TafsirSlug, surah, ayah),
-    enabled: !!arSlug,
+    queryFn: () => fetchTafsir(arSlug, surah, ayah),
+    enabled: needArabic,
     staleTime: Infinity,
   });
-  const { data: mokhtasarText, isPending: mokhtasarPending } = useQuery({
+  const { data: frText, isPending: frPending } = useQuery({
     queryKey: ["tafsir-etude", "french-mokhtasar", surah, ayah],
     queryFn: () => fetchTafsir("french-mokhtasar", surah, ayah),
-    enabled: choice === "mokhtasar",
+    enabled: tab === "mukhtasar" && wantFr,
+    staleTime: Infinity,
+  });
+  const { data: group } = useQuery({
+    queryKey: ["tafsir-group", arSlug, surah, ayah],
+    queryFn: () => tafsirGroupRange(arSlug, surah, ayah, versesCount, arRaw ?? ""),
+    enabled: tab === "ibnkathir" && !!arRaw,
     staleTime: Infinity,
   });
 
-  const labels = {
-    mokhtasar: "Al-Mukhtasar",
-    muyassar: "Al-Muyassar",
-    saadi: "As-Sa'di",
-    ibnkathir: "Ibn Kathir",
-  } as const;
+  let arText = arRaw ?? "";
+  let scopeNote: string | null = null;
+  if (tab === "saadi" && arRaw) {
+    const s = sliceSaadiForAyah(arRaw, ayah);
+    arText = s.text;
+    if (s.isolated && s.range) {
+      scopeNote = `Passage du verset ${ayah} (le commentaire d'as-Saʿdî couvre les versets ${s.range[0]} à ${s.range[1]}).`;
+    } else if (s.range && s.range[0] !== s.range[1]) {
+      scopeNote = `Ce commentaire couvre les versets ${s.range[0]} à ${s.range[1]} ; il est affiché en entier.`;
+    }
+  }
+  if (tab === "ibnkathir" && group && group[0] !== group[1]) {
+    scopeNote = `Ce commentaire couvre les versets ${group[0]} à ${group[1]} ; il est affiché en entier.`;
+  }
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-4 gap-1 rounded-full border border-border p-1">
-        {(["mokhtasar", "muyassar", "saadi", "ibnkathir"] as const).map((k) => (
-          <button
-            key={k}
-            onClick={() => {
-              setChoice(k);
-              setShowArabic(false);
-            }}
-            className={cn(
-              "rounded-full py-2 text-[11px] font-semibold transition",
-              choice === k ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-            )}
-          >
-            {labels[k]}
-          </button>
-        ))}
-      </div>
+    <div className="space-y-5">
+      {scopeNote && (
+        <p className="rounded-xl bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+          {scopeNote}
+        </p>
+      )}
 
-      {choice === "mokhtasar" ? (
-        mokhtasarPending ? (
-          <Loading />
-        ) : mokhtasarText ? (
-          <div>
-            <p className="text-[0.95rem] leading-[1.85] text-foreground/90">{mokhtasarText}</p>
-            <div className="mt-3 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
-              Al-Mukhtasar fî at-tafsîr, Markaz Tafsîr
-              <SourceInfo
-                sourceTitle="Al-Mukhtasar fî at-tafsîr al-Qur'ân al-karîm"
-                editorialSource="Markaz Tafsîr"
-                nature="Traduction française publiée, réutilisée telle quelle."
-              />
-            </div>
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Pas de contenu disponible pour cette ayah.
-          </p>
-        )
-      ) : arSlug ? (
-        arabicPending ? (
-          <Loading />
-        ) : arabicText ? (
-          <div>
-            <div className="mb-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-              {labels[choice]} — texte arabe vérifié
-              <SourceInfo
-                sourceTitle={labels[choice]}
-                nature="Texte arabe source, aucune traduction française publiée identifiée pour l'instant."
-              />
-            </div>
-            <button
-              onClick={() => setShowArabic((v) => !v)}
-              className="text-xs font-semibold text-primary"
-            >
-              {showArabic ? "Masquer l'original" : "العربية · Voir le texte arabe"}
-            </button>
-            {showArabic && (
-              <p
-                lang="ar"
-                dir="rtl"
-                className="mt-2 font-arabic text-right text-[1.05rem] leading-[2.1] text-foreground"
-              >
-                {arabicText}
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Pas de contenu disponible pour cette ayah.
-          </p>
-        )
-      ) : null}
+      {wantFr && meta.hasFrench && (
+        <Block label={lang === "both" ? "Français" : undefined}>
+          {frPending ? (
+            <Loading />
+          ) : frText ? (
+            <FrenchBody text={frText} />
+          ) : (
+            <Empty text="Pas de contenu pour cette āyah." />
+          )}
+        </Block>
+      )}
+
+      {noFrench && (
+        <div className="rounded-xl border border-border bg-card px-3.5 py-3 text-sm leading-relaxed text-muted-foreground">
+          Il n'existe pas de traduction française de ce tafsīr dans nos sources : le texte arabe est
+          affiché ci-dessous.
+        </div>
+      )}
+
+      {needArabic && (
+        <Block label={lang === "both" && meta.hasFrench ? "العربية" : undefined}>
+          {arPending ? (
+            <Loading />
+          ) : arText ? (
+            <ArabicBody text={arText} />
+          ) : (
+            <Empty text="Pas de contenu pour cette āyah." />
+          )}
+        </Block>
+      )}
+
+      <div className="flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+        {meta.note}
+        <SourceInfo
+          sourceTitle={meta.title}
+          nature={
+            meta.hasFrench
+              ? "Texte arabe et traduction française publiés, réutilisés tels quels."
+              : "Texte arabe source, aucune traduction française publiée identifiée."
+          }
+        />
+      </div>
     </div>
   );
 }

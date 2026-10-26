@@ -13,7 +13,7 @@
 //    hors ligne est stocké par l'application dans AUDIO_CACHE et lu via des
 //    URL blob (voir src/lib/offline.ts).
 // Changer VERSION nettoie les anciens caches (AUDIO_CACHE est conservé).
-const VERSION = "v4";
+const VERSION = "v5";
 const SHELL = `adhkar-shell-${VERSION}`;
 const ASSETS = `adhkar-assets-${VERSION}`;
 const DATA = `adhkar-data-${VERSION}`;
@@ -126,6 +126,14 @@ self.addEventListener("fetch", (event) => {
   }
   if (FONT_HOSTS.includes(url.hostname)) {
     event.respondWith(cacheFirst(request, FONTS));
+    return;
+  }
+  // Tafsīrs (spa5k/tafsir_api) : immuables, lisibles hors ligne une fois ouverts.
+  if (
+    (url.hostname === "cdn.jsdelivr.net" || url.hostname === "raw.githubusercontent.com") &&
+    url.pathname.includes("tafsir_api")
+  ) {
+    event.respondWith(cacheFirst(request, DATA));
     return;
   }
   if (DATA_HOSTS.includes(url.hostname) && !url.pathname.includes("/search")) {
