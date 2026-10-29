@@ -437,14 +437,13 @@ function EtudePage() {
               {(
                 [
                   ["fr", "FR"],
-                  ["ar", "ع"],
-                  ["both", "FR+ع"],
+                  ["ar", "AR"],
                 ] as const
               ).map(([k, label]) => (
                 <button
                   key={k}
                   aria-pressed={lang === k}
-                  aria-label={k === "fr" ? "Français" : k === "ar" ? "Arabe" : "Français et arabe"}
+                  aria-label={k === "fr" ? "Français" : k === "ar" ? "Arabe" : "Français"}
                   onClick={() => setLang(k)}
                   className={cn(
                     "min-h-9 rounded-full px-2.5 text-xs font-bold transition",
@@ -541,7 +540,7 @@ function MokhtasarLessons({ surah, ayah }: { surah: number; ayah: number }) {
 }
 
 type StudyTab = "mukhtasar" | "saadi" | "ibnkathir" | "plus";
-type StudyLang = "fr" | "ar" | "both";
+type StudyLang = "fr" | "ar";
 
 const TAFSIR_META: Record<
   Exclude<StudyTab, "plus">,
@@ -613,8 +612,8 @@ function TafsirReader({
   versesCount: number;
 }) {
   const meta = TAFSIR_META[tab];
-  const wantFr = lang === "fr" || lang === "both";
-  const wantAr = lang === "ar" || lang === "both";
+  const wantFr = lang !== "ar"; // « both » (ancien réglage) = français
+  const wantAr = lang === "ar";
   const arSlug: TafsirSlug =
     tab === "mukhtasar"
       ? "ar-tafsir-al-mukhtasar"
@@ -668,7 +667,7 @@ function TafsirReader({
       )}
 
       {wantFr && meta.hasFrench && (
-        <Block label={lang === "both" ? "Français" : undefined}>
+        <Block>
           {frPending ? (
             <Loading />
           ) : frText ? (
@@ -691,7 +690,7 @@ function TafsirReader({
       )}
 
       {needArabic && (
-        <Block label={lang === "both" && meta.hasFrench ? "العربية" : undefined}>
+        <Block>
           {arPending ? (
             <Loading />
           ) : arText ? (
