@@ -19,7 +19,8 @@ import {
   X,
 } from "lucide-react";
 import { fetchChapters, fetchVerseDetail, verseAudioUrl, defaultReciter } from "@/lib/mushaf";
-import { fetchMokhtasarLessons, fetchTafsir, sliceSaadiForAyah, tafsirGroupRange, type TafsirSlug } from "@/lib/quran";
+import { fetchMokhtasarLessons, fetchSurahText, fetchTafsir, sliceSaadiForAyah, tafsirGroupRange, type TafsirSlug } from "@/lib/quran";
+import { itemsForAyah, loadTadabburPage, type TaItem } from "@/lib/tadabbur-amal";
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
 import { useActionsProgress, useFavorites, useLocalState } from "@/lib/storage";
 import { formatVerseScope, getEtudeContent, type EtudeContent } from "@/lib/etude-content";
@@ -53,7 +54,7 @@ export const Route = createFileRoute("/etude/$surah/$ayah")({
  * puisque les Tawjihat concernent presque toujours un passage plus large
  * qu'une seule ayah — décision produit assumée, pas un oubli.
  */
-type Section = "asbab_nuzul" | "tafsir" | "lesson" | "tadabbur" | "amal" | "today";
+type Section = "asbab_nuzul" | "tafsir" | "lesson" | "tadabbur" | "amal" | "tawjihat" | "today";
 
 const SECTION_META: Record<Section, { label: string; subtitle: string; icon: typeof BookOpen }> = {
   asbab_nuzul: { label: "Circonstances de révélation", subtitle: "سبب النزول", icon: BookOpen },
@@ -61,6 +62,7 @@ const SECTION_META: Record<Section, { label: string; subtitle: string; icon: typ
   lesson: { label: "Leçons à retenir", subtitle: "دروس", icon: Sparkles },
   tadabbur: { label: "Méditer", subtitle: "تدبر", icon: Sparkles },
   amal: { label: "Agir", subtitle: "العمل بالآيات", icon: Compass },
+  tawjihat: { label: "S’orienter", subtitle: "التوجيهات", icon: Compass },
   today: { label: "Dans ma vie", subtitle: "في حياتي", icon: Sun },
 };
 
@@ -223,19 +225,41 @@ function EtudePage() {
     staleTime: Infinity,
   });
   const mkHasLessons = !!mkLessons?.some((x) => x.surah === surah && ayah >= x.from && ayah <= x.to);
-  const plusSections: Section[] = ["asbab_nuzul", "lesson", "tadabbur", "amal", "today"];
+  // « القرآن تدبر وعمل » (source 517) : le contenu local relu à la main reste
+  // prioritaire ; la source n'est utilisée que pour une catégorie sans contenu local.
+  const { data: surahText } = useQuery({
+    queryKey: ["surah-text", surah],
+    queryFn: () => fetchSurahText(surah),
+    staleTime: Infinity,
+  });
+  const { data: taPage } = useQuery({
+    queryKey: ["ta-page", surah, surahText?.find((a) => a.n === ayah)?.page],
+    queryFn: () => loadTadabburPage(surah, ayah, surahText ?? []),
+    enabled: !!surahText && surah !== 1, // Al-Fātiha : contenu local relu uniquement
+    staleTime: Infinity,
+  });
+  const tawjihatLocal = getEtudeContent(verseKey, "tawjihat", verse?.page);
+  const taTadabbur = meditateItems.length ? [] : itemsForAyah(taPage, "tadabbur", ayah);
+  const taAmal = agirItems.length ? [] : itemsForAyah(taPage, "amal", ayah);
+  const taTawjihat = tawjihatLocal.length ? [] : itemsForAyah(taPage, "tawjihat", ayah);
   const plusCount: Record<string, number> = {
     asbab_nuzul: contexteItems.length,
-    lesson: lessonItems.length,
-    tadabbur: meditateItems.length,
-    amal: agirItems.length,
+    lesson: lessonItems.length + (mkHasLessons ? 1 : 0),
+    tadabbur: meditateItems.length + taTadabbur.length,
+    amal: agirItems.length + taAmal.length,
+    tawjihat: tawjihatLocal.length + taTawjihat.length,
     today: todayItems.length,
   };
+  // Ordre : Circonstances → Leçons → Méditer → Agir → S'orienter → Dans ma vie.
+  // Une rubrique vide n'est pas affichée.
+  const plusSections: Section[] = (
+    ["asbab_nuzul", "lesson", "tadabbur", "amal", "tawjihat", "today"] as Section[]
+  ).filter((k) => plusCount[k] > 0);
   const tabs: { key: StudyTab; label: string }[] = [
     { key: "mukhtasar", label: "Mukhtasar" },
     { key: "saadi", label: "As-Saʿdī" },
     { key: "ibnkathir", label: "Ibn Kathīr" },
-    { key: "plus" as StudyTab, label: "Leçons & actions" },
+    ...(plusSections.length ? [{ key: "plus" as StudyTab, label: "Leçons & actions" }] : []),
   ];
 
   const startPress = () => {
@@ -474,11 +498,6 @@ function EtudePage() {
                       {SECTION_META[key].subtitle}
                     </span>
                   </h3>
-                  {plusCount[key] === 0 && !(key === "lesson" && mkHasLessons) && (
-                    <p className="rounded-xl border border-dashed border-border px-3 py-3 text-xs text-muted-foreground">
-                      Pas encore de contenu sourcé pour cette āyah.
-                    </p>
-                  )}
                   {key === "asbab_nuzul" && <ContentList items={contexteItems} />}
                   {key === "lesson" && (
                     <>
@@ -486,9 +505,25 @@ function EtudePage() {
                       <MokhtasarLessons surah={surah} ayah={ayah} />
                     </>
                   )}
-                  {key === "tadabbur" && <ContentList items={meditateItems} />}
+                  {key === "tadabbur" && (
+                    <>
+                      <ContentList items={meditateItems} />
+                      <TaList items={taTadabbur} />
+                    </>
+                  )}
+                  {key === "tawjihat" && (
+                    <>
+                      <ContentList items={tawjihatLocal} />
+                      <TaList items={taTawjihat} />
+                    </>
+                  )}
                   {key === "today" && <ContentList items={todayItems} />}
-                  {key === "amal" && <AgirSection items={agirItems} />}
+                  {key === "amal" && (
+                    <>
+                      <AgirSection items={agirItems} />
+                      <TaList items={taAmal} checkable />
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -512,6 +547,58 @@ function EtudePage() {
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Points « القرآن تدبر وعمل » (source 517) : texte arabe exact, jamais reformulé. */
+function TaList({ items, checkable }: { items: TaItem[]; checkable?: boolean }) {
+  const { isCompleted, toggle } = useActionsProgress();
+  if (!items.length) return null;
+  return (
+    <div className="mt-2 space-y-3">
+      {items.map((it) => (
+        <Card key={it.id}>
+          {it.verseStart != null && it.verseEnd != null && it.verseEnd > it.verseStart && (
+            <p className="mb-1.5 text-[11px] font-semibold text-primary">
+              Concerne les āyāt {it.surah}:{it.verseStart}–{it.verseEnd}
+            </p>
+          )}
+          {it.quote && (
+            <p lang="ar" dir="rtl" className="mb-2 font-arabic text-right text-lg leading-[2] text-muted-foreground">
+              {it.quote}
+            </p>
+          )}
+          <p lang="ar" dir="rtl" className="whitespace-pre-line text-right font-arabic text-[1.15rem] leading-[2.1] text-foreground">
+            {it.originalText}
+          </p>
+          {it.question && (
+            <p lang="ar" dir="rtl" className="mt-2 text-right font-arabic text-base leading-[2] text-primary">
+              {it.question}
+            </p>
+          )}
+          {checkable && (
+            <label className="mt-3 flex min-h-11 items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={isCompleted(it.id)}
+                onChange={() => toggle(it.id)}
+                className="h-5 w-5 accent-primary"
+              />
+              Je l'ai mise en pratique
+            </label>
+          )}
+          <div className="mt-2 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+            Texte arabe — traduction française non disponible
+            <SourceInfo
+              sourceTitle={it.sourceTitle}
+              editorialSource="مركز المنهاج"
+              sourceReference={`QUL ressource ${it.sourceResourceId} · ${it.sourceProvider}`}
+              nature="Texte source non relu manuellement (validationStatus : source_text)."
+            />
+          </div>
+        </Card>
+      ))}
     </div>
   );
 }

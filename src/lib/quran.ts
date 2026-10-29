@@ -14,9 +14,9 @@ export interface AyahText {
   hizbQuarter: number;
 }
 
-const CDN = "https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir";
+export const CDN = "https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir";
 /** jsDelivr refuse certains fichiers (« Package size exceeded ») : repli sur GitHub. */
-const CDN_FALLBACK = "https://raw.githubusercontent.com/spa5k/tafsir_api/main/tafsir";
+export const CDN_FALLBACK = "https://raw.githubusercontent.com/spa5k/tafsir_api/main/tafsir";
 
 export async function fetchSurahList(): Promise<SurahMeta[]> {
   const res = await fetch("https://api.alquran.cloud/v1/surah");
