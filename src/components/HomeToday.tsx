@@ -107,7 +107,7 @@ export function HomeToday({
   counts: Record<string, number>;
   moment: AdhkarMoment;
 }) {
-  const [wird] = useLocalState<WirdState | null>("adhkar:wird", null);
+  const [wird, , wirdHydrated] = useLocalState<WirdState | null>("adhkar:wird", null);
 
   const dhikrList =
     moment === "morning" ? morningAdhkar : moment === "evening" ? eveningAdhkar : moment === "sleep" ? coucherAdhkar : null;
@@ -129,6 +129,20 @@ export function HomeToday({
 
   return (
     <>
+      {wirdHydrated && wird === null && (
+        <TodoCard
+          to="/wird"
+          color={COLORS.wird}
+          lead={
+            <span className="grid size-10 shrink-0 place-items-center text-[var(--c)]">
+              <BookOpen className="size-6" />
+            </span>
+          }
+          title="Configurer mon Wird"
+          sub="Pages par jour, page de départ"
+          cta="Créer"
+        />
+      )}
       {dhikr && !dhikr.done && moment && (
         <TodoCard
           to={dhikr.to}

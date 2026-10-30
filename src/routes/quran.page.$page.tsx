@@ -25,6 +25,8 @@ import {
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
 import { useKahfChallenge } from "@/lib/kahfChallenge";
 import { useWakeLock } from "@/lib/wakeLock";
+import { readJSON, writeJSON } from "@/lib/storage";
+import { effectiveSchedule, type WirdState } from "@/lib/khatma";
 import { useInkOffset } from "@/lib/inkCenter";
 import {
   MIN_FALLBACK_QUERY_LENGTH,
@@ -201,6 +203,19 @@ function MushafPage() {
 
   // Défi du vendredi (Al-Kahf) : chaque page de la sourate lue est comptée ;
   // la dernière page la termine et fait disparaître la pastille d'accueil.
+  // Wird : arriver à la dernière page de la portion du jour la marque lue
+  // (la carte « à faire » de l'accueil disparaît).
+  useEffect(() => {
+    try {
+      const w = readJSON<WirdState | null>("adhkar:wird", null);
+      if (!w) return;
+      const next = effectiveSchedule(w).find((d) => d.day === w.lastCompletedDay + 1);
+      if (next && page === next.endPage) writeJSON("adhkar:wird", { ...w, lastCompletedDay: next.day });
+    } catch {
+      /* stockage indisponible */
+    }
+  }, [page]);
+
   // Écran allumé sur le Mushaf (réglable dans les options de récitation).
   useWakeLock(prefs.quran.keepAwake);
 

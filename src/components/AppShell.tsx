@@ -8,7 +8,8 @@ interface Props {
   title: string;
   subtitle?: string;
   children: ReactNode;
-  /** Accueil : remplace l'éveil/titre/sous-titre par la Basmala + Salam (§2 mission). */
+  /** Accueil : aucun bandeau du haut (la basmala est dans l'illustration de la
+   * page) et aucune barre de navigation du bas (les accès sont sur la page). */
   homeHeader?: boolean;
   /** Une seule icône ⚙️ par écran (chantier "Paramètres centralisés") — à
    * ne passer que si la page fournit déjà son propre bouton contextuel
@@ -32,7 +33,8 @@ export function AppShell({
   settingsSearch,
 }: Props) {
   return (
-    <div className="min-h-dvh bg-background pb-24">
+    <div className={cn("min-h-dvh bg-background", homeHeader ? "pb-6" : "pb-24")}>
+      {!homeHeader && (
       <header className="hero-gradient sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-lg">
         <div
           className={cn(
@@ -64,8 +66,11 @@ export function AppShell({
           )}
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-5">{children}</main>
-      <BottomNav />
+      )}
+      <main className={cn("mx-auto max-w-3xl px-4 sm:px-5", homeHeader ? "pb-4 pt-3" : "py-6")}>
+        {children}
+      </main>
+      {!homeHeader && <BottomNav />}
     </div>
   );
 }

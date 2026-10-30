@@ -128,18 +128,21 @@ function CreateWird({ onCreate }: { onCreate: (w: WirdState) => void }) {
   const [custom, setCustom] = useState("");
   const [customPages, setCustomPages] = useState("");
   const [groupName, setGroupName] = useState("");
+  const [startPageInput, setStartPageInput] = useState("");
+  const startPage = Math.min(TOTAL_MUSHAF_PAGES, Math.max(1, Number(startPageInput) || 1));
+  const pagesLeft = TOTAL_MUSHAF_PAGES - startPage + 1;
 
   // Les deux modes ("Durée" ou "Pages/jour") passent TOUJOURS par la même
   // durée en jours, elle-même consommée par l'unique `buildKhatmaSchedule()`
   // — aucun second algorithme de répartition (§22 mission).
-  const start = (days: number) => onCreate(createWirdState(days));
+  const start = (days: number) => onCreate(createWirdState(days, undefined, startPage));
   const startGroup = (days: number) => {
     if (!groupName.trim()) return;
-    onCreate(createWirdState(days, groupName.trim()));
+    onCreate(createWirdState(days, groupName.trim(), startPage));
   };
   const startFromPagesPerDay = (pagesPerDay: number) => {
     if (pagesPerDay <= 0) return;
-    const days = Math.ceil(TOTAL_MUSHAF_PAGES / pagesPerDay);
+    const days = Math.ceil(pagesLeft / pagesPerDay);
     if (mode === "perso") start(days);
     else startGroup(days);
   };
@@ -175,6 +178,23 @@ function CreateWird({ onCreate }: { onCreate: (w: WirdState) => void }) {
           className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm"
         />
       )}
+
+      <div className="surface-card space-y-1.5 rounded-2xl p-3">
+        <label htmlFor="wird-start-page" className="text-xs font-semibold text-foreground">
+          Commencer à la page
+        </label>
+        <input
+          id="wird-start-page"
+          inputMode="numeric"
+          value={startPageInput}
+          onChange={(e) => setStartPageInput(e.target.value.replace(/\D/g, "").slice(0, 3))}
+          placeholder="1 (début du Coran) — ex. 293 pour Al-Kahf"
+          className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          La lecture démarre aujourd'hui à la page {startPage} et va jusqu'à la page {TOTAL_MUSHAF_PAGES} ({pagesLeft} pages).
+        </p>
+      </div>
 
       <div className="flex gap-1 rounded-full border border-border p-1">
         <button
@@ -269,15 +289,14 @@ function CreateWird({ onCreate }: { onCreate: (w: WirdState) => void }) {
           </div>
           {customPages && Number(customPages) > 0 && (
             <p className="text-center text-xs text-muted-foreground">
-              ≈ {Math.ceil(TOTAL_MUSHAF_PAGES / Number(customPages))} jours pour terminer le Coran
+              ≈ {Math.ceil(pagesLeft / Number(customPages))} jours pour terminer le Coran
             </p>
           )}
         </>
       )}
 
       <p className="text-center text-xs text-muted-foreground">
-        Les {TOTAL_MUSHAF_PAGES} pages du Mushaf sont réparties automatiquement, sans trou ni
-        répétition.
+        Les pages à lire sont réparties automatiquement, sans trou ni répétition.
       </p>
     </div>
   );

@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
-import { BookOpen, ChevronRight, Clock, Sparkles } from "lucide-react";
+import { BookMarked, BookOpen, Clock, MoreHorizontal, Sparkles } from "lucide-react";
+import { PlusSheet } from "@/components/PlusSheet";
 import { AppShell } from "@/components/AppShell";
 import { AdhkarSheet } from "@/components/AdhkarSheet";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
@@ -55,6 +56,7 @@ function Index() {
   const [lastSurah] = useLocalState<number>("quran-last-surah", 1);
   const [wird] = useLocalState<WirdState | null>("adhkar:wird", null);
   const [adhkarChooserOpen, setAdhkarChooserOpen] = useState(false);
+  const [plusOpen, setPlusOpen] = useState(false);
   const { prefs, hydrated } = usePreferences();
   const { timings } = usePrayerTimings();
   const navigate = useNavigate();
@@ -130,7 +132,7 @@ function Index() {
         </section>
 
         {/* Accès principaux, compacts */}
-        <section aria-label="Accès rapides" className="grid grid-cols-4 gap-2.5">
+        <section aria-label="Accès rapides" className="grid grid-cols-5 gap-2">
           <QuickAccess
             onClick={openCoran}
             label="Coran"
@@ -146,6 +148,13 @@ function Index() {
             icon={<Sparkles className="size-5" />}
           />
           <QuickAccess
+            onClick={openLectureDuJour}
+            label="Wird"
+            arabic="وِرْد"
+            color="#8a63c0"
+            icon={<BookMarked className="size-5" />}
+          />
+          <QuickAccess
             onClick={() => navigate({ to: "/horaires" })}
             label="Horaires"
             arabic="مَوَاقِيت"
@@ -153,15 +162,16 @@ function Index() {
             icon={<Clock className="size-5" />}
           />
           <QuickAccess
-            onClick={openLectureDuJour}
-            label="Wird"
-            arabic="وِرْد"
-            color="#8a63c0"
-            icon={<BookOpen className="size-5" />}
+            onClick={() => setPlusOpen(true)}
+            label="Plus"
+            arabic="المزيد"
+            color="#6b7a72"
+            icon={<MoreHorizontal className="size-5" />}
           />
         </section>
       </div>
 
+      {plusOpen && <PlusSheet onClose={() => setPlusOpen(false)} />}
       {adhkarChooserOpen && (
         <AdhkarSheet
           morningPct={morning.pct}

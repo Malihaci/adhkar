@@ -35,12 +35,15 @@ export function HomeDua({ now, isDay }: { now: Date; isDay: boolean }) {
           {item.arabic}
         </span>
       </button>
-      {open && (
-        <div className="mt-1 space-y-2">
-          <p className="text-[13px] leading-snug text-foreground">{item.french}</p>
-          <p className="text-xs leading-snug text-muted-foreground">{item.note}</p>
-        </div>
-      )}
+      <button type="button" onClick={() => setOpen((o) => !o)} className="mt-1 block w-full text-left">
+        <p className={cn("text-[13px] leading-snug text-foreground", !open && "line-clamp-2")}>
+          {item.french}
+        </p>
+        {open && <p className="mt-2 text-xs leading-snug text-muted-foreground">{item.note}</p>}
+        <span className="mt-1 block text-[11px] font-semibold text-primary">
+          {open ? "Réduire" : "Lire la suite · explication"}
+        </span>
+      </button>
       <p className="mt-2 border-t border-border/60 pt-1.5 text-[11px] text-muted-foreground">
         {item.source}
       </p>

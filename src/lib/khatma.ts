@@ -66,6 +66,8 @@ export function todayISO(): string {
 
 export interface WirdState {
   id: string;
+  /** Page du Mushaf où la lecture commence (1 par défaut) : le programme couvre startPage → 604. */
+  startPage?: number;
   name?: string; // présent pour une Khatma de groupe
   durationDays: number;
   startDateISO: string;
@@ -78,9 +80,10 @@ export interface WirdState {
   redistributedFrom?: { fromDay: number; fromPage: number };
 }
 
-export function createWirdState(durationDays: number, name?: string): WirdState {
+export function createWirdState(durationDays: number, name?: string, startPage = 1): WirdState {
   return {
     id: `wird-${Date.now()}`,
+    startPage: Math.min(TOTAL_MUSHAF_PAGES, Math.max(1, Math.floor(startPage) || 1)),
     name,
     durationDays,
     startDateISO: todayISO(),
@@ -96,8 +99,8 @@ export function getSchedule(
   state: WirdState,
   remaining?: { fromDay: number; fromPage: number },
 ): WirdDay[] {
-  if (!remaining) return buildKhatmaSchedule(state.durationDays);
-  const base = buildKhatmaSchedule(state.durationDays);
+  if (!remaining) return buildKhatmaSchedule(state.durationDays, state.startPage ?? 1);
+  const base = buildKhatmaSchedule(state.durationDays, state.startPage ?? 1);
   const before = base.filter((d) => d.day < remaining.fromDay);
   const remainingDays = state.durationDays - remaining.fromDay + 1;
   const after = buildKhatmaSchedule(remainingDays, remaining.fromPage, TOTAL_MUSHAF_PAGES).map(

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import {
   SALAT_DHIKR_ID,
+  SALAT_FORMULA,
   isChallengeEnded,
   isFriday,
   todayKey,
@@ -53,18 +54,22 @@ export function DhikrChallengeCard() {
       <Link
         to="/compteur/$dhikrId"
         params={{ dhikrId: SALAT_DHIKR_ID }}
-        className="relative flex min-h-16 items-center gap-3 rounded-2xl border border-gold/50 bg-gradient-to-r from-gold/20 via-gold/10 to-gold/5 px-4 py-3 shadow-[0_6px_18px_-10px_var(--gold)] transition hover:-translate-y-0.5"
+        className="relative block rounded-2xl border border-gold/50 bg-gradient-to-r from-gold/20 via-gold/10 to-gold/5 px-4 py-3 shadow-[0_6px_18px_-10px_var(--gold)] transition hover:-translate-y-0.5"
       >
-        <span aria-hidden className="absolute right-3 top-2.5 flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-gold/70" /><span className="relative inline-flex size-2 rounded-full bg-gold" /></span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">Défi du vendredi 🌿</p>
-          <p className="text-xs tabular-nums text-muted-foreground">
-            {count} / {friday.goal} · objectif personnel
-          </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-sm font-semibold text-foreground">La prière sur le Prophète ﷺ</p>
+          <span className="flex shrink-0 items-center gap-0.5 text-[13px] font-semibold tabular-nums text-primary">
+            {count} / {friday.goal} <ChevronRight className="size-4" />
+          </span>
         </div>
-        <span className="flex items-center gap-1 text-sm font-semibold text-primary">
-          Continuer <ChevronRight className="size-4" />
-        </span>
+        {/* La formule, une ligne sous l'autre comme dans les livres */}
+        <div className="mt-1 space-y-0.5 text-center">
+          <p lang="ar" dir="rtl" className="font-arabic text-[1.1rem] leading-[1.9] text-foreground">
+            {SALAT_FORMULA.arabic}
+          </p>
+          <p className="text-xs italic leading-snug text-muted-foreground">{SALAT_FORMULA.phonetic}</p>
+          <p className="text-xs leading-snug text-muted-foreground">{SALAT_FORMULA.french}</p>
+        </div>
       </Link>
     );
   }
