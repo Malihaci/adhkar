@@ -54,7 +54,6 @@ import {
   type PageVerse,
   type SearchResult,
 } from "@/lib/mushaf";
-import { Basmala } from "@/components/AyahText";
 import { useLocalState, useFavorites } from "@/lib/storage";
 import { usePreferences } from "@/lib/preferences";
 import { getPageContent, type EtudeCategory } from "@/lib/etude-content";
@@ -998,6 +997,7 @@ function MushafPage() {
     };
   }, [page, qcfVariant]);
   const qcfName = qcfLoadedName && qcfLoadedName.endsWith(`_p${page}`) ? qcfLoadedName : null;
+  const centeredPage = page <= 2;
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -1498,7 +1498,12 @@ function MushafPage() {
             // (l'ancien `mushaf-no-callout`/user-select:none empêchait
             // aussi bien le menu natif Android que toute sélection
             // partielle, ce qui est désormais explicitement indésirable).
-            className="flex w-full flex-1 select-none flex-col justify-between gap-[0.12em] [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent]"
+            className={cn(
+              "flex w-full flex-1 select-none flex-col [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent]",
+              // Pages 1 et 2 du Mushaf de Médine : bloc de texte centré (lignes
+              // courtes, interligne régulier) au lieu de lignes étirées.
+              centeredPage ? "justify-center gap-[0.45em] px-[3%]" : "justify-between gap-[0.12em]",
+            )}
             onContextMenu={onSheetContextMenu}
           >
             {(lines ?? []).map((line, li) => {
@@ -1514,10 +1519,13 @@ function MushafPage() {
                     />
                   )}
                   {showBasmala && (
-                    <Basmala
-                      text="بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
-                      className="text-[0.75em]"
-                    />
+                    <p
+                      lang="ar"
+                      dir="rtl"
+                      className="text-center font-arabic text-[0.85em] leading-[1.9] text-[#140d05] dark:text-[#fbf5e6]"
+                    >
+                      بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+                    </p>
                   )}
                   <div
                     data-mushaf-line
@@ -1533,7 +1541,10 @@ function MushafPage() {
                           }
                         : undefined
                     }
-                    className="flex items-baseline justify-between whitespace-nowrap leading-[1.9] text-[#140d05] dark:text-[#fbf5e6]"
+                    className={cn(
+                      "flex items-baseline whitespace-nowrap leading-[1.9] text-[#140d05] dark:text-[#fbf5e6]",
+                      centeredPage ? "justify-center gap-x-[0.3em]" : "justify-between",
+                    )}
                   >
                     {line.words.map((w, wi) => {
                       const isSel = selected.includes(w.key);
@@ -2089,32 +2100,51 @@ const JUZ_START_PAGE = [
   402, 422, 442, 462, 482, 502, 522, 542, 562, 582,
 ];
 
-/** Bandeau de début de sourate : cadre orné, nom centré. La petite feuille
- * ouvre la fiche de la sourate (ancien lien « Découvrir »). */
+/** Bandeau de début de sourate, façon Mushaf de Médine : double filet, deux
+ * panneaux d'arabesques, deux médaillons ronds et un cartouche central aux
+ * extrémités en accolade qui porte le nom. La petite feuille (dans le
+ * médaillon de gauche) ouvre la fiche de la sourate. */
 function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number }) {
-  const star = (cx: number, R: number, r: number, n: number) =>
-    Array.from({ length: n * 2 }, (_, i) => {
-      const a = (Math.PI * i) / n - Math.PI / 2;
-      const k = i % 2 ? r : R;
-      return `${(cx + k * Math.cos(a)).toFixed(1)},${(30 + k * Math.sin(a)).toFixed(1)}`;
-    }).join(" ");
+  const ogee =
+    "M118 30C126 17 136 12 150 12H250C264 12 274 17 282 30C274 43 264 48 250 48H150C136 48 126 43 118 30Z";
+  const long = nameArabic.length > 9;
   return (
-    <div className="relative my-[0.1em] aspect-[400/60] w-full text-gold">
+    <div className="relative my-[0.15em] aspect-[400/60] w-full text-[#140d05] dark:text-[#fbf5e6]">
       <svg viewBox="0 0 400 60" className="absolute inset-0 size-full" aria-hidden>
-        <rect x="28" y="9" width="344" height="42" className="fill-gold/10" stroke="currentColor" strokeWidth="2.5" />
-        <rect x="34" y="15" width="332" height="30" className="fill-background" stroke="currentColor" strokeWidth="1.2" />
-        {[24, 376].map((x) => (
+        <defs>
+          <pattern id="sb-orn" width="9" height="9" patternUnits="userSpaceOnUse">
+            <path d="M4.5 .8 8.2 4.5 4.5 8.2 .8 4.5Z" fill="none" stroke="currentColor" strokeWidth=".7" />
+            <circle cx="4.5" cy="4.5" r="1" fill="currentColor" />
+            <path d="M0 0Q2.2 2.2 0 4.5M9 0Q6.8 2.2 9 4.5M0 9Q2.2 6.8 0 4.5M9 9Q6.8 6.8 9 4.5" fill="none" stroke="currentColor" strokeWidth=".5" />
+          </pattern>
+        </defs>
+        <rect x="1" y="1" width="398" height="58" className="fill-background" stroke="currentColor" strokeWidth="2.2" />
+        <rect x="5" y="5" width="390" height="50" fill="none" stroke="currentColor" strokeWidth="1" />
+        <rect x="8" y="8" width="104" height="44" fill="url(#sb-orn)" stroke="currentColor" strokeWidth=".8" />
+        <rect x="288" y="8" width="104" height="44" fill="url(#sb-orn)" stroke="currentColor" strokeWidth=".8" />
+        {[88, 312].map((x) => (
           <g key={x}>
-            <circle cx={x} cy="30" r="22" className="fill-background" stroke="currentColor" strokeWidth="2.5" />
-            <circle cx={x} cy="30" r="17" fill="none" stroke="currentColor" strokeWidth="1" />
-            <polygon points={star(x, 13, 6.5, 8)} fill="currentColor" />
+            <circle cx={x} cy="30" r="21" className="fill-background" stroke="currentColor" strokeWidth="2" />
+            <circle cx={x} cy="30" r="17" fill="none" stroke="currentColor" strokeWidth=".9" />
           </g>
         ))}
+        <path d={ogee} className="fill-background" stroke="currentColor" strokeWidth="2" />
+        <path
+          d={ogee}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth=".8"
+          vectorEffect="non-scaling-stroke"
+          transform="translate(200 30) scale(.93 .82) translate(-200 -30)"
+        />
       </svg>
       <p
         lang="ar"
         dir="rtl"
-        className="absolute inset-0 flex items-center justify-center font-arabic text-[1.05em] font-bold leading-none text-[#140d05] dark:text-[#fbf5e6]"
+        className={cn(
+          "absolute inset-y-0 left-[30%] right-[30%] flex items-center justify-center whitespace-nowrap font-arabic font-bold leading-none",
+          long ? "text-[0.8em]" : "text-[1em]",
+        )}
       >
         سُورَةُ {nameArabic}
       </p>
@@ -2122,7 +2152,7 @@ function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number 
         to="/sourate/$surah"
         params={{ surah: String(surah) }}
         aria-label="Découvrir la sourate"
-        className="absolute left-[11%] top-1/2 -translate-y-1/2 text-[0.5em] leading-none"
+        className="absolute left-[22%] top-1/2 -translate-x-1/2 -translate-y-1/2 text-[0.55em] leading-none"
       >
         🌿
       </Link>
