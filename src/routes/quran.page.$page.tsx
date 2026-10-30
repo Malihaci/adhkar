@@ -1086,8 +1086,14 @@ function MushafPage() {
         return Math.max(8, best * SAFE_FACTOR);
       };
       fitBox.style.width = `${effectiveWidth}px`;
+      sheet.style.setProperty("--lh", "1.9");
       let ceiling = widthSearch();
       sheet.style.fontSize = `${ceiling}px`;
+      // D'abord resserrer l'interligne (1,9 → 1,5) : le texte garde sa taille.
+      for (const lh of [1.75, 1.6, 1.5]) {
+        if (fitsHeight()) break;
+        sheet.style.setProperty("--lh", String(lh));
+      }
       if (!fitsHeight()) {
         // Limité par la hauteur : plus grande taille qui tient, puis page
         // rétrécie dans la même proportion (mêmes espaces entre les mots,
@@ -1477,7 +1483,7 @@ function MushafPage() {
           déborder en largeur (voir le fit ci-dessus, seule contrainte dure). */}
       <div
         ref={boxRef}
-        className="absolute inset-0 overflow-x-hidden overflow-y-auto px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-[max(0.25rem,env(safe-area-inset-top))]"
+        className="absolute inset-0 overflow-x-hidden overflow-y-auto px-0.5 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-[max(0.25rem,env(safe-area-inset-top))]"
         onTouchStart={onSheetTouchStart}
         onTouchMove={onSheetTouchMove}
         onTouchEnd={onSheetTouchEnd}
@@ -1499,7 +1505,7 @@ function MushafPage() {
           {/* Métadonnées DANS la page (comme le Mushaf papier) : sourate à gauche,
               juz' à droite — jamais une barre d'application permanente. */}
           {verses?.[0] && (
-            <div className="flex min-h-9 shrink-0 items-center justify-between gap-2 px-1 pb-1">
+            <div className="flex min-h-11 shrink-0 items-center justify-between gap-2 px-2 pb-2 pt-1">
               {/* Sourate à gauche, juz à droite : un tap ouvre la liste et
                   l'on arrive au début de l'élément choisi. */}
               <button
@@ -1507,7 +1513,7 @@ function MushafPage() {
                 lang="ar"
                 onClick={() => openNav("surah")}
                 aria-label="Changer de sourate"
-                className="inline-flex items-center gap-1 rounded-md border border-gold/60 px-2.5 py-1 font-arabic text-[15px] font-bold leading-none text-[#140d05] dark:text-[#fbf5e6]"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gold/60 px-3 py-1.5 font-arabic text-[15px] font-bold leading-none text-[#140d05] dark:text-[#fbf5e6]"
               >
                 {surahMeta?.nameArabic ?? ""}
                 <ChevronDown className="size-3 text-gold" />
@@ -1517,7 +1523,7 @@ function MushafPage() {
                 lang="ar"
                 onClick={() => openNav("juz")}
                 aria-label="Changer de juz"
-                className="inline-flex items-center gap-1 rounded-md border border-gold/60 px-2.5 py-1 font-arabic text-[15px] font-bold leading-none text-[#140d05] dark:text-[#fbf5e6]"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gold/60 px-3 py-1.5 font-arabic text-[15px] font-bold leading-none text-[#140d05] dark:text-[#fbf5e6]"
               >
                 الجزء {verses[0].juz}
                 <ChevronDown className="size-3 text-gold" />
@@ -1586,7 +1592,7 @@ function MushafPage() {
                         : undefined
                     }
                     className={cn(
-                      "flex items-baseline whitespace-nowrap leading-[1.9] text-[#140d05] dark:text-[#fbf5e6]",
+                      "flex items-baseline whitespace-nowrap leading-[var(--lh,1.9)] text-[#140d05] dark:text-[#fbf5e6]",
                       centeredPage ? "justify-center gap-x-[0.3em]" : "justify-between",
                     )}
                   >
@@ -1605,6 +1611,10 @@ function MushafPage() {
                             // pour éviter l'effet "gros rectangles" — même boîte,
                             // même rayon, aucun reflow (§12 mission menu ayah).
                             "rounded px-[0.02em] transition-colors",
+                            // Le médaillon se centre sur la ligne (pas sur la
+                            // ligne de base du texte) : position identique sur
+                            // toutes les pages.
+                            w.end && "self-center",
                             isSel && "bg-primary/15",
                             isPlaying && "bg-gold/20 text-gold",
                           )}
@@ -1612,18 +1622,23 @@ function MushafPage() {
                           {w.end ? (
                             // Numéro de fin d'āyah en chiffres français (le glyphe
                             // imprimé de la police affiche des chiffres arabes).
+                            // Médaillon d'1,1 em (taille du PARENT) ; le chiffre est un
+                            // enfant à part, centré en flex avec line-height 1, de sorte
+                            // que la taille du cercle ne dépend pas de celle du chiffre.
                             <span
                               lang="fr"
                               dir="ltr"
                               style={{ WebkitTextStroke: 0 }}
-                              className={cn(
-                                // Numéro aussi grand que le texte : médaillon d'1,1 em,
-                                // chiffres à ~60 % (moins pour 3 chiffres).
-                                "inline-grid size-[1.1em] translate-y-[0.1em] place-items-center rounded-full border-[1.5px] border-gold font-sans font-bold leading-none tabular-nums text-gold",
-                                w.ayah > 99 ? "text-[0.46em]" : w.ayah > 9 ? "text-[0.56em]" : "text-[0.66em]",
-                              )}
+                              className="flex size-[1.1em] items-center justify-center rounded-full border-[1.5px] border-gold text-gold"
                             >
-                              {w.ayah}
+                              <span
+                                className={cn(
+                                  "block font-sans font-bold leading-none tabular-nums",
+                                  w.ayah > 99 ? "text-[0.46em]" : w.ayah > 9 ? "text-[0.56em]" : "text-[0.66em]",
+                                )}
+                              >
+                                {w.ayah}
+                              </span>
                             </span>
                           ) : (
                             (w.code ?? w.text)
@@ -2156,9 +2171,9 @@ const JUZ_START_PAGE = [
  * feuille (panneau de gauche) ouvre la fiche de la sourate. */
 function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number }) {
   const ogee =
-    "M96 30C104 17 114 10 130 10H270C286 10 296 17 304 30C296 43 286 50 270 50H130C114 50 104 43 96 30Z";
+    "M96 30C104 15 114 8 130 8H270C286 8 296 15 304 30C296 45 286 52 270 52H130C114 52 104 45 96 30Z";
   const name = `سُورَةُ ${nameArabic}`;
-  const size = name.length > 16 ? "text-[34cqh]" : name.length > 12 ? "text-[40cqh]" : "text-[48cqh]";
+  const size = name.length > 16 ? "text-[28cqh]" : name.length > 12 ? "text-[33cqh]" : "text-[38cqh]";
   return (
     <div className="relative my-[0.15em] aspect-[400/60] w-full text-[#140d05] [container-type:size] dark:text-[#fbf5e3]">
       <svg viewBox="0 0 400 60" className="absolute inset-0 size-full" aria-hidden>
@@ -2179,7 +2194,7 @@ function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number 
           stroke="currentColor"
           strokeWidth=".8"
           vectorEffect="non-scaling-stroke"
-          transform="translate(200 30) scale(.96 .84) translate(-200 -30)"
+          transform="translate(200 30) scale(.96 .86) translate(-200 -30)"
         />
       </svg>
       <p

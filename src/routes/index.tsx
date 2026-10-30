@@ -132,38 +132,65 @@ function Index() {
         <KahfChallengeCard />
         <DhikrChallengeCard />
 
-        {/* 4 portes principales : une grande carte par ligne, avec une info utile */}
-        <div className="flex flex-col gap-3">
-          <GateButton
+        {/* À reprendre : une seule carte, trois lignes fines */}
+        <section aria-labelledby="home-resume" className="space-y-2">
+          <h2
+            id="home-resume"
+            className="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+          >
+            À reprendre
+          </h2>
+          <div className="surface-card divide-y divide-border/60 overflow-hidden rounded-2xl">
+            <ResumeRow
+              onClick={openCoran}
+              icon={<BookOpen className="size-[18px]" />}
+              label="Coran"
+              hint={`Page ${lastPage}`}
+            />
+            <ResumeRow
+              onClick={openAdhkar}
+              icon={<Sparkles className="size-[18px]" />}
+              label="Adhkār"
+              hint={adhkarHint}
+              progress={adhkarPct}
+            />
+            <ResumeRow
+              onClick={openLectureDuJour}
+              icon={<BookOpen className="size-[18px]" />}
+              label="Lecture du jour"
+              hint={wirdHint}
+            />
+          </div>
+        </section>
+
+        {/* Accès principaux, compacts */}
+        <section aria-label="Accès rapides" className="grid grid-cols-4 gap-2.5">
+          <QuickAccess
             onClick={openCoran}
             label="Coran"
             arabic="قُرْآن"
-            hint={`Reprendre à la page ${lastPage}`}
-            icon={<BookOpen className="size-8" />}
+            icon={<BookOpen className="size-5" />}
           />
-          <GateButton
+          <QuickAccess
             onClick={openAdhkar}
             label="Adhkār"
             arabic="أَذْكَار"
-            hint={adhkarHint}
-            progress={adhkarPct}
-            icon={<Sparkles className="size-8" />}
+            icon={<Sparkles className="size-5" />}
           />
-          <GateButton
+          <QuickAccess
             onClick={() => navigate({ to: "/horaires" })}
-            label="Horaires de prière"
-            arabic="مَوَاقِيتُ ٱلصَّلَاةِ"
+            label="Horaires"
+            arabic="مَوَاقِيت"
             hint={prayerHint}
-            icon={<Clock className="size-8" />}
+            icon={<Clock className="size-5" />}
           />
-          <GateButton
+          <QuickAccess
             onClick={openLectureDuJour}
-            label="Lecture du jour"
+            label="Wird"
             arabic="وِرْد"
-            hint={wirdHint}
-            icon={<BookOpen className="size-8" />}
+            icon={<BookOpen className="size-5" />}
           />
-        </div>
+        </section>
       </div>
 
       {adhkarChooserOpen && (
@@ -177,42 +204,35 @@ function Index() {
   );
 }
 
-/** Porte d'accueil : une grande carte par ligne — grosse icône, titre à 30 px,
- * texte arabe à 26 px, une information utile dessous (et une barre d'avancement
- * quand elle existe). */
-function GateButton({
+/** Ligne « À reprendre » : icône, titre, info utile, barre fine éventuelle. */
+function ResumeRow({
   onClick,
+  icon,
   label,
-  arabic,
   hint,
   progress,
-  icon,
 }: {
   onClick: () => void;
+  icon: ReactNode;
   label: string;
-  arabic: string;
   hint: string;
   progress?: number;
-  icon: ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
-      className="surface-card group flex min-h-[6.5rem] w-full items-center gap-4 rounded-[1.4rem] px-5 py-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-elevated)] active:scale-[0.99]"
+      className="group flex min-h-[3.5rem] w-full items-center gap-3 px-3.5 py-2.5 text-left transition hover:bg-muted/50 active:bg-muted"
     >
-      <span className="grid size-[4.25rem] shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary transition group-hover:scale-105">
+      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
         {icon}
       </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="font-display text-[1.9rem] font-bold leading-none text-foreground">
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="font-display text-[1.05rem] font-semibold leading-tight text-foreground">
           {label}
         </span>
-        <span lang="ar" dir="rtl" className="self-start font-arabic text-[1.6rem] leading-[1.6] text-primary">
-          {arabic}
-        </span>
-        <span className="text-sm text-muted-foreground">{hint}</span>
+        <span className="truncate text-xs text-muted-foreground">{hint}</span>
         {progress !== undefined && (
-          <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-border">
+          <span className="mt-1 block h-1 overflow-hidden rounded-full bg-border">
             <span
               className="block h-full rounded-full bg-primary"
               style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
@@ -220,7 +240,38 @@ function GateButton({
           </span>
         )}
       </span>
-      <ChevronRight className="size-6 shrink-0 text-primary" />
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
+    </button>
+  );
+}
+
+/** Accès principal compact : icône, nom, arabe — 4 par ligne. */
+function QuickAccess({
+  onClick,
+  label,
+  arabic,
+  icon,
+}: {
+  onClick: () => void;
+  label: string;
+  arabic: string;
+  hint?: string;
+  icon: ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="surface-card group flex flex-col items-center gap-1 rounded-2xl px-1 py-3 text-center transition hover:-translate-y-0.5 hover:border-primary/40 active:scale-[0.97]"
+    >
+      <span className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary transition group-hover:scale-105">
+        {icon}
+      </span>
+      <span className="font-display text-[0.95rem] font-semibold leading-tight text-foreground">
+        {label}
+      </span>
+      <span lang="ar" dir="rtl" className="font-arabic text-[0.95rem] leading-none text-muted-foreground">
+        {arabic}
+      </span>
     </button>
   );
 }
