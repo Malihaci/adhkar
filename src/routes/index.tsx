@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
-import { BookOpen, Clock, Sparkles } from "lucide-react";
+import { BookOpen, ChevronRight, Clock, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AdhkarSheet } from "@/components/AdhkarSheet";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
@@ -12,7 +12,12 @@ import { DhikrChallengeCard } from "@/components/DhikrChallengeCard";
 import { KahfChallengeCard } from "@/components/KahfChallengeCard";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { usePreferences, resolveCoranMode } from "@/lib/preferences";
-import { getAsrDateFromTimings, usePrayerTimings } from "@/lib/prayerTimes";
+import {
+  PRAYER_LABELS,
+  getAsrDateFromTimings,
+  getNextPrayer,
+  usePrayerTimings,
+} from "@/lib/prayerTimes";
 import { getWirdResumeTarget, type WirdState } from "@/lib/khatma";
 
 export const Route = createFileRoute("/")({
@@ -105,6 +110,19 @@ function Index() {
     });
   };
 
+  /* Informations affichées sous chaque titre (tout est déjà connu localement). */
+  const morningTime = new Date().getHours() < 13;
+  const adhkarPct = morningTime ? morning.pct : evening.pct;
+  const adhkarHint = `${morningTime ? "Matin" : "Soir"} : ${adhkarPct} % terminé`;
+  const nextPrayer = timings ? getNextPrayer(timings) : null;
+  const prayerHint = nextPrayer
+    ? `Prochaine : ${PRAYER_LABELS[nextPrayer.key]} à ${String(nextPrayer.time.getHours()).padStart(2, "0")}:${String(nextPrayer.time.getMinutes()).padStart(2, "0")}`
+    : "Voir les horaires du jour";
+  const wirdTarget = getWirdResumeTarget(wird, lastPage);
+  const wirdHint = wirdTarget
+    ? `Reprendre à la page ${wirdTarget.resumePage}`
+    : "Créer ou suivre mon Wird";
+
   return (
     <AppShell title="Accueil" homeHeader>
       {hydrated && !prefs.onboarded && <OnboardingModal />}
@@ -114,31 +132,36 @@ function Index() {
         <KahfChallengeCard />
         <DhikrChallengeCard />
 
-        {/* 4 portes principales, exactement — même style, même taille (§2) */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* 4 portes principales : une grande carte par ligne, avec une info utile */}
+        <div className="flex flex-col gap-3">
           <GateButton
             onClick={openCoran}
             label="Coran"
             arabic="قُرْآن"
-            icon={<BookOpen className="size-6" />}
+            hint={`Reprendre à la page ${lastPage}`}
+            icon={<BookOpen className="size-8" />}
           />
           <GateButton
             onClick={openAdhkar}
             label="Adhkār"
-            arabic="ذِكْر"
-            icon={<Sparkles className="size-6" />}
+            arabic="أَذْكَار"
+            hint={adhkarHint}
+            progress={adhkarPct}
+            icon={<Sparkles className="size-8" />}
           />
           <GateButton
             onClick={() => navigate({ to: "/horaires" })}
             label="Horaires de prière"
-            arabic="مواقيت الصلاة"
-            icon={<Clock className="size-6" />}
+            arabic="مَوَاقِيتُ ٱلصَّلَاةِ"
+            hint={prayerHint}
+            icon={<Clock className="size-8" />}
           />
           <GateButton
             onClick={openLectureDuJour}
             label="Lecture du jour"
             arabic="وِرْد"
-            icon={<BookOpen className="size-6" />}
+            hint={wirdHint}
+            icon={<BookOpen className="size-8" />}
           />
         </div>
       </div>
@@ -154,48 +177,50 @@ function Index() {
   );
 }
 
-/** Style commun aux 4 portes — même dimension, même famille visuelle,
- * un seul ton (chantier "Simplifier Horaires + Accueil" §2 : "même style,
- * même taille" — fini la distinction primaire/or entre portes). */
-const GATE_CLASS =
-  "surface-card group flex aspect-square flex-col items-center justify-center gap-2.5 rounded-3xl p-4 text-center transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-elevated)] active:scale-[0.98]";
-
-function GateIcon({ children }: { children: ReactNode }) {
-  return (
-    <span className="grid size-14 place-items-center rounded-2xl bg-primary/12 text-primary transition group-hover:scale-105">
-      {children}
-    </span>
-  );
-}
-
-function GateLabel({ label, arabic }: { label: string; arabic: string }) {
-  return (
-    <span className="flex flex-col items-center gap-0.5">
-      <span className="font-display text-base font-semibold text-foreground sm:text-lg">
-        {label}
-      </span>
-      <span lang="ar" dir="rtl" className="font-arabic text-sm text-muted-foreground">
-        {arabic}
-      </span>
-    </span>
-  );
-}
-
+/** Porte d'accueil : une grande carte par ligne — grosse icône, titre à 30 px,
+ * texte arabe à 26 px, une information utile dessous (et une barre d'avancement
+ * quand elle existe). */
 function GateButton({
   onClick,
   label,
   arabic,
+  hint,
+  progress,
   icon,
 }: {
   onClick: () => void;
   label: string;
   arabic: string;
+  hint: string;
+  progress?: number;
   icon: ReactNode;
 }) {
   return (
-    <button onClick={onClick} className={cn(GATE_CLASS)}>
-      <GateIcon>{icon}</GateIcon>
-      <GateLabel label={label} arabic={arabic} />
+    <button
+      onClick={onClick}
+      className="surface-card group flex min-h-[6.5rem] w-full items-center gap-4 rounded-[1.4rem] px-5 py-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-elevated)] active:scale-[0.99]"
+    >
+      <span className="grid size-[4.25rem] shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary transition group-hover:scale-105">
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="font-display text-[1.9rem] font-bold leading-none text-foreground">
+          {label}
+        </span>
+        <span lang="ar" dir="rtl" className="self-start font-arabic text-[1.6rem] leading-[1.6] text-primary">
+          {arabic}
+        </span>
+        <span className="text-sm text-muted-foreground">{hint}</span>
+        {progress !== undefined && (
+          <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-border">
+            <span
+              className="block h-full rounded-full bg-primary"
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </span>
+        )}
+      </span>
+      <ChevronRight className="size-6 shrink-0 text-primary" />
     </button>
   );
 }
