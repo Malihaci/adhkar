@@ -111,6 +111,9 @@ export interface LayoutWord {
   end: boolean;
   /** premier mot du verset */
   first: boolean;
+  /** position du mot dans le verset (1…n, le marqueur de fin compte pour n+1) —
+   * même numérotation que les segments audio mot à mot. */
+  pos: number;
   /** Glyphe imprimé du mot dans la police QCF de la page (mise en page V2). */
   code?: string;
   /**
@@ -178,6 +181,7 @@ export async function fetchPageLayout(page: number): Promise<PageLayout> {
           code: typeof w.code_v2 === "string" ? w.code_v2 : undefined,
           end: w.char_type_name === "end",
           first: Number(w.position) === 1,
+          pos: Number(w.position) || 0,
         });
         byLine.set(line, arr);
       }
@@ -411,6 +415,42 @@ export function verseAudioUrl(reciterId: string, verseKey: string): string {
     return `https://everyayah.com/data/${r.ref}/${file}`;
   }
   return `${QURAN_CDN_BASE[r.ref]}/${file}`;
+}
+
+/* ------------------------------------------- Synchronisation mot à mot (audio) */
+/** [position du mot, début ms, fin ms] dans le fichier mp3 du verset. */
+export type WordSegment = [pos: number, startMs: number, endMs: number];
+
+const segmentsCache = new Map<string, Promise<WordSegment[] | null>>();
+
+/**
+ * Segments mot à mot fournis par api.quran.com pour les récitations quran.com
+ * (Minshāwī, Husarī) — les MÊMES fichiers que ceux lus par l'application, donc
+ * alignement exact. Pour les récitateurs everyayah, l'API n'en fournit pas :
+ * `null` (l'appelant estime alors le mot courant). Mis en cache par verset.
+ */
+export function fetchVerseSegments(reciterId: string, verseKey: string): Promise<WordSegment[] | null> {
+  const r = getReciter(reciterId);
+  if (r.source !== "quran") return Promise.resolve(null);
+  const cacheKey = `${r.ref}:${verseKey}`;
+  let p = segmentsCache.get(cacheKey);
+  if (!p) {
+    p = fetch(`${API}/verses/by_key/${verseKey}?audio=${r.ref}&words=false`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        const raw = json?.verse?.audio?.segments as number[][] | undefined;
+        if (!raw?.length) return null;
+        return raw
+          .filter((s) => s.length >= 4)
+          .map((s) => [s[1], s[2], s[3]] as WordSegment);
+      })
+      .catch(() => null);
+    segmentsCache.set(cacheKey, p);
+    void p.then((v) => {
+      if (!v) segmentsCache.delete(cacheKey); // échec réseau : on pourra réessayer
+    });
+  }
+  return p;
 }
 
 /* ------------------------------------------------------------- Basmala audio */

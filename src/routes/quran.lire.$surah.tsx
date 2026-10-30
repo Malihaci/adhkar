@@ -240,7 +240,7 @@ function LirePage() {
                 ))}
               </select>
               <div className="flex gap-1 rounded-full border border-border p-1">
-                {[1, 1.25].map((s) => (
+                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
                   <button
                     key={s}
                     onClick={() => updateQuran({ speed: s })}

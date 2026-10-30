@@ -114,7 +114,7 @@ function SizeRow({ value, onChange }: { value: ReadingSize; onChange: (v: Readin
 function SpeedRow({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="mt-2 flex gap-1 rounded-full border border-border p-1">
-      {[0.75, 1, 1.25].map((s) => (
+      {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
         <button
           key={s}
           onClick={() => onChange(s)}

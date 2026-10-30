@@ -35,6 +35,8 @@ import {
   fetchPageLayout,
   fetchSurahVerseKeys,
   fetchVersePage,
+  fetchVerseSegments,
+  type WordSegment,
   getReciter,
   isValidVerseKey,
   keysBetween,
@@ -238,6 +240,12 @@ function MushafPage() {
   const setSpeed = (s: number) => updateQuran({ speed: s });
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [pageLifeOpen, setPageLifeOpen] = useState(false);
+  /** Position (dans le verset en cours de lecture) du mot récité : surbrillance
+   * verte mot par mot. `null` tant que l'on ne sait pas. */
+  const [curWord, setCurWord] = useState<number | null>(null);
+  /** Dernier `load()` pour lequel l'enchaînement anticipé a déjà été déclenché. */
+  const earlyFiredRef = useRef(-1);
+  const onEndedRef = useRef<() => void>(() => {});
 
   /* --------------------------------------------- mode immersif (portrait
    * ET paysage, chantier "Plein écran paysage + Installation" §1) : un tap
@@ -614,6 +622,75 @@ function MushafPage() {
     advanceQueue();
   };
 
+  /**
+   * Mot récité + enchaînement anticipé. Le temps de lecture du fichier est lu
+   * à chaque image (les événements `timeupdate` sont trop espacés pour suivre
+   * un mot). Segments exacts quand l'API les fournit (Minshāwī, Husarī),
+   * sinon estimation proportionnelle à la longueur des mots.
+   * Enchaînement : on passe à l'ayah suivante dès que la voix s'est arrêtée
+   * (fin du dernier segment + marge, ou fin du fichier − 0,2 s) au lieu
+   * d'attendre le silence qui termine le fichier.
+   */
+  useEffect(() => {
+    if (!playing || !current) {
+      setCurWord(null);
+      return;
+    }
+    const key = current;
+    const isBridge = key === BASMALA_BRIDGE_KEY;
+    let cancelled = false;
+    let raf = 0;
+    let segs: WordSegment[] | null = null;
+    let ready = false;
+    void fetchVerseSegments(reciterId, isBridge ? "1:1" : key).then((s) => {
+      segs = s;
+      ready = true;
+    });
+    const tick = () => {
+      if (cancelled) return;
+      const el = audioRef.current;
+      if (el && ready && !el.paused && loadedKeyRef.current === key && el.currentTime > 0) {
+        const t = el.currentTime * 1000;
+        const dur = Number.isFinite(el.duration) ? el.duration * 1000 : 0;
+        let pos: number | null = null;
+        if (!isBridge) {
+          if (segs?.length) {
+            for (const [p, start] of segs) {
+              if (t >= start) pos = p;
+              else break;
+            }
+          } else if (dur > 0) {
+            const ws = wordsByKey.get(key);
+            if (ws?.length) {
+              const lead = Math.min(300, dur * 0.06);
+              const span = Math.max(1, dur - lead - 150);
+              const total = ws.reduce((a, w) => a + w.weight, 0);
+              let acc = lead;
+              for (const w of ws) {
+                if (t >= acc) pos = w.pos;
+                acc += (w.weight / total) * span;
+              }
+            }
+          }
+          setCurWord((prev) => (prev === pos ? prev : pos));
+        }
+        const endAt = segs?.length ? segs[segs.length - 1][2] + 120 : dur > 0 ? dur - 200 : Infinity;
+        if (t >= endAt && earlyFiredRef.current !== loadSessionRef.current) {
+          earlyFiredRef.current = loadSessionRef.current;
+          onEndedRef.current();
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      setCurWord(null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, current, reciterId]);
+
   const onEnded = () => {
     const key = queueRef.current[qIndexRef.current];
     // « ended » d'une ancienne source/session : ignoré.
@@ -625,6 +702,23 @@ function MushafPage() {
     }
     advanceQueue();
   };
+
+  onEndedRef.current = onEnded;
+
+  /** Mots de chaque verset de la page affichée (pour estimer le mot récité). */
+  const wordsByKey = useMemo(() => {
+    const m = new Map<string, { pos: number; weight: number }[]>();
+    for (const line of lines ?? []) {
+      for (const w of line.words) {
+        const letters = w.text.replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, "").length;
+        const arr = m.get(w.key) ?? [];
+        arr.push({ pos: w.pos, weight: w.end ? 1.5 : Math.max(2, letters) });
+        m.set(w.key, arr);
+      }
+    }
+    for (const arr of m.values()) arr.sort((a, b) => a.pos - b.pos);
+    return m;
+  }, [lines]);
 
   /* --------------------------------------------------------- sélection */
   const selLabel =
@@ -1598,7 +1692,10 @@ function MushafPage() {
                   >
                     {line.words.map((w, wi) => {
                       const isSel = selected.includes(w.key);
-                      const isPlaying = current === w.key;
+                      const isPlayingAyah = current === w.key;
+                      // Mot récité (vert) ; tant qu'on ne le connaît pas, l'ayah entière.
+                      const isPlayingWord = isPlayingAyah && curWord != null && w.pos === curWord;
+                      const isPlaying = isPlayingAyah && curWord == null;
                       return (
                         <span
                           key={`${w.key}-${wi}`}
@@ -1617,6 +1714,7 @@ function MushafPage() {
                             w.end && "self-center",
                             isSel && "bg-primary/15",
                             isPlaying && "bg-gold/20 text-gold",
+                            isPlayingWord && "bg-[#1f9d6b]/25 text-[#0b7a52] dark:text-[#6fe0b0]",
                           )}
                         >
                           {w.end ? (
@@ -1981,12 +2079,12 @@ function MushafPage() {
                 Vitesse
               </p>
               <div className="mb-4 flex gap-1 rounded-full border border-border p-1">
-                {[1, 1.25].map((s) => (
+                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
                   <button
                     key={s}
                     onClick={() => setSpeed(s)}
                     className={cn(
-                      "flex-1 rounded-full py-2 text-sm font-semibold transition",
+                      "flex-1 rounded-full py-2 text-[13px] font-semibold transition",
                       speed === s ? "bg-primary text-primary-foreground" : "text-muted-foreground",
                     )}
                   >
