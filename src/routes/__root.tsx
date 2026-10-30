@@ -89,14 +89,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Nur MaLiHaCi" },
-      { title: "Nur MaLiHaCi — Coran & Adhkâr" },
+      { name: "apple-mobile-web-app-title", content: "NurMaLiHa" },
+      { title: "NurMaLiHa — Coran & Adhkâr" },
       {
         name: "description",
         content:
           "Récitez chaque jour les adhkâr authentiques du matin et du soir : texte arabe vocalisé, phonétique, traduction française, explication et mérites avec références.",
       },
-      { property: "og:title", content: "Nur MaLiHaCi" },
+      { property: "og:title", content: "NurMaLiHa" },
       {
         property: "og:description",
         content:

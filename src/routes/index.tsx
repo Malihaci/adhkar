@@ -23,12 +23,12 @@ import { getWirdResumeTarget, type WirdState } from "@/lib/khatma";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Accueil — Nur MaLiHaCi" },
+      { title: "Accueil — NurMaLiHa" },
       {
         name: "description",
         content: "Adhkâr, Coran, horaires de prière et lecture du jour.",
       },
-      { property: "og:title", content: "Nur MaLiHaCi — Accueil" },
+      { property: "og:title", content: "NurMaLiHa — Accueil" },
       {
         property: "og:description",
         content: "Adhkâr, Coran, horaires de prière et lecture du jour.",

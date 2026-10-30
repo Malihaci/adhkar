@@ -7,7 +7,7 @@ import { Card, Loading } from "@/routes/tadabbur";
 
 export const Route = createFileRoute("/sourate/$surah")({
   head: ({ params }) => ({
-    meta: [{ title: `Découvrir la sourate ${params.surah} — Nur MaLiHaCi` }],
+    meta: [{ title: `Découvrir la sourate ${params.surah} — NurMaLiHa` }],
   }),
   component: SouratePage,
 });

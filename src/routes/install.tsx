@@ -8,14 +8,14 @@ export const Route = createFileRoute("/install")({
   head: () => ({
     meta: [
       { title: "Installer l'application" },
-      { name: "description", content: "Installez Nur MaLiHaCi — Coran & Adhkār sur votre téléphone." },
+      { name: "description", content: "Installez NurMaLiHa — Coran & Adhkār sur votre téléphone." },
     ],
   }),
   component: InstallPage,
 });
 
 const INSTALL_URL = "https://adhkar-gamma.vercel.app/install";
-const SHARE_TEXT = `السلام عليكم ورحمة الله وبركاته 🌿\n\nDécouvrez Nur MaLiHaCi — Coran & Adhkār :\n${INSTALL_URL}`;
+const SHARE_TEXT = `السلام عليكم ورحمة الله وبركاته 🌿\n\nDécouvrez NurMaLiHa — Coran & Adhkār :\n${INSTALL_URL}`;
 
 function InstallPage() {
   const { canInstall, promptInstall, isStandalone } = useInstallPrompt();
@@ -73,7 +73,7 @@ function InstallPage() {
             <>
               <div>
                 <p className="font-display text-lg font-semibold text-foreground">
-                  Installer Nur MaLiHaCi — Coran &amp; Adhkār
+                  Installer NurMaLiHa — Coran &amp; Adhkār
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Accédez-y en un tap, comme une application normale.
