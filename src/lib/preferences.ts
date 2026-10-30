@@ -33,6 +33,8 @@ export interface QuranPreferences {
   textSize: ReadingSize;
   reciterId: string;
   speed: number;
+  /** Garde l'écran allumé sur le Mushaf (désactivable dans les options). */
+  keepAwake: boolean;
 }
 
 /** "afasy" = piste continue existante (Al-'Afâsy, voir src/lib/afasyAudio.ts
@@ -78,6 +80,7 @@ export const DEFAULT_QURAN: QuranPreferences = {
   textSize: "large",
   reciterId: "minshawi",
   speed: 1,
+  keepAwake: true,
 };
 
 export const DEFAULT_ADHKAR: AdhkarPreferences = {

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
 import { useKahfChallenge } from "@/lib/kahfChallenge";
+import { useWakeLock } from "@/lib/wakeLock";
 import {
   MIN_FALLBACK_QUERY_LENGTH,
   RECITERS,
@@ -199,6 +200,9 @@ function MushafPage() {
 
   // Défi du vendredi (Al-Kahf) : chaque page de la sourate lue est comptée ;
   // la dernière page la termine et fait disparaître la pastille d'accueil.
+  // Écran allumé sur le Mushaf (réglable dans les options de récitation).
+  useWakeLock(prefs.quran.keepAwake);
+
   const { record: recordKahfPage } = useKahfChallenge();
   useEffect(() => {
     recordKahfPage(page);
@@ -625,8 +629,8 @@ function MushafPage() {
   /**
    * Mot récité + enchaînement anticipé. Le temps de lecture du fichier est lu
    * à chaque image (les événements `timeupdate` sont trop espacés pour suivre
-   * un mot). Segments exacts quand l'API les fournit (Minshāwī, Husarī),
-   * sinon estimation proportionnelle à la longueur des mots.
+   * un mot). Surbrillance mot par mot uniquement avec les segments exacts de
+   * l'API (Minshāwī, Husarī) ; pour les autres récitateurs, l'ayah entière.
    * Enchaînement : on passe à l'ayah suivante dès que la voix s'est arrêtée
    * (fin du dernier segment + marge, ou fin du fichier − 0,2 s) au lieu
    * d'attendre le silence qui termine le fichier.
@@ -658,18 +662,6 @@ function MushafPage() {
             for (const [p, start] of segs) {
               if (t >= start) pos = p;
               else break;
-            }
-          } else if (dur > 0) {
-            const ws = wordsByKey.get(key);
-            if (ws?.length) {
-              const lead = Math.min(300, dur * 0.06);
-              const span = Math.max(1, dur - lead - 150);
-              const total = ws.reduce((a, w) => a + w.weight, 0);
-              let acc = lead;
-              for (const w of ws) {
-                if (t >= acc) pos = w.pos;
-                acc += (w.weight / total) * span;
-              }
             }
           }
           setCurWord((prev) => (prev === pos ? prev : pos));
@@ -704,21 +696,6 @@ function MushafPage() {
   };
 
   onEndedRef.current = onEnded;
-
-  /** Mots de chaque verset de la page affichée (pour estimer le mot récité). */
-  const wordsByKey = useMemo(() => {
-    const m = new Map<string, { pos: number; weight: number }[]>();
-    for (const line of lines ?? []) {
-      for (const w of line.words) {
-        const letters = w.text.replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, "").length;
-        const arr = m.get(w.key) ?? [];
-        arr.push({ pos: w.pos, weight: w.end ? 1.5 : Math.max(2, letters) });
-        m.set(w.key, arr);
-      }
-    }
-    for (const arr of m.values()) arr.sort((a, b) => a.pos - b.pos);
-    return m;
-  }, [lines]);
 
   /* --------------------------------------------------------- sélection */
   const selLabel =
@@ -2113,6 +2090,34 @@ function MushafPage() {
                   </button>
                 ))}
               </div>
+
+              <button
+                type="button"
+                role="switch"
+                aria-checked={prefs.quran.keepAwake}
+                onClick={() => updateQuran({ keepAwake: !prefs.quran.keepAwake })}
+                className="mb-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-border px-4 py-3 text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">Écran toujours allumé</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Pas de mise en veille pendant la lecture du Mushaf
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "relative h-6 w-11 shrink-0 rounded-full transition",
+                    prefs.quran.keepAwake ? "bg-primary" : "bg-border",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 size-5 rounded-full bg-white shadow transition-all",
+                      prefs.quran.keepAwake ? "left-[1.375rem]" : "left-0.5",
+                    )}
+                  />
+                </span>
+              </button>
 
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Affichage
