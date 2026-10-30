@@ -6,18 +6,16 @@ import { AdhkarSheet } from "@/components/AdhkarSheet";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { useDailyProgress, useLocalState } from "@/lib/storage";
 import { cn } from "@/lib/utils";
-import { HomeSuggestion } from "@/components/HomeSuggestion";
+import { HomeHero } from "@/components/HomeHero";
+import { HomeDua } from "@/components/HomeDua";
+import { HomeToday } from "@/components/HomeToday";
+import { useDayPeriod } from "@/lib/dayPeriod";
 import { NextPrayerWidget } from "@/components/NextPrayerWidget";
 import { DhikrChallengeCard } from "@/components/DhikrChallengeCard";
 import { KahfChallengeCard } from "@/components/KahfChallengeCard";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { usePreferences, resolveCoranMode } from "@/lib/preferences";
-import {
-  PRAYER_LABELS,
-  getAsrDateFromTimings,
-  getNextPrayer,
-  usePrayerTimings,
-} from "@/lib/prayerTimes";
+import { getAsrDateFromTimings, usePrayerTimings } from "@/lib/prayerTimes";
 import { getWirdResumeTarget, type WirdState } from "@/lib/khatma";
 
 export const Route = createFileRoute("/")({
@@ -60,6 +58,7 @@ function Index() {
   const { prefs, hydrated } = usePreferences();
   const { timings } = usePrayerTimings();
   const navigate = useNavigate();
+  const period = useDayPeriod(timings);
 
   /** Chantier "Coran direct" (§1/§2/§17) : un seul clic, plus d'écran
    * intermédiaire — ouvre directement le lecteur (Mushaf ou ayah par ayah)
@@ -110,36 +109,25 @@ function Index() {
     });
   };
 
-  /* Informations affichées sous chaque titre (tout est déjà connu localement). */
-  const morningTime = new Date().getHours() < 13;
-  const adhkarPct = morningTime ? morning.pct : evening.pct;
-  const adhkarHint = `${morningTime ? "Matin" : "Soir"} : ${adhkarPct} % terminé`;
-  const nextPrayer = timings ? getNextPrayer(timings) : null;
-  const prayerHint = nextPrayer
-    ? `Prochaine : ${PRAYER_LABELS[nextPrayer.key]} à ${String(nextPrayer.time.getHours()).padStart(2, "0")}:${String(nextPrayer.time.getMinutes()).padStart(2, "0")}`
-    : "Voir les horaires du jour";
-  const wirdTarget = getWirdResumeTarget(wird, lastPage);
-  const wirdHint = wirdTarget
-    ? `Reprendre à la page ${wirdTarget.resumePage}`
-    : "Créer ou suivre mon Wird";
-
   return (
     <AppShell title="Accueil" homeHeader>
       {hydrated && !prefs.onboarded && <OnboardingModal />}
-      <div className="space-y-5">
+      <div className="space-y-3">
+        <HomeHero isDay={period.isDay} />
+        <HomeDua now={period.now} isDay={period.isDay} />
         <NextPrayerWidget />
-        {/* Défis du jour à faire — mis en avant ; la section disparaît s'il n'y en a pas. */}
-        <section aria-label="Défis du jour" className="hidden space-y-2 has-[a]:block">
-          <h2 className="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gold">
-            Défis du jour
+        {/* À faire aujourd'hui : défis du vendredi, dhikr du moment, Wird.
+            La section disparaît s'il n'y a rien à faire. */}
+        <section aria-label="À faire aujourd'hui" className="hidden has-[a]:block">
+          <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            À faire aujourd'hui
           </h2>
           <div className="space-y-2">
             <KahfChallengeCard />
             <DhikrChallengeCard />
+            <HomeToday counts={progress.counts} moment={period.adhkar} />
           </div>
         </section>
-        {/* Reprendre le dhikr commencé, lecture du jour du Wird */}
-        <HomeSuggestion counts={progress.counts} />
 
         {/* Accès principaux, compacts */}
         <section aria-label="Accès rapides" className="grid grid-cols-4 gap-2.5">
@@ -147,25 +135,28 @@ function Index() {
             onClick={openCoran}
             label="Coran"
             arabic="قُرْآن"
+            color="#1f9d6b"
             icon={<BookOpen className="size-5" />}
           />
           <QuickAccess
             onClick={openAdhkar}
             label="Adhkār"
             arabic="أَذْكَار"
+            color="#c79a2e"
             icon={<Sparkles className="size-5" />}
           />
           <QuickAccess
             onClick={() => navigate({ to: "/horaires" })}
             label="Horaires"
             arabic="مَوَاقِيت"
-            hint={prayerHint}
+            color="#2d8fbf"
             icon={<Clock className="size-5" />}
           />
           <QuickAccess
             onClick={openLectureDuJour}
             label="Wird"
             arabic="وِرْد"
+            color="#8a63c0"
             icon={<BookOpen className="size-5" />}
           />
         </section>
@@ -182,33 +173,34 @@ function Index() {
   );
 }
 
-/** Accès principal compact : icône, nom, arabe — 4 par ligne. */
+/** Accès principal compact : icône colorée, nom, arabe — 4 par ligne. */
 function QuickAccess({
   onClick,
   label,
   arabic,
+  color,
   icon,
 }: {
   onClick: () => void;
   label: string;
   arabic: string;
-  hint?: string;
+  color: string;
   icon: ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
-      className="surface-card group flex flex-col items-center gap-1 rounded-2xl px-1 py-3 text-center transition hover:-translate-y-0.5 hover:border-primary/40 active:scale-[0.97]"
+      style={{ "--c": color } as React.CSSProperties}
+      className="surface-card group relative flex flex-col items-center gap-1 overflow-hidden rounded-2xl px-1 pb-3 pt-2.5 text-center transition hover:-translate-y-0.5 active:scale-[0.97]"
     >
-      <span className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary transition group-hover:scale-105">
+      <span className="grid size-10 place-items-center rounded-xl bg-[color-mix(in_srgb,var(--c)_16%,transparent)] text-[var(--c)] transition group-hover:scale-105">
         {icon}
       </span>
-      <span className="font-display text-[0.95rem] font-semibold leading-tight text-foreground">
-        {label}
-      </span>
-      <span lang="ar" dir="rtl" className="font-arabic text-[0.95rem] leading-none text-muted-foreground">
+      <span className="font-display text-[0.95rem] font-bold leading-tight text-foreground">{label}</span>
+      <span lang="ar" dir="rtl" className="font-arabic text-[0.95rem] leading-none text-[var(--c)]">
         {arabic}
       </span>
+      <span className="absolute inset-x-0 bottom-0 h-[3px] bg-[var(--c)] opacity-80" />
     </button>
   );
 }

@@ -6,6 +6,7 @@ import { CounterPad } from "@/components/CounterPad";
 import {
   FREE_COUNTER_ID,
   SALAT_DHIKR_ID,
+  SALAT_FORMULA,
   addToLog,
   dhikrShortTitle,
   getCounterDhikr,
@@ -75,9 +76,14 @@ function CounterPage() {
         {dhikr && (
           <div className="surface-card space-y-2 p-5 text-center">
             <p lang="ar" dir="rtl" className="font-arabic text-2xl leading-loose text-foreground">
-              {dhikr.arabic}
+              {dhikrId === SALAT_DHIKR_ID ? SALAT_FORMULA.arabic : dhikr.arabic}
             </p>
-            <p className="text-sm text-muted-foreground">{dhikr.translation}</p>
+            {dhikrId === SALAT_DHIKR_ID && (
+              <p className="text-sm italic text-muted-foreground">{SALAT_FORMULA.phonetic}</p>
+            )}
+            <p className="text-sm text-muted-foreground">
+              {dhikrId === SALAT_DHIKR_ID ? SALAT_FORMULA.french : dhikr.translation}
+            </p>
           </div>
         )}
 

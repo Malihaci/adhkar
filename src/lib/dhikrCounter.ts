@@ -240,3 +240,12 @@ export function shareTextForChallenge(c: {
     c.type === "collective" ? `Objectif collectif : ${c.target.toLocaleString("fr-FR")}` : `Objectif du défi : ${c.target.toLocaleString("fr-FR")}`;
   return `السلام عليكم ورحمة الله وبركاته 🌿\n\n${c.title}\n\n${dhikrShortTitle(c.dhikrId)}\n${goalLine}\n\nParticiper :\n${challengeUrl(c.id)}`;
 }
+
+/** Formule affichée sur le compteur de la salāt sur le Prophète ﷺ (défi du vendredi) :
+ * la formule habituelle, étendue à sa famille et à ses compagnons. */
+export const SALAT_FORMULA = {
+  arabic: "اللَّهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَىٰ نَبِيِّنَا مُحَمَّدٍ وَعَلَىٰ آلِهِ وَصَحْبِهِ أَجْمَعِينَ",
+  phonetic: "Allâhumma salli wa sallim wa bârik 'alâ nabiyyinâ Muhammad wa 'alâ âlihi wa sahbihi ajma'în.",
+  french:
+    "Ô Allah, prie sur notre Prophète Muhammad, accorde-lui la paix et bénis-le, ainsi que sa famille et tous ses compagnons.",
+};

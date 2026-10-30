@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Clock } from "lucide-react";
 import { formatCountdown, getNextPrayer, PRAYER_LABELS, usePrayerTimings } from "@/lib/prayerTimes";
 
 /**
@@ -21,31 +20,26 @@ export function NextPrayerWidget() {
   const next = getNextPrayer(timings, now);
   if (!next) return null;
 
+  const hh = next.time.getHours().toString().padStart(2, "0");
+  const mm = next.time.getMinutes().toString().padStart(2, "0");
+
   return (
     <Link
       to="/horaires"
-      className="surface-card flex items-center justify-between gap-3 rounded-2xl px-4 py-3 transition hover:-translate-y-0.5"
+      className="surface-card flex flex-col items-center rounded-2xl px-4 py-2.5 text-center transition hover:-translate-y-0.5"
     >
-      <div className="flex items-center gap-2.5">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-          <Clock className="size-4" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-            Prochaine prière
-          </p>
-          <p className="text-sm font-semibold text-foreground">{PRAYER_LABELS[next.key]}</p>
-        </div>
-      </div>
-      <div className="text-right">
-        <p className="font-display text-base font-bold tabular-nums text-foreground">
-          {next.time.getHours().toString().padStart(2, "0")}:
-          {next.time.getMinutes().toString().padStart(2, "0")}
-        </p>
-        <p className="text-[11px] text-muted-foreground">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        Prochaine prière
+      </span>
+      <span className="font-display text-[1.7rem] font-bold leading-tight text-foreground">
+        {PRAYER_LABELS[next.key]}
+      </span>
+      <span className="font-display text-lg font-semibold tabular-nums text-primary">
+        {hh}:{mm}
+        <span className="ml-2 font-sans text-xs font-normal text-muted-foreground">
           dans {formatCountdown(next.time.getTime() - now.getTime())}
-        </p>
-      </div>
+        </span>
+      </span>
     </Link>
   );
 }
