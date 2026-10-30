@@ -25,6 +25,7 @@ import {
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
 import { useKahfChallenge } from "@/lib/kahfChallenge";
 import { useWakeLock } from "@/lib/wakeLock";
+import { useInkOffset } from "@/lib/inkCenter";
 import {
   MIN_FALLBACK_QUERY_LENGTH,
   RECITERS,
@@ -832,6 +833,10 @@ function MushafPage() {
   /* ------------------------------------------------------------ sourate */
   const surahOnPage = verses?.[0]?.surah ?? 1;
   const surahMeta = chapters?.find((c) => c.id === surahOnPage);
+  // Texte des capsules du haut centré sur l'encre (pas sur la boîte de ligne).
+  const surahChipInk = useInkOffset(surahMeta?.nameArabic ?? "", '"Amiri Quran"');
+  const juzChipText = `الجزء ${verses?.[0]?.juz ?? ""}`;
+  const juzChipInk = useInkOffset(juzChipText, '"Amiri Quran"');
 
   /** Bascule automatique vers le mode ayah-par-ayah (§3/§4 mission "Coran
    * direct") : dès que Français ou Phonétique est activé, plus de message
@@ -1584,9 +1589,11 @@ function MushafPage() {
                 lang="ar"
                 onClick={() => openNav("surah")}
                 aria-label="Changer de sourate"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gold/60 px-3 py-1.5 font-arabic text-[15px] font-bold leading-none text-[#140d05] dark:text-[#fbf5e6]"
+                className="inline-flex min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-gold/60 px-3.5 py-1 font-arabic text-[15px] font-bold leading-[1.9] text-[#140d05] dark:text-[#fbf5e6]"
               >
-                {surahMeta?.nameArabic ?? ""}
+                <span style={{ transform: `translateY(${surahChipInk}em)` }}>
+                  {surahMeta?.nameArabic ?? ""}
+                </span>
                 <ChevronDown className="size-3 text-gold" />
               </button>
               <button
@@ -1594,9 +1601,11 @@ function MushafPage() {
                 lang="ar"
                 onClick={() => openNav("juz")}
                 aria-label="Changer de juz"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gold/60 px-3 py-1.5 font-arabic text-[15px] font-bold leading-none text-[#140d05] dark:text-[#fbf5e6]"
+                className="inline-flex min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-gold/60 px-3.5 py-1 font-arabic text-[15px] font-bold leading-[1.9] text-[#140d05] dark:text-[#fbf5e6]"
               >
-                الجزء {verses[0].juz}
+                <span dir="rtl" style={{ transform: `translateY(${juzChipInk}em)` }}>
+                  {juzChipText}
+                </span>
                 <ChevronDown className="size-3 text-gold" />
               </button>
             </div>
@@ -2276,6 +2285,7 @@ function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number 
   const ogee =
     "M96 30C104 15 114 8 130 8H270C286 8 296 15 304 30C296 45 286 52 270 52H130C114 52 104 45 96 30Z";
   const name = `سُورَةُ ${nameArabic}`;
+  const ink = useInkOffset(name, '"Amiri Quran"');
   const size = name.length > 16 ? "text-[28cqh]" : name.length > 12 ? "text-[33cqh]" : "text-[38cqh]";
   return (
     <div className="relative my-[0.15em] aspect-[400/60] w-full text-[#140d05] [container-type:size] dark:text-[#fbf5e3]">
@@ -2308,7 +2318,7 @@ function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number 
           size,
         )}
       >
-        {name}
+        <span style={{ transform: `translateY(${ink}em)` }}>{name}</span>
       </p>
       <Link
         to="/sourate/$surah"

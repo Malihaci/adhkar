@@ -82,7 +82,7 @@ function computeItems(
   const hour = now.getHours();
 
   const morningProgress = adhkarProgress(morningAdhkar, counts);
-  if (hour < 13 && !morningProgress.done) {
+  if (hour < 13 && !morningProgress.done && morningProgress.completed > 0) {
     items.push({
       key: "morning",
       label: "Continuer mes Adhkār du matin",
@@ -94,7 +94,7 @@ function computeItems(
   const asrDate = getAsrDateFromTimings(timings);
   const pastAsr = asrDate ? now.getTime() >= asrDate.getTime() : hour >= ASR_FALLBACK_HOUR;
   const eveningProgress = adhkarProgress(eveningAdhkar, counts);
-  if (pastAsr && !eveningProgress.done) {
+  if (pastAsr && !eveningProgress.done && eveningProgress.completed > 0) {
     items.push({
       key: "evening",
       label: "Continuer mes Adhkār du soir",
@@ -111,7 +111,7 @@ function computeItems(
       if (day) {
         items.push({
           key: "wird",
-          label: "Continuer mon Wird",
+          label: "Lecture du jour · Wird",
           sub: `Pages ${day.startPage} → ${day.endPage}`,
           to: "/quran/page/$page",
           params: { page: String(day.startPage) },

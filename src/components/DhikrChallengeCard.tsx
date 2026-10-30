@@ -30,8 +30,9 @@ export function DhikrChallengeCard() {
       <Link
         to="/challenge/$id"
         params={{ id: active.id }}
-        className="surface-card flex min-h-16 items-center gap-3 rounded-2xl px-4 py-3 transition hover:-translate-y-0.5"
+        className="relative flex min-h-16 items-center gap-3 rounded-2xl border border-gold/50 bg-gradient-to-r from-gold/20 via-gold/10 to-gold/5 px-4 py-3 shadow-[0_6px_18px_-10px_var(--gold)] transition hover:-translate-y-0.5"
       >
+        <span aria-hidden className="absolute right-3 top-2.5 flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-gold/70" /><span className="relative inline-flex size-2 rounded-full bg-gold" /></span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">{active.title}</p>
           <p className="text-xs tabular-nums text-muted-foreground">
@@ -52,8 +53,9 @@ export function DhikrChallengeCard() {
       <Link
         to="/compteur/$dhikrId"
         params={{ dhikrId: SALAT_DHIKR_ID }}
-        className="surface-card flex min-h-16 items-center gap-3 rounded-2xl px-4 py-3 transition hover:-translate-y-0.5"
+        className="relative flex min-h-16 items-center gap-3 rounded-2xl border border-gold/50 bg-gradient-to-r from-gold/20 via-gold/10 to-gold/5 px-4 py-3 shadow-[0_6px_18px_-10px_var(--gold)] transition hover:-translate-y-0.5"
       >
+        <span aria-hidden className="absolute right-3 top-2.5 flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-gold/70" /><span className="relative inline-flex size-2 rounded-full bg-gold" /></span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">Défi du vendredi 🌿</p>
           <p className="text-xs tabular-nums text-muted-foreground">

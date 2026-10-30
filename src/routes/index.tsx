@@ -128,40 +128,18 @@ function Index() {
       {hydrated && !prefs.onboarded && <OnboardingModal />}
       <div className="space-y-5">
         <NextPrayerWidget />
-        <HomeSuggestion counts={progress.counts} />
-        <KahfChallengeCard />
-        <DhikrChallengeCard />
-
-        {/* À reprendre : une seule carte, trois lignes fines */}
-        <section aria-labelledby="home-resume" className="space-y-2">
-          <h2
-            id="home-resume"
-            className="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
-          >
-            À reprendre
+        {/* Défis du jour à faire — mis en avant ; la section disparaît s'il n'y en a pas. */}
+        <section aria-label="Défis du jour" className="hidden space-y-2 has-[a]:block">
+          <h2 className="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gold">
+            Défis du jour
           </h2>
-          <div className="surface-card divide-y divide-border/60 overflow-hidden rounded-2xl">
-            <ResumeRow
-              onClick={openCoran}
-              icon={<BookOpen className="size-[18px]" />}
-              label="Coran"
-              hint={`Page ${lastPage}`}
-            />
-            <ResumeRow
-              onClick={openAdhkar}
-              icon={<Sparkles className="size-[18px]" />}
-              label="Adhkār"
-              hint={adhkarHint}
-              progress={adhkarPct}
-            />
-            <ResumeRow
-              onClick={openLectureDuJour}
-              icon={<BookOpen className="size-[18px]" />}
-              label="Lecture du jour"
-              hint={wirdHint}
-            />
+          <div className="space-y-2">
+            <KahfChallengeCard />
+            <DhikrChallengeCard />
           </div>
         </section>
+        {/* Reprendre le dhikr commencé, lecture du jour du Wird */}
+        <HomeSuggestion counts={progress.counts} />
 
         {/* Accès principaux, compacts */}
         <section aria-label="Accès rapides" className="grid grid-cols-4 gap-2.5">
@@ -201,47 +179,6 @@ function Index() {
         />
       )}
     </AppShell>
-  );
-}
-
-/** Ligne « À reprendre » : icône, titre, info utile, barre fine éventuelle. */
-function ResumeRow({
-  onClick,
-  icon,
-  label,
-  hint,
-  progress,
-}: {
-  onClick: () => void;
-  icon: ReactNode;
-  label: string;
-  hint: string;
-  progress?: number;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="group flex min-h-[3.5rem] w-full items-center gap-3 px-3.5 py-2.5 text-left transition hover:bg-muted/50 active:bg-muted"
-    >
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-        {icon}
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="font-display text-[1.05rem] font-semibold leading-tight text-foreground">
-          {label}
-        </span>
-        <span className="truncate text-xs text-muted-foreground">{hint}</span>
-        {progress !== undefined && (
-          <span className="mt-1 block h-1 overflow-hidden rounded-full bg-border">
-            <span
-              className="block h-full rounded-full bg-primary"
-              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-            />
-          </span>
-        )}
-      </span>
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
-    </button>
   );
 }
 
