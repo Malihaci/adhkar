@@ -1062,19 +1062,55 @@ function MushafPage() {
       const effectiveWidth = isLandscape
         ? Math.min(boxContentWidth, LANDSCAPE_MAX_WIDTH_PX)
         : Math.min(boxContentWidth, PORTRAIT_MAX_WIDTH_PX);
+      // Les 15 lignes doivent tenir dans la hauteur de l'écran, sans défiler :
+      // la boîte prend exactement la hauteur disponible et on mesure son
+      // débordement. Sur un téléphone en paysage (écran très bas) le texte
+      // deviendrait illisible : on y garde le défilement.
+      const boxPaddingY = parseFloat(boxStyle.paddingTop) + parseFloat(boxStyle.paddingBottom);
+      const fitHeight = !(isLandscape && window.innerHeight < 600);
+      if (fitHeight) fitBox.style.height = `${box.clientHeight - boxPaddingY}px`;
+      else fitBox.style.height = "";
+      const fitsHeight = () => !fitHeight || fitBox.scrollHeight <= fitBox.clientHeight + 1;
+      const widthSearch = () => {
+        let lo = 8;
+        let hi = 60;
+        let best = lo;
+        for (let i = 0; i < 10; i++) {
+          const mid = (lo + hi) / 2;
+          sheet.style.fontSize = `${mid}px`;
+          if (fitsWidth()) {
+            best = mid;
+            lo = mid;
+          } else hi = mid;
+        }
+        return Math.max(8, best * SAFE_FACTOR);
+      };
       fitBox.style.width = `${effectiveWidth}px`;
-      let lo = 8;
-      let hi = 60;
-      let best = lo;
-      for (let i = 0; i < 10; i++) {
-        const mid = (lo + hi) / 2;
-        sheet.style.fontSize = `${mid}px`;
-        if (fitsWidth()) {
-          best = mid;
-          lo = mid;
-        } else hi = mid;
+      let ceiling = widthSearch();
+      sheet.style.fontSize = `${ceiling}px`;
+      if (!fitsHeight()) {
+        // Limité par la hauteur : plus grande taille qui tient, puis page
+        // rétrécie dans la même proportion (mêmes espaces entre les mots,
+        // page centrée) au lieu d'étirer les lignes sur toute la largeur.
+        let lo = 8;
+        let hi = ceiling;
+        let bestH = lo;
+        for (let i = 0; i < 10; i++) {
+          const mid = (lo + hi) / 2;
+          sheet.style.fontSize = `${mid}px`;
+          if (fitsHeight()) {
+            bestH = mid;
+            lo = mid;
+          } else hi = mid;
+        }
+        fitBox.style.width = `${Math.floor((effectiveWidth * bestH) / ceiling)}px`;
+        ceiling = Math.min(widthSearch(), bestH * 1.02);
+        sheet.style.fontSize = `${ceiling}px`;
+        for (let k = 0; k < 12 && !fitsHeight(); k++) {
+          ceiling *= 0.98;
+          sheet.style.fontSize = `${ceiling}px`;
+        }
       }
-      const ceiling = Math.max(8, best * SAFE_FACTOR);
       setCeilingFontPx(ceiling);
       const safe = ceiling * textSizeRef.current;
       sheet.style.fontSize = `${safe}px`;
@@ -1459,7 +1495,7 @@ function MushafPage() {
             rétrécir/agrandir s'annulait exactement, voir le commentaire sur
             `ceilingFontPx`). La composition (line_number, retours à la
             ligne) ne dépend que des données du Mushaf, jamais de la taille. */}
-        <div ref={fitBoxRef} className="mx-auto flex min-h-full flex-col">
+        <div ref={fitBoxRef} className="mx-auto flex flex-col">
           {/* Métadonnées DANS la page (comme le Mushaf papier) : sourate à gauche,
               juz' à droite — jamais une barre d'application permanente. */}
           {verses?.[0] && (
@@ -1580,7 +1616,12 @@ function MushafPage() {
                               lang="fr"
                               dir="ltr"
                               style={{ WebkitTextStroke: 0 }}
-                              className="inline-grid size-[0.95em] translate-y-[0.08em] place-items-center rounded-full border border-gold font-sans text-[0.4em] font-bold leading-none tabular-nums text-gold"
+                              className={cn(
+                                // Numéro aussi grand que le texte : médaillon d'1,1 em,
+                                // chiffres à ~60 % (moins pour 3 chiffres).
+                                "inline-grid size-[1.1em] translate-y-[0.1em] place-items-center rounded-full border-[1.5px] border-gold font-sans font-bold leading-none tabular-nums text-gold",
+                                w.ayah > 99 ? "text-[0.46em]" : w.ayah > 9 ? "text-[0.56em]" : "text-[0.66em]",
+                              )}
                             >
                               {w.ayah}
                             </span>
@@ -2109,33 +2150,28 @@ const JUZ_START_PAGE = [
 ];
 
 /** Bandeau de début de sourate, façon Mushaf de Médine : double filet, deux
- * panneaux d'arabesques, deux médaillons ronds et un cartouche central aux
- * extrémités en accolade qui porte le nom. La petite feuille (dans le
- * médaillon de gauche) ouvre la fiche de la sourate. */
+ * panneaux d'arabesques et, au centre, un large cartouche aux extrémités en
+ * accolade qui porte le nom. La taille du nom suit la hauteur du bandeau (et
+ * non celle du texte), il ne peut donc jamais déborder du cartouche. La petite
+ * feuille (panneau de gauche) ouvre la fiche de la sourate. */
 function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number }) {
   const ogee =
-    "M118 30C126 17 136 12 150 12H250C264 12 274 17 282 30C274 43 264 48 250 48H150C136 48 126 43 118 30Z";
-  const long = nameArabic.length > 9;
+    "M96 30C104 17 114 10 130 10H270C286 10 296 17 304 30C296 43 286 50 270 50H130C114 50 104 43 96 30Z";
+  const name = `سُورَةُ ${nameArabic}`;
+  const size = name.length > 16 ? "text-[34cqh]" : name.length > 12 ? "text-[40cqh]" : "text-[48cqh]";
   return (
-    <div className="relative my-[0.15em] aspect-[400/60] w-full text-[#140d05] dark:text-[#fbf5e6]">
+    <div className="relative my-[0.15em] aspect-[400/60] w-full text-[#140d05] [container-type:size] dark:text-[#fbf5e3]">
       <svg viewBox="0 0 400 60" className="absolute inset-0 size-full" aria-hidden>
         <defs>
           <pattern id="sb-orn" width="9" height="9" patternUnits="userSpaceOnUse">
             <path d="M4.5 .8 8.2 4.5 4.5 8.2 .8 4.5Z" fill="none" stroke="currentColor" strokeWidth=".7" />
             <circle cx="4.5" cy="4.5" r="1" fill="currentColor" />
-            <path d="M0 0Q2.2 2.2 0 4.5M9 0Q6.8 2.2 9 4.5M0 9Q2.2 6.8 0 4.5M9 9Q6.8 6.8 9 4.5" fill="none" stroke="currentColor" strokeWidth=".5" />
           </pattern>
         </defs>
         <rect x="1" y="1" width="398" height="58" className="fill-background" stroke="currentColor" strokeWidth="2.2" />
         <rect x="5" y="5" width="390" height="50" fill="none" stroke="currentColor" strokeWidth="1" />
-        <rect x="8" y="8" width="104" height="44" fill="url(#sb-orn)" stroke="currentColor" strokeWidth=".8" />
-        <rect x="288" y="8" width="104" height="44" fill="url(#sb-orn)" stroke="currentColor" strokeWidth=".8" />
-        {[88, 312].map((x) => (
-          <g key={x}>
-            <circle cx={x} cy="30" r="21" className="fill-background" stroke="currentColor" strokeWidth="2" />
-            <circle cx={x} cy="30" r="17" fill="none" stroke="currentColor" strokeWidth=".9" />
-          </g>
-        ))}
+        <rect x="8" y="8" width="92" height="44" fill="url(#sb-orn)" stroke="currentColor" strokeWidth=".8" />
+        <rect x="300" y="8" width="92" height="44" fill="url(#sb-orn)" stroke="currentColor" strokeWidth=".8" />
         <path d={ogee} className="fill-background" stroke="currentColor" strokeWidth="2" />
         <path
           d={ogee}
@@ -2143,24 +2179,24 @@ function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number 
           stroke="currentColor"
           strokeWidth=".8"
           vectorEffect="non-scaling-stroke"
-          transform="translate(200 30) scale(.93 .82) translate(-200 -30)"
+          transform="translate(200 30) scale(.96 .84) translate(-200 -30)"
         />
       </svg>
       <p
         lang="ar"
         dir="rtl"
         className={cn(
-          "absolute inset-y-0 left-[30%] right-[30%] flex items-center justify-center whitespace-nowrap font-arabic font-bold leading-none",
-          long ? "text-[0.8em]" : "text-[1em]",
+          "absolute inset-y-0 left-[27%] right-[27%] flex items-center justify-center whitespace-nowrap font-arabic font-bold leading-none",
+          size,
         )}
       >
-        سُورَةُ {nameArabic}
+        {name}
       </p>
       <Link
         to="/sourate/$surah"
         params={{ surah: String(surah) }}
         aria-label="Découvrir la sourate"
-        className="absolute left-[22%] top-1/2 -translate-x-1/2 -translate-y-1/2 text-[0.55em] leading-none"
+        className="absolute left-[12.5%] top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-background/80 px-[3%] py-[1.5%] text-[34cqh] leading-none"
       >
         🌿
       </Link>
