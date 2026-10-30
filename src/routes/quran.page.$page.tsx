@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -158,6 +159,11 @@ function MushafPage() {
   const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const [selected, setSelected] = useState<string[]>([]);
   const [showNav, setShowNav] = useState(false);
+  const [navTab, setNavTab] = useState<NavTab>("surah");
+  const openNav = (tab: NavTab) => {
+    setNavTab(tab);
+    setShowNav(true);
+  };
   const [copied, setCopied] = useState(false);
   // Changement de page = fermeture de la sélection en cours — cette route
   // reste montée d'une page à l'autre (seul `page` change).
@@ -952,7 +958,7 @@ function MushafPage() {
    * et le lecteur ayah-par-ayah, mais chaque écran l'applique différemment
    * (§9 mission) : ici, une fraction sûre du plafond de largeur du Mushaf. */
   const TEXT_SIZE_LEVELS = [
-    { key: "normal" as const, value: 0.92, label: "Standard" },
+    { key: "normal" as const, value: 0.97, label: "Standard" },
     { key: "large" as const, value: 1, label: "Grand" },
     { key: "xlarge" as const, value: 1, label: "Très grand" },
   ] as const;
@@ -1349,7 +1355,7 @@ function MushafPage() {
       >
         <div className="mx-auto flex max-w-2xl items-center gap-1.5">
           <button
-            onClick={() => setShowNav(true)}
+            onClick={() => openNav("surah")}
             className="min-w-0 flex-1 truncate rounded-full border border-border/60 bg-background px-3 py-1 text-left text-[13px] font-semibold"
           >
             {surahMeta ? (
@@ -1449,15 +1455,39 @@ function MushafPage() {
           {/* Métadonnées DANS la page (comme le Mushaf papier) : sourate à gauche,
               juz' à droite — jamais une barre d'application permanente. */}
           {verses?.[0] && (
-            <div
-              lang="ar"
-              dir="rtl"
-              className="flex min-h-9 shrink-0 items-center justify-between px-1 pb-1 font-arabic text-[13px] leading-none text-foreground/65"
-            >
-              <span />
-              <span>{surahMeta?.nameArabic ?? ""}</span>
+            <div className="flex min-h-9 shrink-0 items-center justify-between gap-2 px-1 pb-1">
+              {/* Sourate à gauche, juz à droite : un tap ouvre la liste et
+                  l'on arrive au début de l'élément choisi. */}
+              <button
+                type="button"
+                lang="ar"
+                onClick={() => openNav("surah")}
+                aria-label="Changer de sourate"
+                className="inline-flex items-center gap-1 rounded-md border border-gold/60 px-2.5 py-1 font-arabic text-[15px] font-bold leading-none text-[#140d05] dark:text-[#fbf5e6]"
+              >
+                {surahMeta?.nameArabic ?? ""}
+                <ChevronDown className="size-3 text-gold" />
+              </button>
+              <button
+                type="button"
+                lang="ar"
+                onClick={() => openNav("juz")}
+                aria-label="Changer de juz"
+                className="inline-flex items-center gap-1 rounded-md border border-gold/60 px-2.5 py-1 font-arabic text-[15px] font-bold leading-none text-[#140d05] dark:text-[#fbf5e6]"
+              >
+                الجزء {verses[0].juz}
+                <ChevronDown className="size-3 text-gold" />
+              </button>
             </div>
           )}
+          {/* Cadre de page ouvert côté reliure : page impaire (à droite) sans
+              trait à gauche, page paire (à gauche) sans trait à droite. */}
+          <div
+            className={cn(
+              "flex flex-1 flex-col border-y-[3px] border-double border-gold/70",
+              page % 2 === 1 ? "border-r-[3px] pr-1.5" : "border-l-[3px] pl-1.5",
+            )}
+          >
           <div
             ref={sheetRef}
             style={{ fontSize: fontPx } as React.CSSProperties}
@@ -1478,21 +1508,10 @@ function MushafPage() {
               return (
                 <div key={line.n} className="contents">
                   {startSurah && (
-                    <div className="flex items-center justify-center gap-2 rounded-xl border border-gold/30 bg-gold/5 py-[0.15em] text-center">
-                      <p className="text-[0.7em] font-semibold text-gold">
-                        {meta?.nameSimple}{" "}
-                        <span lang="ar" className="font-arabic text-[1.05em]">
-                          {meta?.nameArabic ?? ""}
-                        </span>
-                      </p>
-                      <Link
-                        to="/sourate/$surah"
-                        params={{ surah: String(startSurah) }}
-                        className="rounded-full bg-gold/15 px-2 py-0.5 text-[0.55em] font-semibold text-gold"
-                      >
-                        🌿 Découvrir
-                      </Link>
-                    </div>
+                    <SurahBanner
+                      nameArabic={meta?.nameArabic ?? ""}
+                      surah={startSurah}
+                    />
                   )}
                   {showBasmala && (
                     <Basmala
@@ -1504,8 +1523,17 @@ function MushafPage() {
                     data-mushaf-line
                     lang="ar"
                     dir="rtl"
-                    style={qcfName ? { fontFamily: `"${qcfName}"`, fontWeight: 400 } : undefined}
-                    className="flex items-baseline justify-between whitespace-nowrap leading-[1.9] text-foreground"
+                    style={
+                      qcfName
+                        ? {
+                            fontFamily: `"${qcfName}"`,
+                            fontWeight: 400,
+                            // Encre plus dense, sans toucher aux glyphes.
+                            WebkitTextStroke: "0.02em currentColor",
+                          }
+                        : undefined
+                    }
+                    className="flex items-baseline justify-between whitespace-nowrap leading-[1.9] text-[#140d05] dark:text-[#fbf5e6]"
                   >
                     {line.words.map((w, wi) => {
                       const isSel = selected.includes(w.key);
@@ -1521,12 +1549,25 @@ function MushafPage() {
                             // (simple teinte, pas de changement de couleur de texte)
                             // pour éviter l'effet "gros rectangles" — même boîte,
                             // même rayon, aucun reflow (§12 mission menu ayah).
-                            "rounded px-[0.05em] transition-colors",
+                            "rounded px-[0.02em] transition-colors",
                             isSel && "bg-primary/15",
                             isPlaying && "bg-gold/20 text-gold",
                           )}
                         >
-                          {w.code ?? w.text}
+                          {w.end ? (
+                            // Numéro de fin d'āyah en chiffres français (le glyphe
+                            // imprimé de la police affiche des chiffres arabes).
+                            <span
+                              lang="fr"
+                              dir="ltr"
+                              style={{ WebkitTextStroke: 0 }}
+                              className="inline-grid size-[0.95em] translate-y-[0.08em] place-items-center rounded-full border border-gold font-sans text-[0.4em] font-bold leading-none tabular-nums text-gold"
+                            >
+                              {w.ayah}
+                            </span>
+                          ) : (
+                            (w.code ?? w.text)
+                          )}
                         </span>
                       );
                     })}
@@ -1535,18 +1576,28 @@ function MushafPage() {
               );
             })}
           </div>
+          </div>
           {verses?.[0] && (
             <div
               lang="fr"
               dir="ltr"
-              className="flex min-h-10 shrink-0 items-center justify-between px-2 pt-1 font-sans text-[12px] leading-none tabular-nums text-foreground/60"
+              className="relative flex min-h-10 shrink-0 items-center justify-center px-2 pt-1.5 font-sans leading-none tabular-nums"
             >
-              <span>{page}</span>
-              <span>
-                Juz {verses[0].juz}
-                {verses[0].hizb ? ` · Hizb ${verses[0].hizb}` : ""}
-                {verses[0].rub ? ` · ${((verses[0].rub - 1) % 4) + 1}/4` : ""}
-              </span>
+              {/* Numéro de page seul, cliquable : saisie ou curseur 1–604. */}
+              <button
+                type="button"
+                onClick={() => openNav("page")}
+                aria-label={`Page ${page} — aller à une autre page`}
+                className="min-w-[2.6rem] rounded-md border-2 border-gold/70 bg-gold/10 px-3 py-1 text-[15px] font-bold text-[#140d05] dark:text-[#fbf5e6]"
+              >
+                {page}
+              </button>
+              {verses[0].hizb ? (
+                <span className="absolute right-2 text-[11px] text-foreground/60">
+                  Hizb {verses[0].hizb}
+                  {verses[0].rub ? ` · ${((verses[0].rub - 1) % 4) + 1}/4` : ""}
+                </span>
+              ) : null}
             </div>
           )}
         </div>
@@ -1695,6 +1746,9 @@ function MushafPage() {
 
       {showNav && (
         <GoToPanel
+          initialTab={navTab}
+          juz={verses?.[0]?.juz}
+          surahId={surahMeta?.id}
           page={page}
           chapters={chapters ?? []}
           reciterId={reciterId}
@@ -2027,18 +2081,74 @@ function PillRow({
   );
 }
 
+type NavTab = "page" | "surah" | "juz";
+
+/** Première page de chaque juz dans le Mushaf de Médine (604 pages). */
+const JUZ_START_PAGE = [
+  1, 22, 42, 62, 82, 102, 122, 142, 162, 182, 202, 222, 242, 262, 282, 302, 322, 342, 362, 382,
+  402, 422, 442, 462, 482, 502, 522, 542, 562, 582,
+];
+
+/** Bandeau de début de sourate : cadre orné, nom centré. La petite feuille
+ * ouvre la fiche de la sourate (ancien lien « Découvrir »). */
+function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number }) {
+  const star = (cx: number, R: number, r: number, n: number) =>
+    Array.from({ length: n * 2 }, (_, i) => {
+      const a = (Math.PI * i) / n - Math.PI / 2;
+      const k = i % 2 ? r : R;
+      return `${(cx + k * Math.cos(a)).toFixed(1)},${(30 + k * Math.sin(a)).toFixed(1)}`;
+    }).join(" ");
+  return (
+    <div className="relative my-[0.1em] aspect-[400/60] w-full text-gold">
+      <svg viewBox="0 0 400 60" className="absolute inset-0 size-full" aria-hidden>
+        <rect x="28" y="9" width="344" height="42" className="fill-gold/10" stroke="currentColor" strokeWidth="2.5" />
+        <rect x="34" y="15" width="332" height="30" className="fill-background" stroke="currentColor" strokeWidth="1.2" />
+        {[24, 376].map((x) => (
+          <g key={x}>
+            <circle cx={x} cy="30" r="22" className="fill-background" stroke="currentColor" strokeWidth="2.5" />
+            <circle cx={x} cy="30" r="17" fill="none" stroke="currentColor" strokeWidth="1" />
+            <polygon points={star(x, 13, 6.5, 8)} fill="currentColor" />
+          </g>
+        ))}
+      </svg>
+      <p
+        lang="ar"
+        dir="rtl"
+        className="absolute inset-0 flex items-center justify-center font-arabic text-[1.05em] font-bold leading-none text-[#140d05] dark:text-[#fbf5e6]"
+      >
+        سُورَةُ {nameArabic}
+      </p>
+      <Link
+        to="/sourate/$surah"
+        params={{ surah: String(surah) }}
+        aria-label="Découvrir la sourate"
+        className="absolute left-[11%] top-1/2 -translate-y-1/2 text-[0.5em] leading-none"
+      >
+        🌿
+      </Link>
+    </div>
+  );
+}
+
 function GoToPanel({
+  initialTab,
+  juz,
+  surahId,
   page,
   chapters,
   reciterId,
   onClose,
 }: {
+  initialTab: NavTab;
+  juz?: number;
+  surahId?: number;
   page: number;
   chapters: { id: number; nameArabic: string; nameFrench: string; pages: [number, number] }[];
   reciterId: string;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
+  const [tab, setTab] = useState<NavTab>(initialTab);
   const [value, setValue] = useState(String(page));
   const [q, setQ] = useState("");
 
@@ -2058,6 +2168,11 @@ function GoToPanel({
         String(c.id) === q
       : true,
   );
+  const tabs: { key: NavTab; label: string }[] = [
+    { key: "page", label: "Page" },
+    { key: "surah", label: "Sourate" },
+    { key: "juz", label: "Juz" },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm">
@@ -2072,48 +2187,108 @@ function GoToPanel({
             <X className="size-4" />
           </button>
         </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            go(Number(value));
-          }}
-          className="mb-4 flex gap-2"
-        >
-          <input
-            inputMode="numeric"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="Numéro de page (1–604)"
-            className="h-11 min-w-0 flex-1 rounded-full border border-border bg-background px-4 text-sm"
-          />
-          <button className="rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground">
-            Ouvrir
-          </button>
-        </form>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Chercher une sourate"
-          className="mb-2 h-11 w-full rounded-full border border-border bg-background px-4 text-sm"
-        />
-        <ul className="space-y-1 pb-4">
-          {list.map((c) => (
-            <li key={c.id}>
-              <button
-                onClick={() => go(c.pages[0])}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition hover:bg-muted"
-              >
-                <span className="truncate">
-                  <span className="text-muted-foreground">{c.id}. </span>
-                  {c.nameFrench}
-                </span>
-                <span lang="ar" className="font-arabic text-gold">
-                  {c.nameArabic}
-                </span>
-              </button>
-            </li>
+        <div className="mb-3 grid grid-cols-3 gap-1 rounded-full bg-muted p-1">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "rounded-full py-1.5 text-sm font-semibold transition",
+                tab === t.key ? "bg-background shadow-sm" : "text-muted-foreground",
+              )}
+            >
+              {t.label}
+            </button>
           ))}
-        </ul>
+        </div>
+
+        {tab === "page" && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              go(Number(value));
+            }}
+            className="space-y-4 pb-2"
+          >
+            <div className="flex gap-2">
+              <input
+                inputMode="numeric"
+                autoFocus
+                value={value}
+                onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                placeholder="Numéro de page (1–604)"
+                className="h-11 min-w-0 flex-1 rounded-full border border-border bg-background px-4 text-center text-lg font-bold tabular-nums"
+              />
+              <button className="rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground">
+                Ouvrir
+              </button>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={604}
+              value={clampPage(Number(value) || 1)}
+              onChange={(e) => setValue(e.target.value)}
+              aria-label="Choisir la page"
+              className="w-full accent-[var(--gold)]"
+            />
+            <div className="flex justify-between text-xs tabular-nums text-muted-foreground">
+              <span>1</span>
+              <span>604</span>
+            </div>
+          </form>
+        )}
+
+        {tab === "surah" && (
+          <>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Chercher une sourate"
+              className="mb-2 h-11 w-full rounded-full border border-border bg-background px-4 text-sm"
+            />
+            <ul className="space-y-1 pb-4">
+              {list.map((c) => (
+                <li key={c.id}>
+                  <button
+                    onClick={() => go(c.pages[0])}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition hover:bg-muted",
+                      c.id === surahId && "bg-gold/10",
+                    )}
+                  >
+                    <span className="truncate">
+                      <span className="text-muted-foreground">{c.id}. </span>
+                      {c.nameFrench}
+                    </span>
+                    <span lang="ar" className="font-arabic text-gold">
+                      {c.nameArabic}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {tab === "juz" && (
+          <ul className="grid grid-cols-3 gap-2 pb-4">
+            {JUZ_START_PAGE.map((p, i) => (
+              <li key={i}>
+                <button
+                  onClick={() => go(p)}
+                  className={cn(
+                    "flex w-full flex-col items-center rounded-xl border border-border px-2 py-2 text-sm transition hover:bg-muted",
+                    i + 1 === juz && "border-gold bg-gold/10",
+                  )}
+                >
+                  <span className="font-semibold">Juz {i + 1}</span>
+                  <span className="text-[11px] tabular-nums text-muted-foreground">p. {p}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
