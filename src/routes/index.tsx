@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { HomeSuggestion } from "@/components/HomeSuggestion";
 import { NextPrayerWidget } from "@/components/NextPrayerWidget";
 import { DhikrChallengeCard } from "@/components/DhikrChallengeCard";
+import { KahfChallengeCard } from "@/components/KahfChallengeCard";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { usePreferences, resolveCoranMode } from "@/lib/preferences";
 import { getAsrDateFromTimings, usePrayerTimings } from "@/lib/prayerTimes";
@@ -110,6 +111,7 @@ function Index() {
       <div className="space-y-5">
         <NextPrayerWidget />
         <HomeSuggestion counts={progress.counts} />
+        <KahfChallengeCard />
         <DhikrChallengeCard />
 
         {/* 4 portes principales, exactement — même style, même taille (§2) */}

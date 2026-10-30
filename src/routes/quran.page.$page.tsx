@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
+import { useKahfChallenge } from "@/lib/kahfChallenge";
 import {
   MIN_FALLBACK_QUERY_LENGTH,
   RECITERS,
@@ -193,6 +194,13 @@ function MushafPage() {
       /* quota */
     }
   }, [page]);
+
+  // Défi du vendredi (Al-Kahf) : chaque page de la sourate lue est comptée ;
+  // la dernière page la termine et fait disparaître la pastille d'accueil.
+  const { record: recordKahfPage } = useKahfChallenge();
+  useEffect(() => {
+    recordKahfPage(page);
+  }, [page, recordKahfPage]);
 
   /* ------------------------------------------------------------- audio */
   const audioRef = useRef<HTMLAudioElement | null>(null);
