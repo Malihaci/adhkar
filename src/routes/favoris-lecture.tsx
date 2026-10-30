@@ -6,13 +6,13 @@ import { useFavorites } from "@/lib/storage";
 export const Route = createFileRoute("/favoris-lecture")({
   head: () => ({
     meta: [
-      { title: "Lecture des favoris — Adhkâr" },
+      { title: "Lecture des favoris — Nur MaLiHaCi" },
       {
         name: "description",
         content:
           "Récitez uniquement vos adhkâr favoris, avec navigation précédent / suivant limitée à vos favoris.",
       },
-      { property: "og:title", content: "Lecture des favoris — Adhkâr" },
+      { property: "og:title", content: "Lecture des favoris — Nur MaLiHaCi" },
       {
         property: "og:description",
         content: "Un parcours de récitation dédié à vos adhkâr enregistrés.",

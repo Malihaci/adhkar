@@ -1,7 +1,7 @@
 {
-  "name": "Adhkâr du Matin et du Soir",
-  "short_name": "Adhkâr",
-  "description": "Récitez chaque jour les adhkâr authentiques du matin et du soir.",
+  "name": "Nur MaLiHaCi",
+  "short_name": "Nur MaLiHaCi",
+  "description": "Coran, adhkâr, horaires de prière et lecture du jour.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

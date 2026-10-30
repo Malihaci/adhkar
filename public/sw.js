@@ -13,7 +13,7 @@
 //    hors ligne est stocké par l'application dans AUDIO_CACHE et lu via des
 //    URL blob (voir src/lib/offline.ts).
 // Changer VERSION nettoie les anciens caches (AUDIO_CACHE est conservé).
-const VERSION = "v5";
+const VERSION = "v6";
 const SHELL = `adhkar-shell-${VERSION}`;
 const ASSETS = `adhkar-assets-${VERSION}`;
 const DATA = `adhkar-data-${VERSION}`;

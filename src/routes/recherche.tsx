@@ -8,13 +8,13 @@ import { adhkar } from "@/data/adhkar";
 export const Route = createFileRoute("/recherche")({
   head: () => ({
     meta: [
-      { title: "Recherche — Adhkâr" },
+      { title: "Recherche — Nur MaLiHaCi" },
       {
         name: "description",
         content:
           "Recherchez par mot arabe, français, phonétique ou référence de hadith.",
       },
-      { property: "og:title", content: "Adhkâr — Recherche" },
+      { property: "og:title", content: "Nur MaLiHaCi — Recherche" },
       {
         property: "og:description",
         content: "Trouvez rapidement un dhikr par mot-clé ou référence.",

@@ -43,7 +43,7 @@ export const Route = createFileRoute("/etude/$surah/$ayah")({
     sel: typeof s.sel === "string" ? s.sel : undefined,
   }),
   head: ({ params }) => ({
-    meta: [{ title: `Étudier ${params.surah}:${params.ayah} — Adhkâr` }],
+    meta: [{ title: `Étudier ${params.surah}:${params.ayah} — Nur MaLiHaCi` }],
   }),
   component: EtudePage,
 });
