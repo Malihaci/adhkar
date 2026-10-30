@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import {
   SALAT_DHIKR_ID,
-  SALAT_FORMULA,
   isChallengeEnded,
   isFriday,
   todayKey,
@@ -54,22 +53,20 @@ export function DhikrChallengeCard() {
       <Link
         to="/compteur/$dhikrId"
         params={{ dhikrId: SALAT_DHIKR_ID }}
-        className="relative block rounded-2xl border border-gold/50 bg-gradient-to-r from-gold/20 via-gold/10 to-gold/5 px-4 py-3 shadow-[0_6px_18px_-10px_var(--gold)] transition hover:-translate-y-0.5"
+        className="flex min-h-[3.5rem] items-center gap-3 rounded-2xl border border-gold/60 bg-gold/10 px-3.5 py-2 transition hover:-translate-y-0.5"
       >
-        <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-semibold text-foreground">La prière sur le Prophète ﷺ</p>
-          <span className="flex shrink-0 items-center gap-0.5 text-[13px] font-semibold tabular-nums text-primary">
-            {count} / {friday.goal} <ChevronRight className="size-4" />
+        <span className="grid size-10 shrink-0 place-items-center text-2xl">🌿</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-foreground">
+            La prière sur le Prophète ﷺ
           </span>
-        </div>
-        {/* La formule, une ligne sous l'autre comme dans les livres */}
-        <div className="mt-1 space-y-0.5 text-center">
-          <p lang="ar" dir="rtl" className="font-arabic text-[1.1rem] leading-[1.9] text-foreground">
-            {SALAT_FORMULA.arabic}
-          </p>
-          <p className="text-xs italic leading-snug text-muted-foreground">{SALAT_FORMULA.phonetic}</p>
-          <p className="text-xs leading-snug text-muted-foreground">{SALAT_FORMULA.french}</p>
-        </div>
+          <span className="block truncate text-xs tabular-nums text-muted-foreground">
+            {count} / {friday.goal} · à faire aujourd'hui
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-0.5 text-[13px] font-bold text-gold">
+          {count > 0 ? "Continuer" : "Commencer"} <ChevronRight className="size-4" />
+        </span>
       </Link>
     );
   }
