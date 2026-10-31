@@ -13,6 +13,10 @@
  * complet des Adhkār (hors Coran) n'a été trouvée, donc seuls les dhikr
  * réellement coraniques peuvent avoir cette voix ; les autres restent
  * "Audio indisponible", jamais un audio approximatif substitué.
+ *
+ * Mise à jour : les adhkār qui ne sont pas des āyāt ont maintenant une VOIX DE
+ * SYNTHÈSE (Microsoft Edge TTS, ar-SA-HamedNeural, fichiers générés une fois
+ * dans public/audio/adhkar/{id}.mp3) — ce n'est pas un récitateur humain.
  */
 import { resolveAudioSrc } from "@/lib/offline";
 import { useEffect, useRef, useState } from "react";
@@ -25,7 +29,13 @@ import {
 
 const DHIKR_RECITER = "ghamdi";
 
+/** Voix de synthèse (fichiers générés, public/audio/adhkar) pour les adhkār qui ne sont pas des āyāt. */
+const FILE_PREFIX = "file:";
+export const dhikrFileSrc = (d: { id: string; verseKeys?: string[] }) =>
+  d.verseKeys?.length ? undefined : `/audio/adhkar/${d.id}.mp3`;
+
 function resolveUrl(key: string): string {
+  if (key.startsWith(FILE_PREFIX)) return key.slice(FILE_PREFIX.length);
   return key === BASMALA_BRIDGE_KEY
     ? basmalaAudioUrl(DHIKR_RECITER)
     : verseAudioUrl(DHIKR_RECITER, key);
@@ -35,6 +45,7 @@ export function useDhikrVerseAudio(
   verseKeys: string[] | undefined,
   onFinished?: () => void,
   speed = 1,
+  fileSrc?: string,
 ) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -109,13 +120,13 @@ export function useDhikrVerseAudio(
 
   const toggle = () => {
     const el = audioRef.current;
-    if (!el || !verseKeys?.length) return;
+    if (!el || (!verseKeys?.length && !fileSrc)) return;
     if (playing) {
       el.pause();
       setPlaying(false);
       return;
     }
-    queueRef.current = withBasmalaBridges(verseKeys);
+    queueRef.current = verseKeys?.length ? withBasmalaBridges(verseKeys) : [FILE_PREFIX + fileSrc];
     indexRef.current = 0;
     retryRef.current = 0;
     el.playbackRate = speed;
@@ -129,5 +140,5 @@ export function useDhikrVerseAudio(
     else void resolveAudioSrc(url).then(begin);
   };
 
-  return { playing, toggle, available: !!verseKeys?.length };
+  return { playing, toggle, available: !!verseKeys?.length || !!fileSrc };
 }

@@ -5,7 +5,7 @@ import { AyahText } from "@/components/AyahText";
 
 import { useDailyProgress, useFavorites } from "@/lib/storage";
 import { shareDhikr } from "@/lib/share";
-import { useDhikrVerseAudio } from "@/lib/dhikrAudio";
+import { dhikrFileSrc, useDhikrVerseAudio } from "@/lib/dhikrAudio";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -19,7 +19,7 @@ export function DhikrCard({ dhikr, index }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [tab, setTab] = useState<"ar" | "ph" | "fr" | "all">("ar");
   const [audioUnavailable, setAudioUnavailable] = useState(false);
-  const dhikrAudio = useDhikrVerseAudio(dhikr.verseKeys);
+  const dhikrAudio = useDhikrVerseAudio(dhikr.verseKeys, undefined, 1, dhikrFileSrc(dhikr));
 
   const count = progress.counts[dhikr.id] ?? 0;
   const done = count >= dhikr.repetitions;

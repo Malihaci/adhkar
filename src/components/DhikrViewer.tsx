@@ -21,7 +21,7 @@ import type { Dhikr } from "@/data/adhkar";
 import { useDailyProgress, useFavorites, getLastReadIndex } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { shareDhikr } from "@/lib/share";
-import { useDhikrVerseAudio } from "@/lib/dhikrAudio";
+import { dhikrFileSrc, useDhikrVerseAudio } from "@/lib/dhikrAudio";
 import { GHAMIDI_UNAVAILABLE_REASON } from "@/lib/adhkarGhamidi";
 import { COUNTER_DHIKR_IDS } from "@/lib/dhikrCounter";
 import { cn } from "@/lib/utils";
@@ -125,6 +125,7 @@ export function DhikrViewer({
       }
     },
     prefs.adhkar.speed,
+    usingAfasyProfile && dhikr ? dhikrFileSrc(dhikr) : undefined,
   );
   useEffect(() => {
     if (!autoAdvanceRef.current) return;
