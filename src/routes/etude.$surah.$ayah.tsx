@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { fetchChapters, fetchVerseDetail, verseAudioUrl, defaultReciter } from "@/lib/mushaf";
 import { fetchMokhtasarLessons, fetchSurahText, fetchTafsir, splitSaadiBlocks, tafsirGroupRange, type TafsirSlug } from "@/lib/quran";
-import { itemsForAyah, loadTadabburPage, type TaItem } from "@/lib/tadabbur-amal";
+import { itemsForAyah, loadTadabburPage, pageLevelItems, type TaItem } from "@/lib/tadabbur-amal";
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
 import { useActionsProgress, useFavorites, useLocalState } from "@/lib/storage";
 import { formatVerseScope, getEtudeContent, type EtudeContent } from "@/lib/etude-content";
@@ -241,11 +241,15 @@ function EtudePage() {
     staleTime: Infinity,
   });
   const tawjihatLocal = onlyThisAyah(getEtudeContent(verseKey, "tawjihat"));
-  // Source 517 : seulement les points qui citent exactement cette āyah (portée AYAH).
-  const ayahOnly = (items: TaItem[]) => items.filter((i) => i.scope === "AYAH");
-  const taTadabbur = meditateItems.length ? [] : ayahOnly(itemsForAyah(taPage, "tadabbur", ayah));
-  const taAmal = agirItems.length ? [] : ayahOnly(itemsForAyah(taPage, "amal", ayah));
-  const taTawjihat = tawjihatLocal.length ? [] : ayahOnly(itemsForAyah(taPage, "tawjihat", ayah));
+  // Source 517 : points qui citent cette āyah (seule ou dans un groupe d'āyāt) ;
+  // sans rien de tel, repli sur les points de la page, étiquetés comme tels.
+  const forAyah = (category: "tadabbur" | "amal" | "tawjihat", fallbackToPage: boolean) => {
+    const hits = itemsForAyah(taPage, category, ayah);
+    return hits.length || !fallbackToPage ? hits : pageLevelItems(taPage, category);
+  };
+  const taTadabbur = meditateItems.length ? [] : forAyah("tadabbur", true);
+  const taAmal = agirItems.length ? [] : forAyah("amal", true);
+  const taTawjihat = tawjihatLocal.length ? [] : forAyah("tawjihat", false);
   const plusCount: Record<string, number> = {
     lesson: lessonItems.length + (mkHasLessons ? 1 : 0),
     tadabbur: meditateItems.length + taTadabbur.length,
@@ -515,7 +519,7 @@ function EtudePage() {
                       </span>
                     </h3>
                     <ContentList items={meditateItems} lang={lang} />
-                    <TaList items={taTadabbur} />
+                    <TaList items={taTadabbur} lang={lang} />
                   </section>
                 )}
               </div>
@@ -535,7 +539,7 @@ function EtudePage() {
                       </span>
                     </h3>
                     <AgirSection items={agirItems} />
-                    <TaList items={taAmal} checkable />
+                    <TaList items={taAmal} lang={lang} checkable />
                   </section>
                 )}
                 {plusCount.tawjihat > 0 && (
@@ -547,7 +551,7 @@ function EtudePage() {
                       </span>
                     </h3>
                     <ContentList items={tawjihatLocal} lang={lang} />
-                    <TaList items={taTawjihat} />
+                    <TaList items={taTawjihat} lang={lang} />
                   </section>
                 )}
                 {plusCount.today > 0 && (
@@ -602,7 +606,9 @@ function AsbabPanel({ surah, ayah, items }: { surah: number; ayah: number; items
           <Block label="Asbāb an-nuzūl — Al-Wāḥidī (texte anglais)">
             <p className="text-[1.05rem] leading-[1.95] text-foreground">{en}</p>
           </Block>
-          <AutoTranslate cacheKey={`wahidi:${surah}:${ayah}`} text={en} from="en" />
+          <Block label="Traduction automatique, non officielle">
+            <AutoTranslate cacheKey={`wahidi:${surah}:${ayah}`} text={en} from="en" />
+          </Block>
         </>
       ) : items.length === 0 ? (
         <Empty text="Aucune cause de révélation rapportée pour cette āyah dans nos sources." />
@@ -615,30 +621,60 @@ function AsbabPanel({ surah, ayah, items }: { surah: number; ayah: number; items
 }
 
 /** Points « القرآن تدبر وعمل » (source 517) : texte arabe exact, jamais reformulé. */
-function TaList({ items, checkable }: { items: TaItem[]; checkable?: boolean }) {
+function TaList({
+  items,
+  lang,
+  checkable,
+}: {
+  items: TaItem[];
+  lang: StudyLang;
+  checkable?: boolean;
+}) {
   const { isCompleted, toggle } = useActionsProgress();
   if (!items.length) return null;
+  const fr = lang !== "ar";
   return (
     <div className="mt-2 space-y-3">
       {items.map((it) => (
         <Card key={it.id}>
-          {it.verseStart != null && it.verseEnd != null && it.verseEnd > it.verseStart && (
-            <p className="mb-1.5 text-[11px] font-semibold text-primary">
-              Concerne les āyāt {it.surah}:{it.verseStart}–{it.verseEnd}
+          {it.scope === "PAGE" ? (
+            <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">
+              Point de la page, non rattaché à une āyah précise
             </p>
+          ) : (
+            it.verseStart != null &&
+            it.verseEnd != null &&
+            it.verseEnd > it.verseStart && (
+              <p className="mb-1.5 text-[11px] font-semibold text-primary">
+                Concerne les āyāt {it.surah}:{it.verseStart}–{it.verseEnd}
+              </p>
+            )
           )}
-          {it.quote && (
-            <p lang="ar" dir="rtl" className="mb-2 font-naskh text-right text-lg leading-[2] text-muted-foreground">
-              {it.quote}
-            </p>
-          )}
-          <p lang="ar" dir="rtl" className="whitespace-pre-line text-right font-naskh text-[1.15rem] font-medium leading-[2.1] text-foreground">
-            {it.originalText}
-          </p>
-          {it.question && (
-            <p lang="ar" dir="rtl" className="mt-2 text-right font-naskh text-base leading-[2] text-primary">
-              {it.question}
-            </p>
+          {fr ? (
+            <>
+              <AutoTranslate cacheKey={`ta517:${it.id}`} text={it.originalText} />
+              {it.question && (
+                <div className="mt-2 text-primary">
+                  <AutoTranslate cacheKey={`ta517q:${it.id}`} text={it.question} />
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {it.quote && (
+                <p lang="ar" dir="rtl" className="mb-2 font-naskh text-right text-lg leading-[2] text-muted-foreground">
+                  {it.quote}
+                </p>
+              )}
+              <p lang="ar" dir="rtl" className="whitespace-pre-line text-right font-naskh text-[1.15rem] font-medium leading-[2.1] text-foreground">
+                {it.originalText}
+              </p>
+              {it.question && (
+                <p lang="ar" dir="rtl" className="mt-2 text-right font-naskh text-base leading-[2] text-primary">
+                  {it.question}
+                </p>
+              )}
+            </>
           )}
           {checkable && (
             <label className="mt-3 flex min-h-11 items-center gap-2 text-sm text-foreground">
@@ -652,7 +688,7 @@ function TaList({ items, checkable }: { items: TaItem[]; checkable?: boolean }) 
             </label>
           )}
           <div className="mt-2 flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
-            Texte arabe — traduction française non disponible
+            {fr ? "Traduction automatique, non officielle · source arabe" : "Texte arabe de la source"}
             <SourceInfo
               sourceTitle={it.sourceTitle}
               editorialSource="مركز المنهاج"
@@ -821,9 +857,27 @@ function TafsirReader({
     staleTime: Infinity,
   });
 
+  // Blocs de lecture : As-Saʿdī par āyah (celle choisie mise en valeur), les
+  // autres ouvrages par paragraphe.
   const saadiBlocks = tab === "saadi" && arRaw ? splitSaadiBlocks(arRaw) : [];
-  const selectedBlock = saadiBlocks.find((blk) => ayah >= blk.from && ayah <= blk.to);
-  const arText = tab === "saadi" && selectedBlock ? selectedBlock.text : (arRaw ?? "");
+  const blocks: { key: string; label: string | null; text: string; selected: boolean }[] =
+    saadiBlocks.length
+      ? saadiBlocks.map((blk) => ({
+          key: `${blk.from}-${blk.to}`,
+          label:
+            blk.from === 0
+              ? "Introduction"
+              : blk.from === blk.to
+                ? `Āyah ${blk.from}`
+                : `Āyāt ${blk.from}–${blk.to}`,
+          text: blk.text,
+          selected: ayah >= blk.from && ayah <= blk.to,
+        }))
+      : (arRaw ?? "")
+          .split(/\n+/)
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .map((t, i) => ({ key: `p${i}`, label: null, text: t, selected: false }));
   const groupNote =
     tab === "ibnkathir" && group && group[0] !== group[1] ? `Āyāt ${group[0]}–${group[1]}` : null;
 
@@ -831,7 +885,7 @@ function TafsirReader({
   const selRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     selRef.current?.scrollIntoView({ block: "start" });
-  }, [saadiBlocks.length]);
+  }, [blocks.length]);
 
   return (
     <div className="space-y-3">
@@ -847,45 +901,38 @@ function TafsirReader({
           <Empty text="Pas de contenu pour cette āyah." />
         ))}
 
-      {noFrench && arText && (
-        <AutoTranslate cacheKey={`${arSlug}:${surah}:${ayah}`} text={arText} />
-      )}
-
       {needArabic &&
         (arPending ? (
           <Loading />
-        ) : tab === "saadi" && saadiBlocks.length ? (
+        ) : blocks.length ? (
           <div className="space-y-2.5">
-            {saadiBlocks.map((blk) => {
-              const selected = ayah >= blk.from && ayah <= blk.to;
-              return (
-                <div
-                  key={`${blk.from}-${blk.to}`}
-                  ref={selected ? selRef : undefined}
-                  className={cn(
-                    "scroll-mt-2 rounded-2xl border p-3",
-                    selected ? "border-primary bg-primary/5" : "border-border bg-card",
-                  )}
-                >
-                  <p className="mb-1 text-[11px] font-bold text-primary">
-                    {blk.from === 0
-                      ? "Introduction"
-                      : blk.from === blk.to
-                        ? `Āyah ${blk.from}`
-                        : `Āyāt ${blk.from}–${blk.to}`}
-                  </p>
+            {blocks.map((blk) => (
+              <div
+                key={blk.key}
+                ref={blk.selected ? selRef : undefined}
+                className={cn(
+                  "scroll-mt-2 rounded-2xl border p-3",
+                  blk.selected ? "border-primary bg-primary/5" : "border-border bg-card",
+                )}
+              >
+                {blk.label && <p className="mb-1 text-[11px] font-bold text-primary">{blk.label}</p>}
+                {noFrench ? (
+                  <AutoTranslate
+                    cacheKey={`${arSlug}:${surah}:${ayah}:${blk.key}`}
+                    text={blk.text.replace(/\[\[[^\]]*\]\]/g, "")}
+                  />
+                ) : (
                   <ArabicBody text={blk.text} />
-                </div>
-              );
-            })}
+                )}
+              </div>
+            ))}
           </div>
-        ) : arText ? (
-          <ArabicBody text={arText} />
         ) : (
           <Empty text="Pas de contenu pour cette āyah." />
         ))}
 
       <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+        {noFrench ? "Traduction automatique, non officielle · " : ""}
         {meta.title}
         <SourceInfo
           sourceTitle={meta.title}
@@ -900,12 +947,68 @@ function TafsirReader({
   );
 }
 
+/** Découpe un texte en morceaux d'au plus `max` caractères, à la fin d'une phrase si possible. */
+function chunkText(text: string, max = 1200): string[] {
+  const out: string[] = [];
+  let cur = "";
+  for (const piece of text.split(/(?<=[.؟!۔:])\s+/)) {
+    if (cur && cur.length + piece.length + 1 > max) {
+      out.push(cur);
+      cur = "";
+    }
+    cur = cur ? `${cur} ${piece}` : piece;
+    while (cur.length > max) {
+      out.push(cur.slice(0, max));
+      cur = cur.slice(max);
+    }
+  }
+  if (cur.trim()) out.push(cur);
+  return out;
+}
+
 /**
- * Traduction française AUTOMATIQUE, toujours étiquetée non officielle. Sur
- * ordinateur (Chrome / Edge) : traduction sur l'appareil, sauvegardée. Sur
- * téléphone, cette API n'existe pas : un lien ouvre Google Traduction avec le
- * texte déjà rempli.
+ * Traduction française automatique. Utilise d'abord le traducteur du navigateur
+ * (sur l'appareil) quand il existe ; sinon le service de traduction de Google,
+ * appelé directement, sans bouton. Résultat gardé sur l'appareil.
  */
+async function translateToFrench(text: string, from: "ar" | "en"): Promise<string> {
+  const T = (globalThis as unknown as { Translator?: any }).Translator;
+  if (T) {
+    try {
+      const opts = { sourceLanguage: from, targetLanguage: "fr" };
+      if ((await T.availability(opts)) !== "unavailable") {
+        const tr = await T.create(opts);
+        const parts = text.split(/\n+/).filter((p) => p.trim());
+        const out: string[] = [];
+        for (const p of parts) out.push(await tr.translate(p));
+        return out.join("\n\n");
+      }
+    } catch {
+      /* repli sur le service en ligne */
+    }
+  }
+  const out: string[] = [];
+  for (const para of text.split(/\n+/).filter((p) => p.trim())) {
+    const pieces: string[] = [];
+    for (const c of chunkText(para)) {
+      const res = await fetch(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=fr&dt=t`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `q=${encodeURIComponent(c)}`,
+        },
+      );
+      if (!res.ok) throw new Error("translate " + res.status);
+      const data = (await res.json()) as [string, string][][];
+      pieces.push((data[0] ?? []).map((x) => x[0]).join(""));
+    }
+    out.push(pieces.join(" "));
+  }
+  return out.join("\n\n");
+}
+
+/** Texte traduit automatiquement en français, sans demander ; l'étiquette « non officielle » est portée par la source. */
 function AutoTranslate({
   cacheKey,
   text,
@@ -917,74 +1020,56 @@ function AutoTranslate({
 }) {
   const storeKey = `tr-fr:${cacheKey}`;
   const [fr, setFr] = useState<string | null>(null);
-  const [native, setNative] = useState(false);
-  const [state, setState] = useState<"idle" | "busy" | "error">("idle");
+  const [state, setState] = useState<"busy" | "done" | "error">("busy");
   useEffect(() => {
-    setFr(null);
-    setState("idle");
-    setNative(typeof (globalThis as unknown as { Translator?: unknown }).Translator !== "undefined");
+    let cancelled = false;
+    let cached: string | null = null;
     try {
-      setFr(localStorage.getItem(storeKey));
+      cached = localStorage.getItem(storeKey);
     } catch {
       /* indisponible */
     }
-  }, [storeKey]);
-
-  const run = async () => {
-    const T = (globalThis as unknown as { Translator?: any }).Translator;
-    if (!T) return;
-    setState("busy");
-    try {
-      const opts = { sourceLanguage: from, targetLanguage: "fr" };
-      if ((await T.availability(opts)) === "unavailable") {
-        setNative(false);
-        setState("idle");
-        return;
-      }
-      const tr = await T.create(opts);
-      const parts = text.split(/\n+/).filter((p) => p.trim());
-      const out: string[] = [];
-      for (const p of parts) out.push(await tr.translate(p));
-      const result = out.join("\n\n");
-      setFr(result);
-      setState("idle");
-      try {
-        localStorage.setItem(storeKey, result);
-      } catch {
-        /* quota */
-      }
-    } catch {
-      setState("error");
+    if (cached) {
+      setFr(cached);
+      setState("done");
+      return;
     }
-  };
+    setFr(null);
+    setState("busy");
+    translateToFrench(text, from)
+      .then((result) => {
+        if (cancelled) return;
+        setFr(result);
+        setState("done");
+        try {
+          localStorage.setItem(storeKey, result);
+        } catch {
+          /* quota */
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [storeKey, text, from]);
 
-  if (fr) {
+  if (state === "done" && fr) {
+    return <p className="whitespace-pre-line text-[1.05rem] leading-[1.95] text-foreground">{fr}</p>;
+  }
+  if (state === "error") {
+    const google = `https://translate.google.com/?sl=${from}&tl=fr&text=${encodeURIComponent(text.slice(0, 1500))}&op=translate`;
     return (
-      <div className="rounded-xl bg-muted/50 px-3 py-2">
-        <p className="whitespace-pre-line text-[1rem] leading-[1.9] text-foreground">{fr}</p>
-        <p className="mt-1 text-[11px] text-muted-foreground">Traduction automatique, non officielle</p>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        Traduction indisponible.{" "}
+        <a href={google} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary">
+          Ouvrir dans Google Traduction ↗
+        </a>
+      </p>
     );
   }
-  const pill =
-    "inline-flex h-8 items-center rounded-full border border-primary/40 px-3 text-xs font-semibold text-primary";
-  const google = `https://translate.google.com/?sl=${from}&tl=fr&text=${encodeURIComponent(text.slice(0, 1500))}&op=translate`;
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {native ? (
-        <button type="button" onClick={run} disabled={state === "busy"} className={pill}>
-          {state === "busy" ? "Traduction…" : "Traduire en français"}
-        </button>
-      ) : (
-        <a href={google} target="_blank" rel="noopener noreferrer" className={pill}>
-          Traduire en français ↗
-        </a>
-      )}
-      <span className="text-[11px] text-muted-foreground">
-        {state === "error" ? "Échec, réessayez." : "automatique, non officielle"}
-      </span>
-    </div>
-  );
+  return <p className="text-xs text-muted-foreground">Traduction…</p>;
 }
 
 /** Contexte / Leçons / Méditer / Dans ma vie — portée, provenance via ⓘ. */
