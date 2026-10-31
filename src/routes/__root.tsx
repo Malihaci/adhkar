@@ -45,6 +45,23 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  // Après un nouveau déploiement, une page restée ouverte peut réclamer un
+  // fichier d'une ancienne version qui n'existe plus : un seul rechargement
+  // complet récupère la nouvelle version (une seule tentative par session).
+  const message = error instanceof Error ? error.message : String(error);
+  useEffect(() => {
+    if (!/dynamically imported module|Importing a module script failed|Loading chunk|Failed to fetch/i.test(message)) {
+      return;
+    }
+    try {
+      if (sessionStorage.getItem("chunk-reload") === "1") return;
+      sessionStorage.setItem("chunk-reload", "1");
+    } catch {
+      return;
+    }
+    window.location.reload();
+  }, [message]);
+
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -54,6 +71,7 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
         <p className="mt-2 text-sm text-muted-foreground">
           Une erreur est survenue. Vous pouvez réessayer ou revenir à l'accueil.
         </p>
+        <p className="mt-2 break-words text-[11px] text-muted-foreground/70">{message.slice(0, 180)}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
@@ -141,6 +159,18 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Page chargée normalement : la prochaine erreur de fichier manquant pourra recharger de nouveau.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      try {
+        sessionStorage.removeItem("chunk-reload");
+      } catch {
+        /* ignore */
+      }
+    }, 10000);
+    return () => window.clearTimeout(t);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
