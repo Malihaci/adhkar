@@ -75,6 +75,7 @@ function EtudePage() {
   const verseKey = `${surah}:${ayah}`;
 
   const [tab, setTab] = useState<StudyTab>("mukhtasar");
+  const [main, setMain] = useState<MainTab>("comp");
   const [lang, setLang] = useLocalState<StudyLang>("etude:lang", "fr");
   const [menuOpen, setMenuOpen] = useState(false);
   const [ayahOpen, setAyahOpen] = useState(false);
@@ -166,8 +167,9 @@ function EtudePage() {
   // incertain ou mal rattaché.
   const contexteItems = getEtudeContent(verseKey, "asbab_nuzul", verse?.page);
   const lessonItems = getEtudeContent(verseKey, "lesson", verse?.page);
-  const meditateItems = getEtudeContent(verseKey, "tadabbur", verse?.page);
-  const agirItems = getEtudeContent(verseKey, "amal", verse?.page);
+  const onlyThisAyah = (items: EtudeContent[]) => items.filter((c) => c.scopeType === "verse");
+  const meditateItems = onlyThisAyah(getEtudeContent(verseKey, "tadabbur"));
+  const agirItems = onlyThisAyah(getEtudeContent(verseKey, "amal"));
   const todayItems = getEtudeContent(verseKey, "today", verse?.page);
 
   // Ordre conceptuel : Comprendre → Ce que cette ayah m'apporte → Méditer →
@@ -238,29 +240,19 @@ function EtudePage() {
     enabled: !!surahText && surah !== 1, // Al-Fātiha : contenu local relu uniquement
     staleTime: Infinity,
   });
-  const tawjihatLocal = getEtudeContent(verseKey, "tawjihat", verse?.page);
-  const taTadabbur = meditateItems.length ? [] : itemsForAyah(taPage, "tadabbur", ayah);
-  const taAmal = agirItems.length ? [] : itemsForAyah(taPage, "amal", ayah);
-  const taTawjihat = tawjihatLocal.length ? [] : itemsForAyah(taPage, "tawjihat", ayah);
+  const tawjihatLocal = onlyThisAyah(getEtudeContent(verseKey, "tawjihat"));
+  // Source 517 : seulement les points qui citent exactement cette āyah (portée AYAH).
+  const ayahOnly = (items: TaItem[]) => items.filter((i) => i.scope === "AYAH");
+  const taTadabbur = meditateItems.length ? [] : ayahOnly(itemsForAyah(taPage, "tadabbur", ayah));
+  const taAmal = agirItems.length ? [] : ayahOnly(itemsForAyah(taPage, "amal", ayah));
+  const taTawjihat = tawjihatLocal.length ? [] : ayahOnly(itemsForAyah(taPage, "tawjihat", ayah));
   const plusCount: Record<string, number> = {
-    asbab_nuzul: contexteItems.length,
     lesson: lessonItems.length + (mkHasLessons ? 1 : 0),
     tadabbur: meditateItems.length + taTadabbur.length,
     amal: agirItems.length + taAmal.length,
     tawjihat: tawjihatLocal.length + taTawjihat.length,
     today: todayItems.length,
   };
-  // Ordre : Circonstances → Leçons → Méditer → Agir → S'orienter → Dans ma vie.
-  // Une rubrique vide n'est pas affichée.
-  const plusSections: Section[] = (
-    ["asbab_nuzul", "lesson", "tadabbur", "amal", "tawjihat", "today"] as Section[]
-  ).filter((k) => plusCount[k] > 0);
-  const tabs: { key: StudyTab; label: string }[] = [
-    { key: "mukhtasar", label: "Mukhtasar" },
-    { key: "saadi", label: "As-Saʿdī" },
-    { key: "ibnkathir", label: "Ibn Kathīr" },
-    ...(plusSections.length ? [{ key: "plus" as StudyTab, label: "Leçons & actions" }] : []),
-  ];
 
   const startPress = () => {
     longPress.current = window.setTimeout(() => setMenuOpen(true), 500);
@@ -431,112 +423,151 @@ function EtudePage() {
         </div>
       </section>
 
-      {/* Onglets + langue : une seule ligne fine, toujours visible. */}
+      {/* Trois questions, petits onglets à icône ; un seul bouton pour l'arabe. */}
       <div className="shrink-0 border-b border-border/40 bg-background px-3 py-1.5">
         <div className="mx-auto flex max-w-2xl items-center gap-2">
-          <div role="tablist" aria-label="Tafsīr" className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
-            {tabs.map((t) => (
+          <div role="tablist" aria-label="Étudier" className="flex min-w-0 flex-1 gap-1">
+            {MAIN_TABS.map(({ key, label, ar, icon: Icon }) => (
               <button
-                key={t.key}
+                key={key}
                 role="tab"
-                aria-selected={tab === t.key}
-                onClick={() => setTab(t.key)}
+                aria-selected={main === key}
+                onClick={() => setMain(key)}
                 className={cn(
-                  "min-h-10 shrink-0 rounded-full px-3 text-[13px] font-semibold transition",
-                  tab === t.key
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted",
+                  "inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-[13px] font-semibold transition",
+                  main === key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
                 )}
               >
-                {t.label}
+                <Icon className="size-4 shrink-0" />
+                <span className="truncate">{label}</span>
+                <span lang="ar" className="hidden font-arabic text-[13px] font-normal leading-none opacity-80 min-[390px]:inline">
+                  {ar}
+                </span>
               </button>
             ))}
           </div>
-          {tab !== "plus" && (
-            <div
-              role="group"
-              aria-label="Langue"
-              className="flex shrink-0 rounded-full border border-border p-0.5"
-            >
-              {(
-                [
-                  ["fr", "FR"],
-                  ["ar", "AR"],
-                ] as const
-              ).map(([k, label]) => (
-                <button
-                  key={k}
-                  aria-pressed={lang === k}
-                  aria-label={k === "fr" ? "Français" : k === "ar" ? "Arabe" : "Français"}
-                  onClick={() => setLang(k)}
-                  className={cn(
-                    "min-h-9 rounded-full px-2.5 text-xs font-bold transition",
-                    lang === k ? "bg-foreground text-background" : "text-muted-foreground",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+          <button
+            type="button"
+            aria-pressed={lang === "ar"}
+            aria-label={lang === "ar" ? "Afficher en français" : "Afficher en arabe"}
+            onClick={() => setLang(lang === "ar" ? "fr" : "ar")}
+            className="h-9 shrink-0 rounded-full border border-border px-3 text-xs font-bold text-foreground transition hover:bg-muted"
+          >
+            {lang === "ar" ? "FR" : "عربي"}
+          </button>
         </div>
+        {main === "comp" && (
+          <div role="tablist" aria-label="Sources" className="mx-auto mt-1.5 flex max-w-2xl gap-1 overflow-x-auto pb-0.5">
+            {SOURCE_CHIPS.map((c) => (
+              <button
+                key={c.key}
+                role="tab"
+                aria-selected={tab === c.key}
+                onClick={() => setTab(c.key)}
+                className={cn(
+                  "h-8 shrink-0 rounded-full border px-3 text-xs font-semibold transition",
+                  tab === c.key
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:bg-muted",
+                )}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Le tafsīr occupe tout le reste de l'écran. */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl px-4 py-4">
-          {tab === "plus" ? (
-            <div className="space-y-5">
-              {plusSections.map((key) => (
-                <div key={key}>
-                  <h3 className="mb-2 text-sm font-bold text-foreground">
-                    {SECTION_META[key].label}{" "}
-                    <span
-                      lang="ar"
-                      className="font-arabic text-xs font-normal text-muted-foreground"
-                    >
-                      {SECTION_META[key].subtitle}
-                    </span>
-                  </h3>
-                  {key === "asbab_nuzul" && <ContentList items={contexteItems} />}
-                  {key === "lesson" && (
-                    <>
-                      <ContentList items={lessonItems} />
-                      <MokhtasarLessons surah={surah} ayah={ayah} />
-                    </>
-                  )}
-                  {key === "tadabbur" && (
-                    <>
-                      <ContentList items={meditateItems} />
-                      <TaList items={taTadabbur} />
-                    </>
-                  )}
-                  {key === "tawjihat" && (
-                    <>
-                      <ContentList items={tawjihatLocal} />
-                      <TaList items={taTawjihat} />
-                    </>
-                  )}
-                  {key === "today" && <ContentList items={todayItems} />}
-                  {key === "amal" && (
-                    <>
-                      <AgirSection items={agirItems} />
-                      <TaList items={taAmal} checkable />
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <TafsirReader
-              key={tab + verseKey}
-              tab={tab}
-              lang={lang}
-              surah={surah}
-              ayah={ayah}
-              versesCount={chapterMeta?.versesCount ?? ayah}
-            />
-          )}
+          {main === "comp" &&
+            (tab === "asbab" ? (
+              <AsbabPanel key={verseKey} surah={surah} ayah={ayah} items={contexteItems} />
+            ) : (
+              <TafsirReader
+                key={tab + verseKey}
+                tab={tab}
+                lang={lang}
+                surah={surah}
+                ayah={ayah}
+                versesCount={chapterMeta?.versesCount ?? ayah}
+              />
+            ))}
+
+          {main === "med" &&
+            (lessonItems.length > 0 || mkHasLessons || plusCount.tadabbur > 0 ? (
+              <div className="space-y-5">
+                {(lessonItems.length > 0 || mkHasLessons) && (
+                  <section>
+                    <h3 className="mb-2 text-sm font-bold text-foreground">
+                      Leçons à retenir{" "}
+                      <span lang="ar" className="font-arabic text-xs font-normal text-muted-foreground">
+                        دروس
+                      </span>
+                    </h3>
+                    <ContentList items={lessonItems} lang={lang} />
+                    <MokhtasarLessons surah={surah} ayah={ayah} />
+                  </section>
+                )}
+                {plusCount.tadabbur > 0 && (
+                  <section>
+                    <h3 className="mb-2 text-sm font-bold text-foreground">
+                      Méditer{" "}
+                      <span lang="ar" className="font-arabic text-xs font-normal text-muted-foreground">
+                        الوقفات التدبرية
+                      </span>
+                    </h3>
+                    <ContentList items={meditateItems} lang={lang} />
+                    <TaList items={taTadabbur} />
+                  </section>
+                )}
+              </div>
+            ) : (
+              <Empty text="Aucun contenu de méditation pour cette āyah dans nos sources." />
+            ))}
+
+          {main === "act" &&
+            (plusCount.amal > 0 || plusCount.tawjihat > 0 || plusCount.today > 0 ? (
+              <div className="space-y-5">
+                {plusCount.amal > 0 && (
+                  <section>
+                    <h3 className="mb-2 text-sm font-bold text-foreground">
+                      Mettre en pratique{" "}
+                      <span lang="ar" className="font-arabic text-xs font-normal text-muted-foreground">
+                        العمل بالآيات
+                      </span>
+                    </h3>
+                    <AgirSection items={agirItems} />
+                    <TaList items={taAmal} checkable />
+                  </section>
+                )}
+                {plusCount.tawjihat > 0 && (
+                  <section>
+                    <h3 className="mb-2 text-sm font-bold text-foreground">
+                      Directives{" "}
+                      <span lang="ar" className="font-arabic text-xs font-normal text-muted-foreground">
+                        التوجيهات
+                      </span>
+                    </h3>
+                    <ContentList items={tawjihatLocal} lang={lang} />
+                    <TaList items={taTawjihat} />
+                  </section>
+                )}
+                {plusCount.today > 0 && (
+                  <section>
+                    <h3 className="mb-2 text-sm font-bold text-foreground">
+                      Dans ma vie{" "}
+                      <span lang="ar" className="font-arabic text-xs font-normal text-muted-foreground">
+                        في حياتي
+                      </span>
+                    </h3>
+                    <ContentList items={todayItems} lang={lang} />
+                  </section>
+                )}
+              </div>
+            ) : (
+              <Empty text="Aucune action rattachée à cette āyah dans nos sources." />
+            ))}
         </div>
       </div>
 
@@ -547,6 +578,41 @@ function EtudePage() {
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Circonstances de révélation (أسباب النزول) : le contenu local relu d'abord ;
+ * puis « Asbāb an-nuzūl » d'Al-Wāḥidī (texte ANGLAIS publié — ni arabe ni
+ * français disponibles dans nos sources), avec traduction automatique
+ * facultative, étiquetée non officielle. Une āyah sans cause rapportée l'indique.
+ */
+function AsbabPanel({ surah, ayah, items }: { surah: number; ayah: number; items: EtudeContent[] }) {
+  const { data: raw, isPending } = useQuery({
+    queryKey: ["asbab-wahidi", surah, ayah],
+    queryFn: () => fetchTafsir("en-asbab-al-nuzul-by-al-wahidi", surah, ayah),
+    staleTime: Infinity,
+  });
+  const en = (raw ?? "").replace(/<[^>]+>/g, "").trim();
+  return (
+    <div className="space-y-5">
+      {items.length > 0 && <ContentList items={items} />}
+      {isPending ? (
+        <Loading />
+      ) : en ? (
+        <>
+          <Block label="Asbāb an-nuzūl — Al-Wāḥidī (texte anglais)">
+            <p className="text-[1.05rem] leading-[1.95] text-foreground">{en}</p>
+          </Block>
+          <AutoTranslate cacheKey={`wahidi:${surah}:${ayah}`} text={en} from="en" />
+        </>
+      ) : items.length === 0 ? (
+        <Empty text="Aucune cause de révélation rapportée pour cette āyah dans nos sources." />
+      ) : null}
+      <div className="flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+        Asbāb an-nuzūl — Al-Wāḥidī. Français et arabe non disponibles dans nos sources.
+      </div>
     </div>
   );
 }
@@ -565,15 +631,15 @@ function TaList({ items, checkable }: { items: TaItem[]; checkable?: boolean }) 
             </p>
           )}
           {it.quote && (
-            <p lang="ar" dir="rtl" className="mb-2 font-arabic text-right text-lg leading-[2] text-muted-foreground">
+            <p lang="ar" dir="rtl" className="mb-2 font-naskh text-right text-lg leading-[2] text-muted-foreground">
               {it.quote}
             </p>
           )}
-          <p lang="ar" dir="rtl" className="whitespace-pre-line text-right font-arabic text-[1.15rem] leading-[2.1] text-foreground">
+          <p lang="ar" dir="rtl" className="whitespace-pre-line text-right font-naskh text-[1.15rem] font-medium leading-[2.1] text-foreground">
             {it.originalText}
           </p>
           {it.question && (
-            <p lang="ar" dir="rtl" className="mt-2 text-right font-arabic text-base leading-[2] text-primary">
+            <p lang="ar" dir="rtl" className="mt-2 text-right font-naskh text-base leading-[2] text-primary">
               {it.question}
             </p>
           )}
@@ -626,11 +692,28 @@ function MokhtasarLessons({ surah, ayah }: { surah: number; ayah: number }) {
   );
 }
 
-type StudyTab = "mukhtasar" | "saadi" | "ibnkathir" | "plus";
+type StudyTab = "mukhtasar" | "muyassar" | "saadi" | "ibnkathir" | "qurtubi" | "asbab";
+type TafsirTab = Exclude<StudyTab, "asbab">;
 type StudyLang = "fr" | "ar";
+type MainTab = "comp" | "med" | "act";
+
+const MAIN_TABS: { key: MainTab; label: string; ar: string; icon: typeof BookOpen }[] = [
+  { key: "comp", label: "Tafsīr", ar: "تفسير", icon: BookOpen },
+  { key: "med", label: "Méditer", ar: "تدبر", icon: Sparkles },
+  { key: "act", label: "Agir", ar: "عمل", icon: Compass },
+];
+
+const SOURCE_CHIPS: { key: StudyTab; label: string }[] = [
+  { key: "mukhtasar", label: "Mukhtasar" },
+  { key: "muyassar", label: "Muyassar" },
+  { key: "saadi", label: "As-Saʿdī" },
+  { key: "ibnkathir", label: "Ibn Kathīr" },
+  { key: "qurtubi", label: "Al-Qurṭubī" },
+  { key: "asbab", label: "Asbāb an-nuzūl" },
+];
 
 const TAFSIR_META: Record<
-  Exclude<StudyTab, "plus">,
+  TafsirTab,
   { title: string; note: string; hasFrench: boolean }
 > = {
   mukhtasar: {
@@ -638,6 +721,12 @@ const TAFSIR_META: Record<
     note: "Markaz Tafsîr — un texte par āyah.",
     hasFrench: true,
   },
+  muyassar: {
+    title: "At-Tafsîr al-Muyassar",
+    note: "Complexe du Roi Fahd — explication simplifiée.",
+    hasFrench: false,
+  },
+  qurtubi: { title: "Tafsîr al-Qurtubî", note: "Al-Imâm al-Qurtubî — Al-Jâmiʿ li-ahkâm al-Qur'ân.", hasFrench: false },
   saadi: { title: "Tafsîr as-Saʿdî", note: "Cheikh ʿAbd ar-Rahmân as-Saʿdî.", hasFrench: false },
   ibnkathir: { title: "Tafsîr Ibn Kathîr", note: "Al-Hâfiz Ibn Kathîr.", hasFrench: false },
 };
@@ -649,7 +738,7 @@ function ArabicBody({ text }: { text: string }) {
     <p
       lang="ar"
       dir="rtl"
-      className="font-arabic text-right text-[1.3rem] leading-[2.2] text-foreground"
+      className="font-naskh text-right text-[1.25rem] font-medium leading-[2.15] text-foreground"
     >
       {parts.map((p, i) =>
         p.startsWith("[[") ? (
@@ -692,7 +781,7 @@ function TafsirReader({
   ayah,
   versesCount,
 }: {
-  tab: Exclude<StudyTab, "plus">;
+  tab: TafsirTab;
   lang: StudyLang;
   surah: number;
   ayah: number;
@@ -704,9 +793,13 @@ function TafsirReader({
   const arSlug: TafsirSlug =
     tab === "mukhtasar"
       ? "ar-tafsir-al-mukhtasar"
-      : tab === "saadi"
-        ? "ar-tafsir-as-saadi"
-        : "ar-tafsir-ibn-kathir";
+      : tab === "muyassar"
+        ? "ar-tafsir-muyassar"
+        : tab === "qurtubi"
+          ? "ar-tafseer-al-qurtubi"
+          : tab === "saadi"
+            ? "ar-tafsir-as-saadi"
+            : "ar-tafsir-ibn-kathir";
 
   const noFrench = wantFr && !meta.hasFrench;
   const needArabic = wantAr || noFrench;
@@ -808,7 +901,15 @@ function TafsirReader({
  * sur l'appareil, sans clé). Sauvegardée dans le navigateur, donc relisible hors
  * ligne. Toujours étiquetée « non officielle » ; l'arabe reste la référence.
  */
-function AutoTranslate({ cacheKey, text }: { cacheKey: string; text: string }) {
+function AutoTranslate({
+  cacheKey,
+  text,
+  from = "ar",
+}: {
+  cacheKey: string;
+  text: string;
+  from?: "ar" | "en";
+}) {
   const storeKey = `tr-fr:${cacheKey}`;
   const [fr, setFr] = useState<string | null>(null);
   const [state, setState] = useState<"idle" | "busy" | "unsupported" | "error">("idle");
@@ -830,7 +931,7 @@ function AutoTranslate({ cacheKey, text }: { cacheKey: string; text: string }) {
     }
     setState("busy");
     try {
-      const opts = { sourceLanguage: "ar", targetLanguage: "fr" };
+      const opts = { sourceLanguage: from, targetLanguage: "fr" };
       if ((await T.availability(opts)) === "unavailable") {
         setState("unsupported");
         return;
@@ -881,18 +982,19 @@ function AutoTranslate({ cacheKey, text }: { cacheKey: string; text: string }) {
 }
 
 /** Contexte / Leçons / Méditer / Dans ma vie — portée, provenance via ⓘ. */
-export function ContentList({ items }: { items: EtudeContent[] }) {
+export function ContentList({ items, lang }: { items: EtudeContent[]; lang?: "fr" | "ar" }) {
   return (
     <div className="space-y-3">
       {items.map((item) => (
-        <ContentCard key={item.id} item={item} />
+        <ContentCard key={item.id} item={item} lang={lang} />
       ))}
     </div>
   );
 }
 
-function ContentCard({ item }: { item: EtudeContent }) {
-  const [showArabic, setShowArabic] = useState(false);
+function ContentCard({ item, lang }: { item: EtudeContent; lang?: "fr" | "ar" }) {
+  const [showArabic, setShowArabic] = useState(lang === "ar");
+  useEffect(() => setShowArabic(lang === "ar"), [lang]);
   const scope = formatVerseScope(item);
   return (
     <Card>
@@ -931,7 +1033,7 @@ function ContentCard({ item }: { item: EtudeContent }) {
             <p
               lang="ar"
               dir="rtl"
-              className="mt-1.5 font-arabic text-right leading-[2] text-foreground"
+              className="mt-1.5 text-right font-naskh font-medium leading-[2.05] text-foreground"
             >
               {item.textAr}
             </p>

@@ -53,6 +53,8 @@ export type TafsirSlug =
   | "ar-tafsir-muyassar"
   | "ar-tafsir-al-mukhtasar"
   | "french-mokhtasar"
+  | "ar-tafseer-al-qurtubi"
+  | "en-asbab-al-nuzul-by-al-wahidi"
   | "tadabbur-wa-amal";
 
 /**
