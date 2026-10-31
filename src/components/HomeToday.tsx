@@ -113,12 +113,16 @@ export function HomeToday({
     moment === "morning" ? morningAdhkar : moment === "evening" ? eveningAdhkar : moment === "sleep" ? coucherAdhkar : null;
   const dhikr = dhikrList && moment ? { ...progressOf(dhikrList, counts), ...DHIKR_META[moment] } : null;
 
+  let finished = false;
   let overdue: { day: number; startPage: number; endPage: number; yesterday: boolean } | null = null;
   let today: { day: number; startPage: number; endPage: number } | null = null;
   if (wird) {
     const schedule = effectiveSchedule(wird);
-    const expected = Math.min(daysElapsedSince(wird.startDateISO) + 1, schedule.length);
     const next = wird.lastCompletedDay + 1;
+    const elapsed = daysElapsedSince(wird.startDateISO);
+    // Date de départ illisible : on suit simplement le prochain jour non lu.
+    const expected = Number.isFinite(elapsed) ? Math.min(elapsed + 1, schedule.length) : next;
+    finished = next > schedule.length;
     if (next <= schedule.length) {
       const late = next < expected ? schedule.find((d) => d.day === next) : undefined;
       if (late) overdue = { ...late, yesterday: next === expected - 1 };
@@ -129,7 +133,7 @@ export function HomeToday({
 
   return (
     <>
-      {wirdHydrated && wird === null && (
+      {wirdHydrated && (wird === null || finished) && (
         <TodoCard
           to="/wird"
           color={COLORS.wird}
@@ -138,9 +142,9 @@ export function HomeToday({
               <BookOpen className="size-6" />
             </span>
           }
-          title="Configurer mon Wird"
-          sub="Pages par jour, page de départ"
-          cta="Créer"
+          title={finished ? "Wird terminé · ma-cha-Allah" : "Configurer mon Wird"}
+          sub={finished ? "Commencer un nouveau Wird (page de départ, pages par jour)" : "Pages par jour, page de départ"}
+          cta={finished ? "Nouveau" : "Créer"}
         />
       )}
       {dhikr && !dhikr.done && moment && (

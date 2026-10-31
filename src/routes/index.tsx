@@ -132,7 +132,12 @@ function Index() {
         </section>
 
         {/* Accès principaux, compacts */}
-        <section aria-label="Accès rapides" className="grid grid-cols-5 gap-2">
+        {/* Barre fixée en bas de l'écran (toutes tailles) ; zone sûre iPhone/Android incluse. */}
+        <nav
+          aria-label="Accès rapides"
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-border/50 bg-background/92 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl"
+        >
+          <div className="mx-auto grid max-w-3xl grid-cols-5 gap-2">
           <QuickAccess
             onClick={openCoran}
             label="Coran"
@@ -168,7 +173,8 @@ function Index() {
             color="#6b7a72"
             icon={<MoreHorizontal className="size-5" />}
           />
-        </section>
+          </div>
+        </nav>
       </div>
 
       {plusOpen && <PlusSheet onClose={() => setPlusOpen(false)} />}

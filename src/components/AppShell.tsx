@@ -67,7 +67,7 @@ export function AppShell({
         </div>
       </header>
       )}
-      <main className={cn("mx-auto max-w-3xl px-4 sm:px-5", homeHeader ? "pb-4 pt-3" : "py-6")}>
+      <main className={cn("mx-auto max-w-3xl px-4 sm:px-5", homeHeader ? "pb-36 pt-3" : "py-6")}>
         {children}
       </main>
       {!homeHeader && <BottomNav />}
