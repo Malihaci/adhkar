@@ -519,7 +519,7 @@ function EtudePage() {
                       </span>
                     </h3>
                     <ContentList items={meditateItems} lang={lang} />
-                    <TaList items={taTadabbur} lang={lang} />
+                    <TaList items={taTadabbur} lang={lang} ayah={ayah} />
                   </section>
                 )}
               </div>
@@ -539,7 +539,7 @@ function EtudePage() {
                       </span>
                     </h3>
                     <AgirSection items={agirItems} />
-                    <TaList items={taAmal} lang={lang} checkable />
+                    <TaList items={taAmal} lang={lang} ayah={ayah} checkable />
                   </section>
                 )}
                 {plusCount.tawjihat > 0 && (
@@ -551,7 +551,7 @@ function EtudePage() {
                       </span>
                     </h3>
                     <ContentList items={tawjihatLocal} lang={lang} />
-                    <TaList items={taTawjihat} lang={lang} />
+                    <TaList items={taTawjihat} lang={lang} ayah={ayah} />
                   </section>
                 )}
                 {plusCount.today > 0 && (
@@ -624,10 +624,12 @@ function AsbabPanel({ surah, ayah, items }: { surah: number; ayah: number; items
 function TaList({
   items,
   lang,
+  ayah,
   checkable,
 }: {
   items: TaItem[];
   lang: StudyLang;
+  ayah: number;
   checkable?: boolean;
 }) {
   const { isCompleted, toggle } = useActionsProgress();
@@ -637,13 +639,16 @@ function TaList({
     <div className="mt-2 space-y-3">
       {items.map((it) => (
         <Card key={it.id}>
-          {it.scope === "PAGE" ? (
+          {it.verseStart == null || it.verseEnd == null ? (
             <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">
               Point de la page, non rattaché à une āyah précise
             </p>
+          ) : ayah < it.verseStart || ayah > it.verseEnd ? (
+            <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">
+              Autre āyah de la même page : {it.surah}:{it.verseStart}
+              {it.verseEnd > it.verseStart ? `–${it.verseEnd}` : ""}
+            </p>
           ) : (
-            it.verseStart != null &&
-            it.verseEnd != null &&
             it.verseEnd > it.verseStart && (
               <p className="mb-1.5 text-[11px] font-semibold text-primary">
                 Concerne les āyāt {it.surah}:{it.verseStart}–{it.verseEnd}

@@ -253,10 +253,16 @@ export function itemsForAyah(page: TaPage | undefined, category: TaCategory, aya
   );
 }
 
-/** Points d'une page non rattachés à une āyah précise (portée PAGE) : repli d'affichage, étiquetés comme tels. */
+/**
+ * Repli d'affichage quand aucun point ne vise l'āyah : tous les points de la
+ * page pour cette rubrique, dans l'ordre des āyāt. Ils sont toujours présentés
+ * avec leur propre āyah, jamais comme concernant celle qui est ouverte.
+ */
 export function pageLevelItems(page: TaPage | undefined, category: TaCategory): TaItem[] {
   if (!page) return [];
-  return page.items.filter((i) => i.category === category && i.scope === "PAGE");
+  return page.items
+    .filter((i) => i.category === category)
+    .sort((a, b) => (a.verseStart ?? 999) - (b.verseStart ?? 999));
 }
 
 async function fetchRaw(surah: number, ayah: number): Promise<string> {
