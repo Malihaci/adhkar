@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { DoorOpen, Hash, Headphones, Swords, Luggage, Moon, Settings2, Sparkles, Sunrise, X } from "lucide-react";
+import { BookOpen, DoorOpen, Hash, Headphones, Swords, Luggage, Moon, Settings2, Sparkles, Sunrise, X } from "lucide-react";
 
 /**
  * Choix Adhkār — Quotidien (Matin/Soir) + Occasions. Composant partagé entre
@@ -122,6 +122,13 @@ export function AdhkarSheet({
         </p>
         <div className="space-y-1.5">
           <OccasionRow
+            to="/duas-coran"
+            icon={<BookOpen className="size-4" />}
+            label="Duʿāʾ du Coran"
+            arabic="أدعية القرآن"
+            onClose={onClose}
+          />
+          <OccasionRow
             to="/reveil"
             icon={<Sunrise className="size-4" />}
             label="Réveil"
@@ -169,7 +176,7 @@ function OccasionRow({
   arabic,
   onClose,
 }: {
-  to: "/reveil" | "/coucher" | "/apres-priere" | "/sortie" | "/voyage";
+  to: "/duas-coran" | "/reveil" | "/coucher" | "/apres-priere" | "/sortie" | "/voyage";
   icon: ReactNode;
   label: string;
   arabic: string;

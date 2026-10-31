@@ -6,6 +6,7 @@ import {
   Home,
   Check,
   Leaf,
+  List,
   Hash,
   MoreHorizontal,
   Pause,
@@ -56,7 +57,7 @@ interface Props {
   /** Libellé affiché en haut (par défaut : matin / soir) */
   label?: string;
   /** Cible du bouton retour */
-  backTo?: "/" | "/favoris";
+  backTo?: "/" | "/favoris" | "/duas-coran";
   /** Mémoriser la position de lecture (désactivé pour le parcours Favoris) */
   persist?: boolean;
 }
@@ -298,10 +299,10 @@ export function DhikrViewer({
           <div className="flex items-stretch gap-2">
             <Link
               to={backTo}
-              aria-label={backTo === "/favoris" ? "Retour aux favoris" : "Accueil"}
+              aria-label={backTo === "/favoris" ? "Retour aux favoris" : backTo === "/duas-coran" ? "Retour à la liste" : "Accueil"}
               className="grid size-12 shrink-0 place-items-center rounded-2xl bg-destructive/15 text-destructive transition active:scale-95"
             >
-              {backTo === "/favoris" ? <Heart className="size-5" /> : <Home className="size-5" />}
+              {backTo === "/favoris" ? <Heart className="size-5" /> : backTo === "/duas-coran" ? <List className="size-5" /> : <Home className="size-5" />}
             </Link>
             <button
               onClick={() => go(-1)}

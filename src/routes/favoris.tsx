@@ -31,6 +31,7 @@ const CATEGORY_LABEL: Record<DhikrCategory, string> = {
   apres_priere: "Après la prière",
   sortie: "Sortie",
   voyage: "Voyage",
+  dua_coran: "Duʿāʾ du Coran",
 };
 
 type Tab = "tous" | "adhkar" | "coran";

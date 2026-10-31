@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApresPriereRouteImport } from './routes/apres-priere'
 import { Route as CoucherRouteImport } from './routes/coucher'
+import { Route as DuasCoranRouteImport } from './routes/duas-coran'
 import { Route as EcouteRouteImport } from './routes/ecoute'
 import { Route as FavorisRouteImport } from './routes/favoris'
 import { Route as FavorisLectureRouteImport } from './routes/favoris-lecture'
@@ -56,6 +57,11 @@ const ApresPriereRoute = ApresPriereRouteImport.update({
 const CoucherRoute = CoucherRouteImport.update({
   id: '/coucher',
   path: '/coucher',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DuasCoranRoute = DuasCoranRouteImport.update({
+  id: '/duas-coran',
+  path: '/duas-coran',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EcouteRoute = EcouteRouteImport.update({
@@ -213,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/apres-priere': typeof ApresPriereRoute
   '/coucher': typeof CoucherRoute
+  '/duas-coran': typeof DuasCoranRoute
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
@@ -248,6 +255,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/apres-priere': typeof ApresPriereRoute
   '/coucher': typeof CoucherRoute
+  '/duas-coran': typeof DuasCoranRoute
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
@@ -284,6 +292,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/apres-priere': typeof ApresPriereRoute
   '/coucher': typeof CoucherRoute
+  '/duas-coran': typeof DuasCoranRoute
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
   '/favoris-lecture': typeof FavorisLectureRoute
@@ -321,6 +330,7 @@ export interface FileRouteTypes {
     | '/'
     | '/apres-priere'
     | '/coucher'
+    | '/duas-coran'
     | '/ecoute'
     | '/favoris'
     | '/favoris-lecture'
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/'
     | '/apres-priere'
     | '/coucher'
+    | '/duas-coran'
     | '/ecoute'
     | '/favoris'
     | '/favoris-lecture'
@@ -391,6 +402,7 @@ export interface FileRouteTypes {
     | '/'
     | '/apres-priere'
     | '/coucher'
+    | '/duas-coran'
     | '/ecoute'
     | '/favoris'
     | '/favoris-lecture'
@@ -427,6 +439,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApresPriereRoute: typeof ApresPriereRoute
   CoucherRoute: typeof CoucherRoute
+  DuasCoranRoute: typeof DuasCoranRoute
   EcouteRoute: typeof EcouteRoute
   FavorisRoute: typeof FavorisRoute
   FavorisLectureRoute: typeof FavorisLectureRoute
@@ -476,6 +489,13 @@ declare module '@tanstack/react-router' {
       path: '/coucher'
       fullPath: '/coucher'
       preLoaderRoute: typeof CoucherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/duas-coran': {
+      id: '/duas-coran'
+      path: '/duas-coran'
+      fullPath: '/duas-coran'
+      preLoaderRoute: typeof DuasCoranRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ecoute': {
@@ -733,6 +753,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApresPriereRoute: ApresPriereRoute,
   CoucherRoute: CoucherRoute,
+  DuasCoranRoute: DuasCoranRoute,
   EcouteRoute: EcouteRoute,
   FavorisRoute: FavorisRoute,
   FavorisLectureRoute: FavorisLectureRoute,

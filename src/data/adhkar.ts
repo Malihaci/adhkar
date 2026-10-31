@@ -1,5 +1,5 @@
 export type DhikrCategory =
-  "morning" | "evening" | "coucher" | "sortie" | "voyage" | "reveil" | "apres_priere";
+  "morning" | "evening" | "coucher" | "sortie" | "voyage" | "reveil" | "apres_priere" | "dua_coran";
 
 /**
  * Ce que la preuve établit réellement (chantier adhkār authentiques) —
@@ -51,6 +51,8 @@ export interface Dhikr {
    * mais évitable pour ces cas précis. Jamais un index de tableau.
    */
   verseKeys?: string[];
+  /** Thème (catégorie « Duʿāʾ du Coran » uniquement) — voir src/data/duas-coran.ts. */
+  theme?: string;
 }
 
 // Textes arabes partagés (Coran & formules identiques matin/soir)
