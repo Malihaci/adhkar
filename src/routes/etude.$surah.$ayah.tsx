@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { fetchChapters, fetchVerseDetail, verseAudioUrl, defaultReciter } from "@/lib/mushaf";
-import { fetchMokhtasarLessons, fetchSurahText, fetchTafsir, sliceSaadiForAyah, tafsirGroupRange, type TafsirSlug } from "@/lib/quran";
+import { fetchMokhtasarLessons, fetchSurahText, fetchTafsir, splitSaadiBlocks, tafsirGroupRange, type TafsirSlug } from "@/lib/quran";
 import { itemsForAyah, loadTadabburPage, type TaItem } from "@/lib/tadabbur-amal";
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
 import { useActionsProgress, useFavorites, useLocalState } from "@/lib/storage";
@@ -427,7 +427,7 @@ function EtudePage() {
       <div className="shrink-0 border-b border-border/40 bg-background px-3 py-1.5">
         <div className="mx-auto flex max-w-2xl items-center gap-2">
           <div role="tablist" aria-label="Étudier" className="flex min-w-0 flex-1 gap-1">
-            {MAIN_TABS.map(({ key, label, ar, icon: Icon }) => (
+            {MAIN_TABS.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
                 role="tab"
@@ -440,9 +440,6 @@ function EtudePage() {
               >
                 <Icon className="size-4 shrink-0" />
                 <span className="truncate">{label}</span>
-                <span lang="ar" className="hidden font-arabic text-[13px] font-normal leading-none opacity-80 min-[390px]:inline">
-                  {ar}
-                </span>
               </button>
             ))}
           </div>
@@ -770,9 +767,10 @@ function Block({ children, label }: { children: ReactNode; label?: string }) {
 
 /**
  * Lecture d'UN tafsīr, pour la seule āyah choisie. Chaque ouvrage reste
- * indépendant, jamais fusionné. Français : seul Al-Mukhtasar a une édition
- * française publiée dans nos sources ; pour As-Saʿdî et Ibn Kathîr on le dit
- * clairement (jamais de traduction improvisée).
+ * indépendant, jamais fusionné. Français : Al-Mukhtasar a une édition française
+ * publiée ; pour les autres on affiche l'arabe, avec un petit lien de
+ * traduction automatique (non officielle). As-Saʿdī : un bloc par āyah (ou
+ * groupe d'āyāt), celui de l'āyah choisie est mis en valeur.
  */
 function TafsirReader({
   tab,
@@ -788,7 +786,7 @@ function TafsirReader({
   versesCount: number;
 }) {
   const meta = TAFSIR_META[tab];
-  const wantFr = lang !== "ar"; // « both » (ancien réglage) = français
+  const wantFr = lang !== "ar";
   const wantAr = lang === "ar";
   const arSlug: TafsirSlug =
     tab === "mukhtasar"
@@ -823,66 +821,72 @@ function TafsirReader({
     staleTime: Infinity,
   });
 
-  let arText = arRaw ?? "";
-  let scopeNote: string | null = null;
-  if (tab === "saadi" && arRaw) {
-    const s = sliceSaadiForAyah(arRaw, ayah);
-    arText = s.text;
-    if (s.isolated && s.range) {
-      scopeNote = `Passage du verset ${ayah} (le commentaire d'as-Saʿdî couvre les versets ${s.range[0]} à ${s.range[1]}).`;
-    } else if (s.range && s.range[0] !== s.range[1]) {
-      scopeNote = `Ce commentaire couvre les versets ${s.range[0]} à ${s.range[1]} ; il est affiché en entier.`;
-    }
-  }
-  if (tab === "ibnkathir" && group && group[0] !== group[1]) {
-    scopeNote = `Ce commentaire couvre les versets ${group[0]} à ${group[1]} ; il est affiché en entier.`;
-  }
+  const saadiBlocks = tab === "saadi" && arRaw ? splitSaadiBlocks(arRaw) : [];
+  const selectedBlock = saadiBlocks.find((blk) => ayah >= blk.from && ayah <= blk.to);
+  const arText = tab === "saadi" && selectedBlock ? selectedBlock.text : (arRaw ?? "");
+  const groupNote =
+    tab === "ibnkathir" && group && group[0] !== group[1] ? `Āyāt ${group[0]}–${group[1]}` : null;
+
+  // Le bloc de l'āyah choisie est amené en haut de l'écran.
+  const selRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    selRef.current?.scrollIntoView({ block: "start" });
+  }, [saadiBlocks.length]);
 
   return (
-    <div className="space-y-5">
-      {scopeNote && (
-        <p className="rounded-xl bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-          {scopeNote}
-        </p>
-      )}
+    <div className="space-y-3">
+      {groupNote && <p className="text-[11px] font-semibold text-primary">{groupNote}</p>}
 
-      {wantFr && meta.hasFrench && (
-        <Block>
-          {frPending ? (
-            <Loading />
-          ) : frText ? (
-            <FrenchBody text={frText} />
-          ) : (
-            <Empty text="Pas de contenu pour cette āyah." />
-          )}
-        </Block>
-      )}
-
-      {noFrench && (
-        <div className="rounded-xl border border-border bg-card px-3.5 py-3 text-sm leading-relaxed text-muted-foreground">
-          Aucune édition française publiée de ce tafsīr dans nos sources : le texte arabe est
-          affiché ci-dessous.
-        </div>
-      )}
+      {wantFr &&
+        meta.hasFrench &&
+        (frPending ? (
+          <Loading />
+        ) : frText ? (
+          <FrenchBody text={frText} />
+        ) : (
+          <Empty text="Pas de contenu pour cette āyah." />
+        ))}
 
       {noFrench && arText && (
         <AutoTranslate cacheKey={`${arSlug}:${surah}:${ayah}`} text={arText} />
       )}
 
-      {needArabic && (
-        <Block>
-          {arPending ? (
-            <Loading />
-          ) : arText ? (
-            <ArabicBody text={arText} />
-          ) : (
-            <Empty text="Pas de contenu pour cette āyah." />
-          )}
-        </Block>
-      )}
+      {needArabic &&
+        (arPending ? (
+          <Loading />
+        ) : tab === "saadi" && saadiBlocks.length ? (
+          <div className="space-y-2.5">
+            {saadiBlocks.map((blk) => {
+              const selected = ayah >= blk.from && ayah <= blk.to;
+              return (
+                <div
+                  key={`${blk.from}-${blk.to}`}
+                  ref={selected ? selRef : undefined}
+                  className={cn(
+                    "scroll-mt-2 rounded-2xl border p-3",
+                    selected ? "border-primary bg-primary/5" : "border-border bg-card",
+                  )}
+                >
+                  <p className="mb-1 text-[11px] font-bold text-primary">
+                    {blk.from === 0
+                      ? "Introduction"
+                      : blk.from === blk.to
+                        ? `Āyah ${blk.from}`
+                        : `Āyāt ${blk.from}–${blk.to}`}
+                  </p>
+                  <ArabicBody text={blk.text} />
+                </div>
+              );
+            })}
+          </div>
+        ) : arText ? (
+          <ArabicBody text={arText} />
+        ) : (
+          <Empty text="Pas de contenu pour cette āyah." />
+        ))}
 
-      <div className="flex items-center gap-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
-        {meta.note}
+      <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+        {meta.title}
         <SourceInfo
           sourceTitle={meta.title}
           nature={
@@ -891,15 +895,16 @@ function TafsirReader({
               : "Texte arabe source, aucune traduction française publiée identifiée."
           }
         />
-      </div>
+      </p>
     </div>
   );
 }
 
 /**
- * Traduction automatique FRANÇAISE, locale (API Translator de Chrome : gratuite,
- * sur l'appareil, sans clé). Sauvegardée dans le navigateur, donc relisible hors
- * ligne. Toujours étiquetée « non officielle » ; l'arabe reste la référence.
+ * Traduction française AUTOMATIQUE, toujours étiquetée non officielle. Sur
+ * ordinateur (Chrome / Edge) : traduction sur l'appareil, sauvegardée. Sur
+ * téléphone, cette API n'existe pas : un lien ouvre Google Traduction avec le
+ * texte déjà rempli.
  */
 function AutoTranslate({
   cacheKey,
@@ -912,10 +917,12 @@ function AutoTranslate({
 }) {
   const storeKey = `tr-fr:${cacheKey}`;
   const [fr, setFr] = useState<string | null>(null);
-  const [state, setState] = useState<"idle" | "busy" | "unsupported" | "error">("idle");
+  const [native, setNative] = useState(false);
+  const [state, setState] = useState<"idle" | "busy" | "error">("idle");
   useEffect(() => {
     setFr(null);
     setState("idle");
+    setNative(typeof (globalThis as unknown as { Translator?: unknown }).Translator !== "undefined");
     try {
       setFr(localStorage.getItem(storeKey));
     } catch {
@@ -925,15 +932,13 @@ function AutoTranslate({
 
   const run = async () => {
     const T = (globalThis as unknown as { Translator?: any }).Translator;
-    if (!T) {
-      setState("unsupported");
-      return;
-    }
+    if (!T) return;
     setState("busy");
     try {
       const opts = { sourceLanguage: from, targetLanguage: "fr" };
       if ((await T.availability(opts)) === "unavailable") {
-        setState("unsupported");
+        setNative(false);
+        setState("idle");
         return;
       }
       const tr = await T.create(opts);
@@ -953,31 +958,32 @@ function AutoTranslate({
     }
   };
 
+  if (fr) {
+    return (
+      <div className="rounded-xl bg-muted/50 px-3 py-2">
+        <p className="whitespace-pre-line text-[1rem] leading-[1.9] text-foreground">{fr}</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">Traduction automatique, non officielle</p>
+      </div>
+    );
+  }
+  const pill =
+    "inline-flex h-8 items-center rounded-full border border-primary/40 px-3 text-xs font-semibold text-primary";
+  const google = `https://translate.google.com/?sl=${from}&tl=fr&text=${encodeURIComponent(text.slice(0, 1500))}&op=translate`;
   return (
-    <Block label="Français — traduction automatique (non officielle)">
-      {fr ? (
-        <p className="whitespace-pre-line text-[1.05rem] leading-[1.95] text-foreground">{fr}</p>
+    <div className="flex flex-wrap items-center gap-2">
+      {native ? (
+        <button type="button" onClick={run} disabled={state === "busy"} className={pill}>
+          {state === "busy" ? "Traduction…" : "Traduire en français"}
+        </button>
       ) : (
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={run}
-            disabled={state === "busy"}
-            className="min-h-11 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
-          >
-            {state === "busy" ? "Traduction en cours…" : "Traduire en français"}
-          </button>
-          {state === "unsupported" && (
-            <p className="text-xs text-muted-foreground">
-              La traduction sur l'appareil n'est disponible que dans Chrome / Edge sur ordinateur.
-            </p>
-          )}
-          {state === "error" && (
-            <p className="text-xs text-muted-foreground">Échec de la traduction, réessayez.</p>
-          )}
-        </div>
+        <a href={google} target="_blank" rel="noopener noreferrer" className={pill}>
+          Traduire en français ↗
+        </a>
       )}
-    </Block>
+      <span className="text-[11px] text-muted-foreground">
+        {state === "error" ? "Échec, réessayez." : "automatique, non officielle"}
+      </span>
+    </div>
   );
 }
 

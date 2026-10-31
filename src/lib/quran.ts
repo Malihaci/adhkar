@@ -128,6 +128,38 @@ export function sliceSaadiForAyah(
     : { text: text.trim(), isolated: false, range };
 }
 
+/** Un paragraphe d'As-Saʿdī rattaché à une āyah ({26}) ou à un groupe d'āyāt ({28 ـ 29}). */
+export interface SaadiBlock {
+  from: number;
+  to: number;
+  text: string;
+}
+
+/**
+ * Découpe le commentaire d'As-Saʿdī en blocs : un par repère {n} ou {n ـ m}
+ * placé en début de paragraphe. Un éventuel préambule sans repère devient le
+ * bloc 0 (« Introduction »). Texte inchangé, jamais reformulé.
+ */
+export function splitSaadiBlocks(text: string): SaadiBlock[] {
+  const re = /(?:^|\n)[ \t]*\{(\d+)(?:\s*[ـ\-–]\s*(\d+))?\}/g;
+  const marks = [...text.matchAll(re)].map((m) => ({
+    from: Number(m[1]),
+    to: Number(m[2] ?? m[1]),
+    at: m.index ?? 0,
+    len: m[0].length,
+  }));
+  if (!marks.length) return [];
+  const blocks: SaadiBlock[] = [];
+  const intro = text.slice(0, marks[0].at).trim();
+  if (intro) blocks.push({ from: 0, to: 0, text: intro });
+  marks.forEach((m, i) => {
+    const end = i + 1 < marks.length ? marks[i + 1].at : text.length;
+    const body = text.slice(m.at + m.len, end).trim();
+    if (body) blocks.push({ from: m.from, to: m.to, text: body });
+  });
+  return blocks;
+}
+
 /** Plage de versets partageant EXACTEMENT le même texte de commentaire (Ibn Kathīr). */
 export async function tafsirGroupRange(
   slug: TafsirSlug,
