@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { AyahText } from "@/components/AyahText";
+import { QuranDhikrText } from "@/components/QuranDhikrText";
 import { SourceInfo } from "@/components/SourceInfo";
 
 import type { Dhikr } from "@/data/adhkar";
@@ -293,7 +293,7 @@ export function DhikrViewer({
         {/* Content */}
         <div className="flex-1 space-y-4 overflow-y-auto px-3 py-3 sm:px-6">
           <div style={{ ["--ar-k" as string]: arabicScale(dhikr.arabic) } as React.CSSProperties}>
-            <AyahText text={dhikr.arabic} className={ARABIC_SIZE[fontSize]} />
+            <QuranDhikrText dhikr={dhikr} className={ARABIC_SIZE[fontSize]} showPhonetic={showPhonetic} />
           </div>
 
           {showPhonetic && (

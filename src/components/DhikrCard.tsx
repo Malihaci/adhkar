@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Heart, RotateCcw, Minus, Plus, ChevronDown, Check, Pause, Play, Share2 } from "lucide-react";
 import type { Dhikr } from "@/data/adhkar";
-import { AyahText } from "@/components/AyahText";
+import { QuranDhikrText } from "@/components/QuranDhikrText";
 
 import { useDailyProgress, useFavorites } from "@/lib/storage";
 import { shareDhikr } from "@/lib/share";
@@ -122,10 +122,7 @@ export function DhikrCard({ dhikr, index }: Props) {
       {/* Content */}
       <div className="space-y-4 px-5 py-4">
         {(tab === "ar" || tab === "all") && (
-          <AyahText
-            text={dhikr.arabic}
-            className="text-2xl leading-loose sm:text-3xl"
-          />
+          <QuranDhikrText dhikr={dhikr} className="text-2xl leading-loose sm:text-3xl" />
         )}
 
         {(tab === "ph" || tab === "all") && (
