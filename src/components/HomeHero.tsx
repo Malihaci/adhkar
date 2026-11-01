@@ -9,13 +9,13 @@ export function HomeHero({ isDay }: { isDay: boolean }) {
   return (
     <div
       className={cn(
-        "relative h-[48px] overflow-hidden rounded-2xl",
+        "relative h-[36px] overflow-hidden rounded-2xl",
         isDay
           ? "bg-gradient-to-b from-[#6fbdf0] via-[#a9d9f6] to-[#e4f3fc]"
           : "bg-gradient-to-b from-[#0a0f2e] via-[#151d4b] to-[#27306b]",
       )}
     >
-      <svg viewBox="0 0 360 48" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 size-full" aria-hidden>
+      <svg viewBox="0 0 360 36" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 size-full" aria-hidden>
         {isDay ? (
           <>
             <defs>

@@ -26,6 +26,7 @@ import { readJSON, useLocalState, type DailyProgress } from "@/lib/storage";
 import { fetchTodayTimings, getPrayerSettings, type PrayerTimings } from "@/lib/prayerTimes";
 import { getWirdResumeTarget, type WirdState } from "@/lib/khatma";
 import { challengeReminderCandidate } from "@/lib/dhikrReminders";
+import { showAppNotification } from "@/lib/notify";
 
 /** Dupliqué à l'identique depuis reminders.ts (pas importé) pour éviter une
  * dépendance circulaire entre les deux moteurs — reminders.ts a besoin des
@@ -286,11 +287,11 @@ export function useSmartReminderEngine() {
         return { ...log, fired: fresh };
       }
 
-      const n = new Notification(chosen.title, { body: chosen.body, tag: chosen.id });
-      n.onclick = () => {
-        window.focus();
-        window.location.href = chosen.deepLink;
-      };
+      void showAppNotification(chosen.title, {
+        body: chosen.body,
+        tag: chosen.id,
+        deepLink: chosen.deepLink,
+      });
       const fresh = { ...log.fired };
       for (const id of staleIds) delete fresh[id];
       fresh[chosen.id] = today;

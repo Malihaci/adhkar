@@ -60,15 +60,15 @@ function HorairesPage() {
         ) : (
           <>
             {next && (
-              <div className="surface-card space-y-1 p-6 text-center">
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+              <div className="surface-card space-y-1 p-7 text-center">
+                <p className="text-sm font-semibold uppercase tracking-wide text-primary">
                   {PRAYER_LABELS[next.key]}
                 </p>
-                <p className="font-display text-3xl font-bold tabular-nums text-foreground">
+                <p className="font-display text-6xl font-bold tabular-nums text-foreground">
                   {timings[next.key]}
                 </p>
-                <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
-                  <Clock className="size-3.5" />
+                <p className="flex items-center justify-center gap-1.5 text-base text-muted-foreground">
+                  <Clock className="size-4" />
                   dans {formatCountdown(next.time.getTime() - now.getTime())}
                 </p>
               </div>
@@ -79,17 +79,17 @@ function HorairesPage() {
                 <div
                   key={key}
                   className={cn(
-                    "flex items-center justify-between px-5 py-3.5",
+                    "flex items-center justify-between px-5 py-5",
                     next?.key === key && "bg-primary/5",
                   )}
                 >
-                  <span className="text-sm font-medium text-foreground">{PRAYER_LABELS[key]}</span>
+                  <span className="text-lg font-medium text-foreground">{PRAYER_LABELS[key]}</span>
                   <span className="flex items-center gap-2">
-                    <span className="font-display text-base font-semibold tabular-nums text-foreground">
+                    <span className="font-display text-3xl font-semibold tabular-nums text-foreground">
                       {timings[key]}
                     </span>
                     {next?.key === key && (
-                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                      <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
                         Prochaine
                       </span>
                     )}

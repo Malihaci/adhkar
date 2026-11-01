@@ -11,6 +11,7 @@ import {
   resolveReminderTime,
   type ReminderConfig,
 } from "@/lib/reminders";
+import { showAppNotification } from "@/lib/notify";
 import { ADHAN_CATALOG, playBeep, type AdhanId } from "@/lib/adhan";
 import {
   deletePersonalAudio,
@@ -75,7 +76,7 @@ function RappelsPage() {
 
   const testNotification = () => {
     if (permission !== "granted") return;
-    new Notification("ʿAsr dans 15 min", { body: "Ceci est un test de notification." });
+    void showAppNotification("ʿAsr dans 15 min", { body: "Ceci est un test de notification.", tag: "test" });
   };
 
   const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {

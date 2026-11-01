@@ -16,7 +16,7 @@ import { DhikrChallengeCard } from "@/components/DhikrChallengeCard";
 import { KahfChallengeCard } from "@/components/KahfChallengeCard";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { usePreferences, resolveCoranMode } from "@/lib/preferences";
-import { getAsrDateFromTimings, usePrayerTimings } from "@/lib/prayerTimes";
+import { usePrayerTimings } from "@/lib/prayerTimes";
 import { getWirdResumeTarget, type WirdState } from "@/lib/khatma";
 
 export const Route = createFileRoute("/")({
@@ -46,8 +46,6 @@ function computeProgress(
   return { total, done, pct: total ? Math.round((done / total) * 100) : 0 };
 }
 
-const ASR_FALLBACK_HOUR = 16;
-
 function Index() {
   const { progress } = useDailyProgress();
   const morning = computeProgress(morningAdhkar, progress.counts);
@@ -73,25 +71,9 @@ function Index() {
     }
   };
 
-  /** Porte "Adhkār" intelligente (chantier "Simplifier Horaires + Accueil"
-   * §4) : ouvre directement /matin ou /soir quand le contexte le détermine
-   * (même logique que HomeSuggestion — heure + vraie heure d'ʿAsr), sinon
-   * retombe sur le choix existant (AdhkarSheet). */
-  const openAdhkar = () => {
-    const now = new Date();
-    const hour = now.getHours();
-    if (hour < 13 && morning.pct < 100) {
-      navigate({ to: "/matin" });
-      return;
-    }
-    const asrDate = getAsrDateFromTimings(timings);
-    const pastAsr = asrDate ? now.getTime() >= asrDate.getTime() : hour >= ASR_FALLBACK_HOUR;
-    if (pastAsr && evening.pct < 100) {
-      navigate({ to: "/soir" });
-      return;
-    }
-    setAdhkarChooserOpen(true);
-  };
+  /** Porte "Adhkār" : ouvre toujours la liste des adhkār (AdhkarSheet) ;
+   * « À faire aujourd'hui » reste le raccourci vers le dhikr du moment. */
+  const openAdhkar = () => setAdhkarChooserOpen(true);
 
   /** Porte "Lecture du jour" (remplace "Mon Wird", §2/§4) : ouvre
    * directement la portion du jour à la page de reprise réelle, sans
@@ -116,8 +98,8 @@ function Index() {
       {hydrated && !prefs.onboarded && <OnboardingModal />}
       <div className="space-y-3">
         <HomeHero isDay={period.isDay} />
-        <HomeDua now={period.now} isDay={period.isDay} />
         <NextPrayerWidget />
+        <HomeDua now={period.now} isDay={period.isDay} />
         {/* À faire aujourd'hui : défis du vendredi, dhikr du moment, Wird.
             La section disparaît s'il n'y a rien à faire. */}
         <section aria-label="À faire aujourd'hui" className="hidden has-[a]:block">

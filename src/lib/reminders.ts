@@ -15,6 +15,7 @@ import { useLocalState } from "@/lib/storage";
 import { getAdhanOption, playBeep, type AdhanId } from "@/lib/adhan";
 import { getPersonalAudioURL } from "@/lib/personalAudio";
 import { useSmartReminderPrefs } from "@/lib/smartReminders";
+import { showAppNotification } from "@/lib/notify";
 
 /**
  * Abstraction PrayerNotificationService (§9 mission) — préparée mais non
@@ -287,17 +288,17 @@ export function useReminderEngine() {
                 : r.prayerKey
                   ? `C'est l'heure de ${r.label}`
                   : "Toucher pour ouvrir";
-            const n = new Notification(r.label, { body, tag: r.id });
+            void showAppNotification(r.label, {
+              body,
+              tag: r.id,
+              deepLink: r.deepLink,
+              // Le clic est un vrai geste utilisateur : repli garanti si la
+              // tentative immédiate ci-dessous est bloquée par l'autoplay.
+              onClick: () => void playReminderSound(r.adhanId),
+            });
             // Tentative immédiate (l'app est au premier plan à ce moment) —
             // best-effort seulement, l'autoplay peut être bloqué (§7/§8).
             void playReminderSound(r.adhanId);
-            n.onclick = () => {
-              window.focus();
-              // Le clic est un vrai geste utilisateur : repli garanti si la
-              // tentative précédente avait été bloquée par l'autoplay.
-              void playReminderSound(r.adhanId);
-              window.location.href = r.deepLink;
-            };
           },
           timings ?? null,
         ),

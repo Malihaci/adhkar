@@ -46,6 +46,25 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Clic sur une notification (affichée via registration.showNotification) :
+// ramène l'app au premier plan sur la page prévue.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if ("focus" in c) {
+          c.focus();
+          if ("navigate" in c) return c.navigate(url);
+          return;
+        }
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});
+
 async function cacheFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   const hit = await cache.match(request);
