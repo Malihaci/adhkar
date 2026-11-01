@@ -13,7 +13,7 @@
 //    hors ligne est stocké par l'application dans AUDIO_CACHE et lu via des
 //    URL blob (voir src/lib/offline.ts).
 // Changer VERSION nettoie les anciens caches (AUDIO_CACHE est conservé).
-const VERSION = "v8";
+const VERSION = "v9";
 const SHELL = `adhkar-shell-${VERSION}`;
 const ASSETS = `adhkar-assets-${VERSION}`;
 const DATA = `adhkar-data-${VERSION}`;
@@ -57,7 +57,8 @@ self.addEventListener("notificationclick", (event) => {
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
       if (event.action === "snooze") {
         for (const c of list) c.postMessage({ type: "snooze", intent: data.intent, minutes: 30 });
-        return;
+        // App fermée : le report est porté par le serveur (un seul « Plus tard »).
+        return snoozeOnServer(data, event.notification);
       }
       for (const c of list) {
         if ("focus" in c) {
@@ -70,6 +71,74 @@ self.addEventListener("notificationclick", (event) => {
     }),
   );
 });
+
+// ── Web Push (rappels app fermée) ────────────────────────────────────────
+// Le serveur envoie un push SANS contenu ; on vient chercher les textes à
+// afficher via /api/push/pending (voir src/lib/push-store.server.ts).
+function showPushItem(it) {
+  const actions = it.cta
+    ? [
+        { action: "open", title: it.cta },
+        { action: "snooze", title: "Plus tard" },
+      ]
+    : undefined;
+  return self.registration.showNotification(it.title, {
+    body: it.body || "",
+    tag: it.tag,
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    ...(actions ? { actions } : {}),
+    data: { url: it.url || "/", intent: it.intent, title: it.title, body: it.body, tag: it.tag, cta: it.cta },
+  });
+}
+
+self.addEventListener("push", (event) => {
+  event.waitUntil(
+    (async () => {
+      let items = null;
+      try {
+        const sub = await self.registration.pushManager.getSubscription();
+        if (sub) {
+          const res = await fetch("/api/push/pending", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          });
+          if (res.ok) items = (await res.json()).items || [];
+        }
+      } catch {
+        /* réseau indisponible : notification générique ci-dessous */
+      }
+      if (items === null) items = [{ title: "NurMaLiHa", body: "Un rappel vous attend.", url: "/", tag: "adhkar-generic" }];
+      await Promise.all(items.map(showPushItem));
+    })(),
+  );
+});
+
+async function snoozeOnServer(data, notification) {
+  try {
+    const sub = await self.registration.pushManager.getSubscription();
+    if (!sub || !data.title) return;
+    await fetch("/api/push/snooze", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        endpoint: sub.endpoint,
+        minutes: 30,
+        item: {
+          title: data.title,
+          body: data.body || "",
+          url: data.url || "/",
+          tag: data.tag || notification.tag || "snooze",
+          intent: data.intent,
+          cta: data.cta,
+        },
+      }),
+    });
+  } catch {
+    /* best-effort */
+  }
+}
 
 async function cacheFirst(request, cacheName) {
   const cache = await caches.open(cacheName);

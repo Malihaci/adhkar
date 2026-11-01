@@ -1,0 +1,14 @@
+# Planificateur de secours des notifications push (toutes les 5 min, au mieux :
+# GitHub peut retarder les tâches planifiées). Pour une heure plus précise,
+# appelez https://adhkar-gamma.vercel.app/api/push/tick chaque minute depuis un
+# cron externe (ex. cron-job.org, gratuit).
+name: push-tick
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -sS -m 40 https://adhkar-gamma.vercel.app/api/push/tick || true

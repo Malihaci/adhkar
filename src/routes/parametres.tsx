@@ -493,6 +493,39 @@ function ParametresPage() {
               <p className="text-[11px] leading-relaxed text-muted-foreground">
                 Matin après Fajr, soir après le vrai ʿAsr — uniquement si non terminés. Un appui ouvre le premier dhikr restant.
               </p>
+              {smart.adhkar &&
+                (["morning", "evening"] as const).map((k) => {
+                  const key = k === "morning" ? "morningTime" : "eveningTime";
+                  const value = smart[key];
+                  const fallback = k === "morning" ? "07:00" : "18:00";
+                  return (
+                    <div key={k} className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 text-sm text-foreground">
+                        {k === "morning" ? "Matin" : "Soir"}
+                        <span className="block text-[11px] text-muted-foreground">
+                          {value ? "À une heure précise" : k === "morning" ? "Après Fajr" : "Après ʿAsr"}
+                        </span>
+                      </span>
+                      <select
+                        value={value ? "time" : "auto"}
+                        onChange={(e) => updateSmart({ [key]: e.target.value === "time" ? fallback : undefined })}
+                        className="h-10 rounded-xl border border-border bg-background px-2 text-xs"
+                        aria-label={k === "morning" ? "Déclenchement du matin" : "Déclenchement du soir"}
+                      >
+                        <option value="auto">Selon la prière</option>
+                        <option value="time">Heure précise</option>
+                      </select>
+                      {value && (
+                        <input
+                          type="time"
+                          value={value}
+                          onChange={(e) => updateSmart({ [key]: e.target.value })}
+                          className="h-10 w-24 rounded-xl border border-border bg-background px-2 text-sm"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
             </DisclosureRow>
 
             <DisclosureRow

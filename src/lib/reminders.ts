@@ -63,6 +63,14 @@ export interface ReminderConfig {
   adhanId?: AdhanId;
   /** Préparé pour une future évolution (§4) — non utilisé par l'UI actuelle. */
   preContent?: PreContentConfig;
+  /** Rappel de prière réglé sur une HEURE PRÉCISE (`time`) au lieu de l'horaire de la prière. */
+  fixed?: boolean;
+  /** Rappel à heure précise par défaut, mais lié à une prière : `anchor` + `anchorOffset`
+   * minutes (négatif = avant, positif = après). Ignoré si `prayerKey` ou `fixed`. */
+  anchor?: PrayerKey;
+  anchorOffset?: number;
+  /** Rappel créé par l'utilisateur (supprimable). */
+  custom?: boolean;
 }
 
 /** Joue le son choisi pour un rappel — réutilisé par le déclenchement réel
@@ -92,18 +100,46 @@ export async function playReminderSound(adhanId: AdhanId | undefined) {
 
 export const PRAYER_REMINDER_IDS = ["fajr", "dhuhr", "asr", "maghrib", "isha"] as const;
 
-/** Heure effective "HH:MM" d'un rappel pour aujourd'hui — résout `prayerKey` via les horaires réels. */
-export function resolveReminderTime(r: ReminderConfig, timings: PrayerTimings | null): string | null {
-  if (!r.prayerKey) return r.time;
-  if (!timings) return null; // jamais d'heure inventée si l'API est indisponible
-  const base = timings[r.prayerKey];
-  if (!base) return null;
-  const offset = r.offsetMinutes ?? 0;
-  if (!offset) return base;
+/** Décale un "HH:MM" de `minutes` (signé), en restant dans la même journée civile. */
+function shiftHHMM(base: string, minutes: number, date: Date): string {
   const [h, m] = base.split(":").map(Number);
-  const d = new Date();
-  d.setHours(h, m - offset, 0, 0);
+  const d = new Date(date);
+  d.setHours(h, m + minutes, 0, 0);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/**
+ * Heure effective "HH:MM" d'un rappel pour un jour donné : heure précise
+ * (`time`), horaire d'une prière décalé (`prayerKey` + `offsetMinutes` avant, ou
+ * `anchor` + `anchorOffset` signé) — jamais d'heure inventée si les horaires sont indisponibles.
+ */
+export function resolveReminderTimeOn(
+  r: ReminderConfig,
+  timings: PrayerTimings | null,
+  date: Date,
+): string | null {
+  if (r.fixed) return r.time || null;
+  if (r.prayerKey) {
+    const base = timings?.[r.prayerKey];
+    if (!base) return null;
+    return r.offsetMinutes ? shiftHHMM(base, -r.offsetMinutes, date) : base;
+  }
+  if (r.anchor) {
+    const base = timings?.[r.anchor];
+    if (!base) return null;
+    return r.anchorOffset ? shiftHHMM(base, r.anchorOffset, date) : base;
+  }
+  return r.time || null;
+}
+
+/** Idem pour aujourd'hui. */
+export function resolveReminderTime(r: ReminderConfig, timings: PrayerTimings | null): string | null {
+  return resolveReminderTimeOn(r, timings, new Date());
+}
+
+/** Ce rappel dépend-il des horaires de prière du jour ? */
+export function reminderNeedsTimings(r: ReminderConfig): boolean {
+  return !r.fixed && !!(r.prayerKey || r.anchor);
 }
 
 /** Page Mushaf où commence sourate Al-Kahf (18) dans le Mushaf de Médine standard à 604 pages. */
@@ -265,7 +301,7 @@ export function useReminderEngine() {
         : rawReminders,
     [rawReminders, smartPrefs.enabled, smartPrefs.prayers],
   );
-  const needsTimings = reminders.some((r) => r.enabled && r.prayerKey);
+  const needsTimings = reminders.some((r) => r.enabled && reminderNeedsTimings(r));
   const { data: timings } = useQuery({
     queryKey: ["prayer-timings", getPrayerSettings()],
     queryFn: () => fetchTodayTimings(getPrayerSettings()),

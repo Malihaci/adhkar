@@ -43,7 +43,7 @@ export async function showAppNotification(title: string, opts: NotifyOptions): P
         icon: "/icon-192.png",
         badge: "/icon-192.png",
         ...(actions ? { actions } : {}),
-        data: { url: deepLink ?? "/", intent },
+        data: { url: deepLink ?? "/", intent, title, body: options.body, tag: options.tag, cta },
       } as NotificationOptions);
       return;
     }

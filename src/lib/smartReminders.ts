@@ -54,6 +54,9 @@ export interface SmartReminderPrefs {
   wirdMode: WirdReminderMode;
   /** Utilisée seulement si `wirdMode === "custom"`. */
   wirdCustomTime: string;
+  /** Heure précise "HH:MM" pour les Adhkār du matin / du soir ; absente = selon Fajr / ʿAsr. */
+  morningTime?: string;
+  eveningTime?: string;
 }
 
 export const DEFAULT_SMART_PREFS: SmartReminderPrefs = {
@@ -142,16 +145,18 @@ function adhkarCandidate(
   now: Date,
   timings: PrayerTimings | null,
   counts: Record<string, number>,
+  fixedTime?: string,
 ): SmartCandidate | null {
   const list = category === "morning" ? morningAdhkar : eveningAdhkar;
-  const windowStart = category === "morning" ? timings?.Fajr : timings?.Asr;
+  // Heure précise choisie par la personne : prioritaire sur Fajr / ʿAsr.
+  const windowStart = fixedTime || (category === "morning" ? timings?.Fajr : timings?.Asr);
   if (!windowStart) return null; // jamais d'heure inventée si l'horaire est indisponible
   const [h, m] = windowStart.split(":").map(Number);
   const start = new Date(now);
-  start.setHours(h, m + MIN_DELAY_AFTER_WINDOW_MIN, 0, 0);
+  start.setHours(h, fixedTime ? m : m + MIN_DELAY_AFTER_WINDOW_MIN, 0, 0);
   if (now.getTime() < start.getTime()) return null;
-  // Le matin n'est plus utile une fois Dhuhr passé.
-  if (category === "morning" && timings?.Dhuhr) {
+  // Le matin n'est plus utile une fois Dhuhr passé (sauf heure précise choisie).
+  if (!fixedTime && category === "morning" && timings?.Dhuhr) {
     const [dh, dm] = timings.Dhuhr.split(":").map(Number);
     if (now.getHours() * 60 + now.getMinutes() >= dh * 60 + dm) return null;
   }
@@ -265,9 +270,9 @@ export function useSmartReminderEngine() {
 
     const candidates: SmartCandidate[] = [];
     if (prefs.adhkar) {
-      const m = adhkarCandidate("morning", now, timings ?? null, counts);
+      const m = adhkarCandidate("morning", now, timings ?? null, counts, prefs.morningTime);
       if (m) candidates.push(m);
-      const e = adhkarCandidate("evening", now, timings ?? null, counts);
+      const e = adhkarCandidate("evening", now, timings ?? null, counts, prefs.eveningTime);
       if (e) candidates.push(e);
     }
     if (prefs.wird) {

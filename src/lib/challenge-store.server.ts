@@ -51,7 +51,7 @@ export class StorageUnavailableError extends Error {}
 const URL_SUFFIXES = ["KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"];
 const TOKEN_SUFFIXES = ["KV_REST_API_TOKEN", "UPSTASH_REDIS_REST_TOKEN"];
 
-function redisConfig() {
+export function redisConfig() {
   const env = process.env;
   for (const key of Object.keys(env)) {
     const suffix = URL_SUFFIXES.find((s) => key.endsWith(s));

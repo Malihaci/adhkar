@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bell, BellOff, CheckCircle2, Music, Trash2, Upload } from "lucide-react";
+import { Bell, BellOff, CheckCircle2, Music, Plus, Trash2, Upload } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { PushStatusCard } from "@/components/PushStatusCard";
+import { ReminderTrigger } from "@/components/ReminderTrigger";
 import { useLocalState } from "@/lib/storage";
 import {
   DEFAULT_REMINDERS,
@@ -20,7 +22,7 @@ import {
   savePersonalAudio,
   type PersonalAudioMeta,
 } from "@/lib/personalAudio";
-import { usePrayerTimings } from "@/lib/prayerTimes";
+import { usePrayerTimings, type PrayerKey } from "@/lib/prayerTimes";
 import { useSmartReminderPrefs } from "@/lib/smartReminders";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +40,15 @@ export const Route = createFileRoute("/rappels")({
 });
 
 const OFFSET_CHOICES = [0, 5, 10, 15, 30];
+
+const DRAFT_TARGETS = [
+  { to: "/", label: "Accueil" },
+  { to: "/matin", label: "Adhkār du matin" },
+  { to: "/soir", label: "Adhkār du soir" },
+  { to: "/wird", label: "Lecture du jour" },
+  { to: "/horaires", label: "Horaires de prière" },
+  { to: "/compteur", label: "Compteur de dhikr" },
+];
 
 function RappelsPage() {
   const [reminders, setReminders] = useLocalState<ReminderConfig[]>(
@@ -66,6 +77,33 @@ function RappelsPage() {
     setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, time } : r)));
   const setOffset = (id: string, offsetMinutes: number) =>
     setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, offsetMinutes } : r)));
+  const patchReminder = (id: string, patch: Partial<ReminderConfig>) =>
+    setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const removeReminder = (id: string) => setReminders((prev) => prev.filter((r) => r.id !== id));
+  const [draft, setDraft] = useState<{
+    label: string;
+    deepLink: string;
+    time: string;
+    anchor?: PrayerKey;
+    anchorOffset?: number;
+  } | null>(null);
+  const addReminder = () => {
+    if (!draft || !draft.label.trim()) return;
+    setReminders((prev) => [
+      ...prev,
+      {
+        id: `custom-${Date.now().toString(36)}`,
+        label: draft.label.trim().slice(0, 40),
+        time: draft.time,
+        anchor: draft.anchor,
+        anchorOffset: draft.anchorOffset,
+        enabled: true,
+        deepLink: draft.deepLink,
+        custom: true,
+      },
+    ]);
+    setDraft(null);
+  };
   const setAdhan = (id: string, adhanId: AdhanId) =>
     setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, adhanId } : r)));
 
@@ -147,6 +185,8 @@ function RappelsPage() {
           </button>
         )}
 
+        <PushStatusCard />
+
         {smart.enabled && (
           <p className="rounded-2xl border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
             Adhkār (matin/soir) et Mon Wird sont désormais gérés par le mode intelligent — voir{" "}
@@ -159,36 +199,96 @@ function RappelsPage() {
 
         <div className="surface-card divide-y divide-border">
           {fixedReminders.map((r) => (
-            <div key={r.id} className="flex items-center gap-3 px-4 py-3.5">
-              <button
-                onClick={() => toggle(r.id)}
-                role="switch"
-                aria-checked={r.enabled}
-                aria-label={r.enabled ? `Désactiver ${r.label}` : `Activer ${r.label}`}
-                className={cn(
-                  "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-                  r.enabled ? "bg-primary" : "bg-muted",
-                )}
-              >
-                <span
+            <div key={r.id} className="space-y-2.5 px-4 py-3.5">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => toggle(r.id)}
+                  role="switch"
+                  aria-checked={r.enabled}
+                  aria-label={r.enabled ? `Désactiver ${r.label}` : `Activer ${r.label}`}
                   className={cn(
-                    "absolute top-1 size-5 rounded-full bg-background shadow transition-all",
-                    r.enabled ? "left-6" : "left-1",
+                    "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                    r.enabled ? "bg-primary" : "bg-muted",
                   )}
-                />
-              </button>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                {r.label}
-              </span>
-              <input
-                type="time"
-                value={r.time}
-                onChange={(e) => setTime(r.id, e.target.value)}
-                disabled={!r.enabled}
-                className="h-10 w-24 shrink-0 rounded-xl border border-border bg-background px-2 text-sm disabled:opacity-40"
-              />
+                >
+                  <span
+                    className={cn(
+                      "absolute top-1 size-5 rounded-full bg-background shadow transition-all",
+                      r.enabled ? "left-6" : "left-1",
+                    )}
+                  />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">{r.label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {!r.enabled
+                      ? "Désactivé"
+                      : resolveReminderTime(r, timings ?? null)
+                        ? `À ${resolveReminderTime(r, timings ?? null)}`
+                        : "Horaire indisponible"}
+                  </p>
+                </div>
+                {r.custom && (
+                  <button
+                    onClick={() => removeReminder(r.id)}
+                    aria-label={`Supprimer ${r.label}`}
+                    className="grid size-9 shrink-0 place-items-center rounded-xl border border-destructive/40 text-destructive"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                )}
+              </div>
+              <div className="pl-[60px]">
+                <ReminderTrigger value={r} disabled={!r.enabled} onChange={(p) => patchReminder(r.id, p)} />
+              </div>
             </div>
           ))}
+          {draft ? (
+            <div className="space-y-2.5 px-4 py-3.5">
+              <input
+                value={draft.label}
+                onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+                placeholder="Nom du rappel (ex. Dhikr du soir)"
+                maxLength={40}
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              />
+              <select
+                value={draft.deepLink}
+                onChange={(e) => setDraft({ ...draft, deepLink: e.target.value })}
+                className="h-10 w-full rounded-xl border border-border bg-background px-2 text-xs"
+                aria-label="Page à ouvrir"
+              >
+                {DRAFT_TARGETS.map((t) => (
+                  <option key={t.to} value={t.to}>
+                    Ouvrir : {t.label}
+                  </option>
+                ))}
+              </select>
+              <ReminderTrigger value={draft} onChange={(p) => setDraft({ ...draft, ...p })} />
+              <div className="flex gap-2">
+                <button
+                  onClick={addReminder}
+                  disabled={!draft.label.trim()}
+                  className="flex-1 rounded-xl bg-primary py-2.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
+                >
+                  Ajouter
+                </button>
+                <button
+                  onClick={() => setDraft(null)}
+                  className="flex-1 rounded-xl border border-border py-2.5 text-xs font-semibold text-foreground"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setDraft({ label: "", deepLink: "/", time: "12:00" })}
+              className="flex w-full items-center gap-2 px-4 py-3.5 text-left text-sm font-medium text-primary"
+            >
+              <Plus className="size-4" /> Ajouter un rappel
+            </button>
+          )}
         </div>
 
         <div>
@@ -224,19 +324,34 @@ function RappelsPage() {
                         {effective ? `À ${effective}` : "Horaire indisponible"}
                       </p>
                     </div>
+                    {r.fixed && (
+                      <input
+                        type="time"
+                        value={r.time}
+                        onChange={(e) => setTime(r.id, e.target.value)}
+                        disabled={!r.enabled}
+                        aria-label="Heure précise"
+                        className="h-10 w-24 shrink-0 rounded-xl border border-border bg-background px-2 text-sm disabled:opacity-40"
+                      />
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 pl-[60px]">
                     <select
-                      value={r.offsetMinutes ?? 0}
-                      onChange={(e) => setOffset(r.id, Number(e.target.value))}
+                      value={r.fixed ? "fixed" : (r.offsetMinutes ?? 0)}
+                      onChange={(e) =>
+                        e.target.value === "fixed"
+                          ? patchReminder(r.id, { fixed: true, time: r.time || effective || "12:00" })
+                          : patchReminder(r.id, { fixed: false, offsetMinutes: Number(e.target.value) })
+                      }
                       disabled={!r.enabled}
                       className="h-10 rounded-xl border border-border bg-background px-2 text-xs disabled:opacity-40"
                     >
                       {OFFSET_CHOICES.map((o) => (
                         <option key={o} value={o}>
-                          {o === 0 ? "À l'heure" : `${o} min avant`}
+                          {o === 0 ? "À l'heure de la prière" : `${o} min avant`}
                         </option>
                       ))}
+                      <option value="fixed">À une heure précise…</option>
                     </select>
                     <div className="flex items-center gap-1">
                       <select

@@ -355,6 +355,74 @@ export async function fetchTodayTimings(settings: PrayerSettings): Promise<Praye
   }
 }
 
+const DAYS_CACHE_KEY = "adhkar:prayer-timings-days";
+
+function isoOf(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Horaires d'un jour précis (aujourd'hui ou à venir) — sert à programmer les
+ * rappels des prochains jours côté serveur de push. Même source que
+ * `fetchTodayTimings` (calendrier mosquée importé, sinon Al Adhan), cache par
+ * jour et par réglage. `null` si indisponible : jamais d'horaire inventé.
+ */
+export async function fetchTimingsForDate(
+  settings: PrayerSettings,
+  date: Date,
+): Promise<PrayerTimings | null> {
+  const iso = isoOf(date);
+  if (iso === todayISO()) return fetchTodayTimings(settings);
+  if (settings.source === "mosque" && settings.mosqueId) {
+    const m = getMosqueTimingsForDate(getMosqueCalendar(), settings.mosqueId, iso);
+    if (m) return m;
+  }
+  const key = `${settingsCacheKey(settings)}|${iso}`;
+  const cache = readJSON<Record<string, PrayerTimings>>(DAYS_CACHE_KEY, {});
+  if (cache[key]) return cache[key];
+  try {
+    const params = new URLSearchParams({
+      method: String(settings.methodId),
+      school: String(settings.school),
+    });
+    const dmy = `${String(date.getDate()).padStart(2, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}-${date.getFullYear()}`;
+    let url: string;
+    if (settings.mode === "auto" && settings.latitude != null && settings.longitude != null) {
+      params.set("latitude", String(settings.latitude));
+      params.set("longitude", String(settings.longitude));
+      url = `${API}/timings/${dmy}?${params.toString()}`;
+    } else if (settings.mode === "manual" && settings.city && settings.country) {
+      params.set("city", settings.city);
+      params.set("country", settings.country);
+      url = `${API}/timingsByCity/${dmy}?${params.toString()}`;
+    } else {
+      return null;
+    }
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json.code !== 200 || !json.data?.timings) return null;
+    const t = json.data.timings as Record<string, string>;
+    const timings: PrayerTimings = {
+      Fajr: t.Fajr,
+      Sunrise: t.Sunrise,
+      Dhuhr: t.Dhuhr,
+      Asr: t.Asr,
+      Maghrib: t.Maghrib,
+      Isha: t.Isha,
+    };
+    const today = todayISO();
+    const kept = Object.fromEntries(
+      Object.entries(cache).filter(([k]) => k.split("|").pop()! >= today),
+    );
+    kept[key] = timings;
+    writeJSON(DAYS_CACHE_KEY, kept);
+    return timings;
+  } catch {
+    return null;
+  }
+}
+
 /** "16:52" -> Date d'aujourd'hui à cette heure locale. */
 function timeToday(hhmm: string): Date {
   const [h, m] = hhmm.split(":").map(Number);

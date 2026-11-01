@@ -99,7 +99,7 @@ function Index() {
     <AppShell title="Accueil" homeHeader>
       {hydrated && !prefs.onboarded && <OnboardingModal />}
       <div className="space-y-3">
-        <HomeHero isDay={period.isDay} />
+        <HomeHero />
         <NextPrayerWidget />
         {/* À faire aujourd'hui : défis, dhikr du moment, Lecture du jour, reprise
             du Coran. La section disparaît s'il n'y a rien à faire ; l'état calme

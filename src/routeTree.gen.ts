@@ -38,6 +38,7 @@ import { Route as DefisNouveauRouteImport } from './routes/defis.nouveau'
 import { Route as ParametresApparenceRouteImport } from './routes/parametres.apparence'
 import { Route as SourateSurahRouteImport } from './routes/sourate.$surah'
 import { Route as ApiChallengesIdRouteImport } from './routes/api.challenges.$id'
+import { Route as ApiPushActionRouteImport } from './routes/api.push.$action'
 import { Route as EtudeSurahAyahRouteImport } from './routes/etude.$surah.$ayah'
 import { Route as QuranLireSurahRouteImport } from './routes/quran.lire.$surah'
 import { Route as QuranPagePageRouteImport } from './routes/quran.page.$page'
@@ -189,6 +190,11 @@ const ApiChallengesIdRoute = ApiChallengesIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ApiChallengesRoute,
 } as any)
+const ApiPushActionRoute = ApiPushActionRouteImport.update({
+  id: '/api/push/$action',
+  path: '/api/push/$action',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EtudeSurahAyahRoute = EtudeSurahAyahRouteImport.update({
   id: '/etude/$surah/$ayah',
   path: '/etude/$surah/$ayah',
@@ -245,6 +251,7 @@ export interface FileRoutesByFullPath {
   '/compteur/': typeof CompteurIndexRoute
   '/defis/': typeof DefisIndexRoute
   '/api/challenges/$id': typeof ApiChallengesIdRouteWithChildren
+  '/api/push/$action': typeof ApiPushActionRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/lire/$surah': typeof QuranLireSurahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
@@ -281,6 +288,7 @@ export interface FileRoutesByTo {
   '/compteur': typeof CompteurIndexRoute
   '/defis': typeof DefisIndexRoute
   '/api/challenges/$id': typeof ApiChallengesIdRouteWithChildren
+  '/api/push/$action': typeof ApiPushActionRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/lire/$surah': typeof QuranLireSurahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
@@ -318,6 +326,7 @@ export interface FileRoutesById {
   '/compteur/': typeof CompteurIndexRoute
   '/defis/': typeof DefisIndexRoute
   '/api/challenges/$id': typeof ApiChallengesIdRouteWithChildren
+  '/api/push/$action': typeof ApiPushActionRoute
   '/etude/$surah/$ayah': typeof EtudeSurahAyahRoute
   '/quran/lire/$surah': typeof QuranLireSurahRoute
   '/quran/page/$page': typeof QuranPagePageRoute
@@ -356,6 +365,7 @@ export interface FileRouteTypes {
     | '/compteur/'
     | '/defis/'
     | '/api/challenges/$id'
+    | '/api/push/$action'
     | '/etude/$surah/$ayah'
     | '/quran/lire/$surah'
     | '/quran/page/$page'
@@ -392,6 +402,7 @@ export interface FileRouteTypes {
     | '/compteur'
     | '/defis'
     | '/api/challenges/$id'
+    | '/api/push/$action'
     | '/etude/$surah/$ayah'
     | '/quran/lire/$surah'
     | '/quran/page/$page'
@@ -428,6 +439,7 @@ export interface FileRouteTypes {
     | '/compteur/'
     | '/defis/'
     | '/api/challenges/$id'
+    | '/api/push/$action'
     | '/etude/$surah/$ayah'
     | '/quran/lire/$surah'
     | '/quran/page/$page'
@@ -463,6 +475,7 @@ export interface RootRouteChildren {
   SourateSurahRoute: typeof SourateSurahRoute
   CompteurIndexRoute: typeof CompteurIndexRoute
   DefisIndexRoute: typeof DefisIndexRoute
+  ApiPushActionRoute: typeof ApiPushActionRoute
   EtudeSurahAyahRoute: typeof EtudeSurahAyahRoute
   QuranLireSurahRoute: typeof QuranLireSurahRoute
   QuranPagePageRoute: typeof QuranPagePageRoute
@@ -673,6 +686,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChallengesIdRouteImport
       parentRoute: typeof ApiChallengesRoute
     }
+    '/api/push/$action': {
+      id: '/api/push/$action'
+      path: '/api/push/$action'
+      fullPath: '/api/push/$action'
+      preLoaderRoute: typeof ApiPushActionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/etude/$surah/$ayah': {
       id: '/etude/$surah/$ayah'
       path: '/etude/$surah/$ayah'
@@ -777,6 +797,7 @@ const rootRouteChildren: RootRouteChildren = {
   SourateSurahRoute: SourateSurahRoute,
   CompteurIndexRoute: CompteurIndexRoute,
   DefisIndexRoute: DefisIndexRoute,
+  ApiPushActionRoute: ApiPushActionRoute,
   EtudeSurahAyahRoute: EtudeSurahAyahRoute,
   QuranLireSurahRoute: QuranLireSurahRoute,
   QuranPagePageRoute: QuranPagePageRoute,

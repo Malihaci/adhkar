@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useReminderEngine } from "@/lib/reminders";
 import { useSmartReminderEngine } from "@/lib/smartReminders";
+import { usePushSync } from "@/lib/pushSync";
 import { usePreferences } from "@/lib/preferences";
 import { maybeAutoDownloadCorePack } from "@/lib/offline";
 
@@ -176,6 +177,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ReminderEngine />
       <SmartReminderEngine />
+      <PushSyncer />
       <ReduceMotionEffect />
       <ServiceWorkerRegistration />
       <Outlet />
@@ -210,6 +212,13 @@ function ReminderEngine() {
  * moteur "premier plan uniquement" que ReminderEngine ci-dessus). */
 function SmartReminderEngine() {
   useSmartReminderEngine();
+  return null;
+}
+
+/** Notifications Web Push (app fermée) : garde le planning du serveur à jour,
+ * voir src/lib/pushSync.ts. Sans effet tant que l'appareil n'est pas abonné. */
+function PushSyncer() {
+  usePushSync();
   return null;
 }
 
