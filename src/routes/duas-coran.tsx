@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { quranRefLabel } from "@/data/surah-names";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, Search } from "lucide-react";
 import { DhikrViewer } from "@/components/DhikrViewer";
@@ -123,7 +124,7 @@ function DuasCoranPage() {
                 {d.context}
               </p>
               <p className="mt-1 text-[11px] font-semibold text-primary">
-                {d.reference.replace(" · traduction de Muhammad Hamidullah", "")}
+                {quranRefLabel(d.reference) ?? d.reference}
               </p>
             </Link>
           </li>

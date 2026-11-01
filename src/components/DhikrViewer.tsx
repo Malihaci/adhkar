@@ -21,6 +21,7 @@ import { SourceInfo } from "@/components/SourceInfo";
 import type { Dhikr } from "@/data/adhkar";
 import { useDailyProgress, useFavorites, getLastReadIndex } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
+import { quranRefLabel } from "@/data/surah-names";
 import { shareDhikr } from "@/lib/share";
 import { dhikrFileSrc, useDhikrVerseAudio } from "@/lib/dhikrAudio";
 import { GHAMIDI_UNAVAILABLE_REASON } from "@/lib/adhkarGhamidi";
@@ -173,7 +174,8 @@ export function DhikrViewer({
   };
 
   const tryGo = (d: number) => {
-    if (d > 0 && !done) {
+    // Rappel « dhikr incomplet » : seulement pour Matin/Soir, où le nombre de répétitions prescrit compte.
+    if (d > 0 && !done && (category === "morning" || category === "evening")) {
       setWarnOpen(true);
       return;
     }
@@ -238,6 +240,9 @@ export function DhikrViewer({
             <h1 className="line-clamp-2 font-display text-base font-semibold leading-snug text-foreground sm:text-lg">
               {dhikr.title}
             </h1>
+            {dhikr.category === "dua_coran" && quranRefLabel(dhikr.reference) && (
+              <p className="mt-0.5 text-xs font-semibold text-gold">{quranRefLabel(dhikr.reference)}</p>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <button
