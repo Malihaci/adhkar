@@ -230,9 +230,11 @@ export function DhikrViewer({
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-background p-2 sm:p-3">
+    <div className="fixed inset-0 z-30 flex flex-col bg-background p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3">
+      {/* Plein écran fixe (et non h-[100dvh]) : la barre du haut et celle du bas restent
+          en place quelle que soit la hauteur réelle de l'écran ; seul le texte défile. */}
       <article
-        className="surface-card relative flex flex-1 flex-col overflow-hidden"
+        className="surface-card relative flex min-h-0 flex-1 flex-col overflow-hidden"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -291,7 +293,7 @@ export function DhikrViewer({
         )}
 
         {/* Content */}
-        <div className="flex-1 space-y-4 overflow-y-auto px-3 py-3 sm:px-6">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-3 sm:px-6">
           <div style={{ ["--ar-k" as string]: arabicScale(dhikr.arabic) } as React.CSSProperties}>
             <QuranDhikrText dhikr={dhikr} className={ARABIC_SIZE[fontSize]} showPhonetic={showPhonetic} />
           </div>
