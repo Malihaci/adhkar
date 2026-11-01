@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { HomeHero } from "@/components/HomeHero";
 import { HomeDua } from "@/components/HomeDua";
 import { HomeToday } from "@/components/HomeToday";
+import { HomeCalm } from "@/components/HomeCalm";
+import { ResumeReadingCard } from "@/components/ResumeReadingCard";
 import { useDayPeriod } from "@/lib/dayPeriod";
 import { NextPrayerWidget } from "@/components/NextPrayerWidget";
 import { DhikrChallengeCard } from "@/components/DhikrChallengeCard";
@@ -99,19 +101,26 @@ function Index() {
       <div className="space-y-3">
         <HomeHero isDay={period.isDay} />
         <NextPrayerWidget />
+        {/* À faire aujourd'hui : défis, dhikr du moment, Lecture du jour, reprise
+            du Coran. La section disparaît s'il n'y a rien à faire ; l'état calme
+            prend alors sa place. */}
+        <div className="group/todo space-y-3">
+          <section aria-label="À faire aujourd'hui" className="hidden has-[a]:block">
+            <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              À faire aujourd'hui
+            </h2>
+            <div className="space-y-2">
+              <KahfChallengeCard />
+              <HomeToday counts={progress.counts} moment={period.adhkar} />
+              <DhikrChallengeCard />
+              <ResumeReadingCard />
+            </div>
+          </section>
+          <HomeCalm />
+        </div>
+
+        {/* Hadith / doua du moment : secondaire, sous les actions du jour. */}
         <HomeDua now={period.now} isDay={period.isDay} />
-        {/* À faire aujourd'hui : défis du vendredi, dhikr du moment, Wird.
-            La section disparaît s'il n'y a rien à faire. */}
-        <section aria-label="À faire aujourd'hui" className="hidden has-[a]:block">
-          <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            À faire aujourd'hui
-          </h2>
-          <div className="space-y-2">
-            <KahfChallengeCard />
-            <DhikrChallengeCard />
-            <HomeToday counts={progress.counts} moment={period.adhkar} />
-          </div>
-        </section>
 
         {/* Accès principaux, compacts */}
         {/* Barre fixée en bas de l'écran (toutes tailles) ; zone sûre iPhone/Android incluse. */}
@@ -119,7 +128,7 @@ function Index() {
           aria-label="Accès rapides"
           className="fixed inset-x-0 bottom-0 z-30 border-t border-border/50 bg-background/92 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl"
         >
-          <div className="mx-auto grid max-w-3xl grid-cols-5 gap-2">
+          <div className="mx-auto grid max-w-3xl grid-cols-[repeat(4,minmax(0,1fr))_3.5rem] items-start gap-2">
           <QuickAccess
             onClick={openCoran}
             label="Coran"
@@ -136,7 +145,7 @@ function Index() {
           />
           <QuickAccess
             onClick={openLectureDuJour}
-            label="Wird"
+            label="Lecture du jour"
             arabic="وِرْد"
             color="#8a63c0"
             icon={<BookMarked className="size-5" />}
@@ -148,13 +157,16 @@ function Index() {
             color="#2d8fbf"
             icon={<Clock className="size-5" />}
           />
-          <QuickAccess
+          <button
             onClick={() => setPlusOpen(true)}
-            label="Plus"
-            arabic="المزيد"
-            color="#6b7a72"
-            icon={<MoreHorizontal className="size-5" />}
-          />
+            aria-label="Plus"
+            className="flex h-[5.25rem] flex-col items-center gap-1 pt-2.5 text-muted-foreground transition active:scale-[0.97] hover:text-foreground"
+          >
+            <span className="grid size-8 place-items-center">
+              <MoreHorizontal className="size-5" />
+            </span>
+            <span className="flex h-[1.9rem] items-center text-[12.5px] font-medium">Plus</span>
+          </button>
           </div>
         </nav>
       </div>
@@ -171,7 +183,7 @@ function Index() {
   );
 }
 
-/** Accès principal compact : icône colorée, nom, arabe — 4 par ligne. */
+/** Accès principal compact : icône colorée, nom (2 lignes max), arabe — hauteur identique pour tous. */
 function QuickAccess({
   onClick,
   label,
@@ -189,16 +201,15 @@ function QuickAccess({
     <button
       onClick={onClick}
       style={{ "--c": color } as React.CSSProperties}
-      className="surface-card group relative flex flex-col items-center gap-1 overflow-hidden rounded-2xl px-1 pb-3 pt-2.5 text-center transition hover:-translate-y-0.5 active:scale-[0.97]"
+      className="surface-card group flex h-[5.25rem] flex-col items-center gap-1 rounded-2xl px-1 pb-2 pt-2 text-center transition duration-150 active:scale-[0.97]"
     >
-      <span className="grid size-10 place-items-center rounded-xl bg-[color-mix(in_srgb,var(--c)_16%,transparent)] text-[var(--c)] transition group-hover:scale-105">
+      <span className="grid size-8 place-items-center rounded-[10px] bg-[color-mix(in_srgb,var(--c)_16%,transparent)] text-[var(--c)] [&_svg]:size-[17px]">
         {icon}
       </span>
-      <span className="font-display text-[0.95rem] font-bold leading-tight text-foreground">{label}</span>
-      <span lang="ar" dir="rtl" className="font-arabic text-[0.95rem] leading-none text-[var(--c)]">
+      <span className="flex h-[1.9rem] items-center font-display text-[0.8rem] font-bold leading-[1.1] text-foreground">{label}</span>
+      <span lang="ar" dir="rtl" className="font-arabic text-[0.8rem] leading-none text-[var(--c)]">
         {arabic}
       </span>
-      <span className="absolute inset-x-0 bottom-0 h-[3px] bg-[var(--c)] opacity-80" />
     </button>
   );
 }

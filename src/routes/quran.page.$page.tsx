@@ -196,6 +196,7 @@ function MushafPage() {
   useEffect(() => {
     try {
       localStorage.setItem("quran-last-page", String(page));
+      localStorage.setItem("quran-last-read-at", String(Date.now()));
     } catch {
       /* quota */
     }

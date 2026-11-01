@@ -26,7 +26,8 @@ import { readJSON, useLocalState, type DailyProgress } from "@/lib/storage";
 import { fetchTodayTimings, getPrayerSettings, type PrayerTimings } from "@/lib/prayerTimes";
 import { getWirdResumeTarget, type WirdState } from "@/lib/khatma";
 import { challengeReminderCandidate } from "@/lib/dhikrReminders";
-import { showAppNotification } from "@/lib/notify";
+import { showAppNotification, LAST_NOTIF_KEY } from "@/lib/notify";
+import { adhkarStatus, pagesLeft } from "@/lib/todayState";
 
 /** Dupliqué à l'identique depuis reminders.ts (pas importé) pour éviter une
  * dépendance circulaire entre les deux moteurs — reminders.ts a besoin des
@@ -86,6 +87,10 @@ interface SmartFireLog {
   /** Horodatage (ms) de la dernière notification intelligente, toutes
    * catégories confondues — anti-empilement (§3/§13/§15 mission). */
   lastFiredAt?: number;
+  /** « Plus tard » : un seul report par intention (used), jamais de relance automatique. */
+  snooze?: Record<string, { until: number; used: boolean }>;
+  /** Heure (ms) à laquelle les Adhkār du matin ont été vus terminés, pour « après mes Adhkār ». */
+  doneAt?: Record<string, number>;
 }
 
 const FIRELOG_KEY = "adhkar:smart-firelog";
@@ -117,12 +122,6 @@ function isNearAnyPrayerTime(now: Date, timings: PrayerTimings | null, bufferMin
   return false;
 }
 
-function adhkarProgress(list: { id: string; repetitions: number }[], counts: Record<string, number>) {
-  const total = list.reduce((n, d) => n + d.repetitions, 0);
-  const completed = list.reduce((n, d) => n + Math.min(counts[d.id] ?? 0, d.repetitions), 0);
-  return { total, completed, done: total > 0 && completed >= total };
-}
-
 export interface SmartCandidate {
   id: string;
   title: string;
@@ -130,6 +129,8 @@ export interface SmartCandidate {
   deepLink: string;
   /** 1 = le plus prioritaire (prière), 3 = le moins (Wird). */
   priority: 1 | 2 | 3 | 4;
+  /** Libellé du bouton principal de la notification (+ « Plus tard »). */
+  cta?: string;
 }
 
 /** Un délai minimal après l'heure de bascule (Fajr/ʿAsr) — évite de coller
@@ -149,17 +150,24 @@ function adhkarCandidate(
   const start = new Date(now);
   start.setHours(h, m + MIN_DELAY_AFTER_WINDOW_MIN, 0, 0);
   if (now.getTime() < start.getTime()) return null;
-  const { total, completed, done } = adhkarProgress(list, counts);
-  if (done) return null;
+  // Le matin n'est plus utile une fois Dhuhr passé.
+  if (category === "morning" && timings?.Dhuhr) {
+    const [dh, dm] = timings.Dhuhr.split(":").map(Number);
+    if (now.getHours() * 60 + now.getMinutes() >= dh * 60 + dm) return null;
+  }
+  const st = adhkarStatus(list, counts);
+  if (st.done) return null;
+  const path = category === "morning" ? "/matin" : "/soir";
   return {
     id: `adhkar-${category}-${todayISO(now)}`,
     title: category === "morning" ? "Adhkār du matin" : "Adhkār du soir",
     body:
       category === "morning"
-        ? `Continuer ${completed}/${total}`
-        : "Prenez quelques instants pour votre dhikr",
-    deepLink: category === "morning" ? "/matin" : "/soir",
+        ? "Commencez votre journée par le rappel d'Allah."
+        : "Vos Adhkār du soir vous attendent.",
+    deepLink: `${path}?i=${st.firstUndoneIndex ?? 0}`,
     priority: 2,
+    cta: category === "morning" ? "Continuer mes Adhkār" : "Les réciter",
   };
 }
 
@@ -170,6 +178,7 @@ function wirdCandidate(
   timings: PrayerTimings | null,
   lastMushafPage: number | null,
   prefs: SmartReminderPrefs,
+  morningDoneAt: number | null,
 ): SmartCandidate | null {
   if (!wird || prefs.wirdMode === "off") return null;
   const target = getWirdResumeTarget(wird, lastMushafPage);
@@ -184,7 +193,8 @@ function wirdCandidate(
   } else if (prefs.wirdMode === "after-morning-adhkar") {
     // §7/§12 mission : condition de PROGRESSION, jamais une heure fixe —
     // tant que les Adhkār du matin ne sont pas finis, le Wird attend.
-    if (!morningDone) return null;
+    // Un délai raisonnable après la fin des Adhkār, pas à la seconde près.
+    if (!morningDone || morningDoneAt === null || now.getTime() - morningDoneAt < WIRD_AFTER_ADHKAR_MS) return null;
   } else if (prefs.wirdMode === "custom") {
     const [h, m] = prefs.wirdCustomTime.split(":").map(Number);
     const start = new Date(now);
@@ -194,10 +204,12 @@ function wirdCandidate(
 
   return {
     id: `wird-${todayISO(now)}`,
-    title: target.notStarted ? "Mon Wird" : "Continuer mon Wird",
-    body: target.notStarted
-      ? `Pages ${target.startPage}–${target.endPage}`
-      : `Pages ${target.resumePage}–${target.endPage} restantes`,
+    title: "Lecture du jour",
+    body:
+      pagesLeft(target) > 1
+        ? `Il vous reste ${pagesLeft(target)} pages aujourd'hui.`
+        : "Il vous reste une page aujourd'hui.",
+    cta: "Reprendre ma lecture",
     // Réutilise exactement le routing déjà construit pour le partage Wird
     // (§"Partage Mon Wird") — aucune nouvelle route.
     deepLink: `/quran/page/${target.resumePage}?end=${target.endPage}&shared=wird`,
@@ -205,7 +217,12 @@ function wirdCandidate(
   };
 }
 
-const MIN_GLOBAL_GAP_MS = 5 * 60_000;
+/** Délai minimal entre deux notifications (toutes sources, prières comprises). */
+const MIN_GLOBAL_GAP_MS = 30 * 60_000;
+const WIRD_AFTER_ADHKAR_MS = 15 * 60_000;
+/** Pas de rappel juste après l'ouverture de l'app : la personne est déjà là. */
+const APP_OPENED_AT = typeof window === "undefined" ? 0 : Date.now();
+const QUIET_AFTER_OPEN_MS = 2 * 60_000;
 
 /**
  * Moteur unique (§1 mission) — à monter une seule fois à la racine, comme
@@ -234,8 +251,17 @@ export function useSmartReminderEngine() {
     const today = todayISO(now);
     const progress = readJSON<DailyProgress>("adhkar:progress", { date: today, counts: {} });
     const counts = progress.date === today ? progress.counts : {};
-    const morningDone = adhkarProgress(morningAdhkar, counts).done;
+    const morningDone = adhkarStatus(morningAdhkar, counts).done;
     const lastMushafPage = readJSON<number | null>("quran-last-page", null);
+    const stored = readJSON<SmartFireLog>(FIRELOG_KEY, { fired: {} });
+    if (morningDone && stored.doneAt?.[today] === undefined) {
+      setFireLog((log) => ({ ...log, doneAt: { [today]: now.getTime() } }));
+    }
+    const morningDoneAt = stored.doneAt?.[today] ?? null;
+    if (now.getTime() - APP_OPENED_AT < QUIET_AFTER_OPEN_MS) return;
+    // Anti-empilement toutes sources (prière incluse) : la dernière notification date de trop peu.
+    const lastAny = Number(readJSON<string | number | null>(LAST_NOTIF_KEY, null) ?? 0);
+    if (lastAny && now.getTime() - lastAny < MIN_GLOBAL_GAP_MS) return;
 
     const candidates: SmartCandidate[] = [];
     if (prefs.adhkar) {
@@ -245,7 +271,7 @@ export function useSmartReminderEngine() {
       if (e) candidates.push(e);
     }
     if (prefs.wird) {
-      const w = wirdCandidate(now, wird, morningDone, timings ?? null, lastMushafPage, prefs);
+      const w = wirdCandidate(now, wird, morningDone, timings ?? null, lastMushafPage, prefs, morningDoneAt);
       if (w) candidates.push(w);
     }
     if (prefs.challenges !== false) {
@@ -279,7 +305,9 @@ export function useSmartReminderEngine() {
       }
 
       candidates.sort((a, b) => a.priority - b.priority);
-      const chosen = candidates.find((c) => log.fired[c.id] !== today);
+      const chosen = candidates.find(
+        (c) => log.fired[c.id] !== today && !(log.snooze?.[c.id] && now.getTime() < log.snooze[c.id].until),
+      );
       if (!chosen) {
         if (!staleIds.length) return log;
         const fresh = { ...log.fired };
@@ -290,6 +318,8 @@ export function useSmartReminderEngine() {
       void showAppNotification(chosen.title, {
         body: chosen.body,
         tag: chosen.id,
+        intent: chosen.id,
+        cta: chosen.cta,
         deepLink: chosen.deepLink,
       });
       const fresh = { ...log.fired };
@@ -299,6 +329,28 @@ export function useSmartReminderEngine() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefs, timings, wird]);
+
+  // « Plus tard » depuis la notification : un seul report par intention.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const onMessage = (e: MessageEvent) => {
+      const d = e.data as { type?: string; intent?: string; minutes?: number } | undefined;
+      if (d?.type !== "snooze" || !d.intent) return;
+      const intent = d.intent;
+      setFireLog((log) => {
+        if (log.snooze?.[intent]?.used) return log;
+        const fired = { ...log.fired };
+        delete fired[intent];
+        return {
+          ...log,
+          fired,
+          snooze: { ...log.snooze, [intent]: { until: Date.now() + (d.minutes ?? 30) * 60_000, used: true } },
+        };
+      });
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, [setFireLog]);
 
   useEffect(() => {
     if (!prefs.enabled) return;

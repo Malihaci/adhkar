@@ -12,7 +12,7 @@ export function HomeDua({ now, isDay }: { now: Date; isDay: boolean }) {
   return (
     <section
       aria-label={item.kind === "dua" ? "Doua du moment" : "Hadith du moment"}
-      className="surface-card rounded-2xl px-4 py-3"
+      className="rounded-2xl border border-border/60 bg-muted/40 px-4 py-3"
     >
       <button
         type="button"
@@ -20,7 +20,7 @@ export function HomeDua({ now, isDay }: { now: Date; isDay: boolean }) {
         aria-expanded={open}
         className="block w-full text-left"
       >
-        <span className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.12em] text-gold">
+        <span className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           {item.kind === "dua" ? "Doua du moment" : "Hadith du moment"}
           <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
         </span>
@@ -40,8 +40,8 @@ export function HomeDua({ now, isDay }: { now: Date; isDay: boolean }) {
           {item.french}
         </p>
         {open && <p className="mt-2 text-xs leading-snug text-muted-foreground">{item.note}</p>}
-        <span className="mt-1 block text-[11px] font-semibold text-primary">
-          {open ? "Réduire" : "Lire la suite · explication"}
+        <span className="mt-2 inline-flex h-8 items-center rounded-full border border-border bg-background/60 px-3 text-[13px] font-semibold text-primary transition active:scale-[0.97]">
+          {open ? "Réduire" : item.kind === "dua" ? "Voir l'explication" : "Comprendre ce hadith"}
         </span>
       </button>
       <p className="mt-2 border-t border-border/60 pt-1.5 text-[11px] text-muted-foreground">

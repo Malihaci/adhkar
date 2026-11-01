@@ -460,7 +460,7 @@ function ParametresPage() {
         <Section
           id="notifications"
           title="Notifications"
-          subtitle="Un seul mode intelligent pour prières, Adhkār et Mon Wird"
+          subtitle="Un seul mode intelligent pour prières, Adhkār et Lecture du jour"
         >
           <ToggleRow
             label="Mode intelligent"
@@ -468,8 +468,8 @@ function ParametresPage() {
             onChange={(v) => updateSmart({ enabled: v })}
           />
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-            Propose Adhkār/Wird seulement s'ils ne sont pas déjà terminés, sans jamais empiler
-            plusieurs notifications à la suite d'une prière.
+            Propose Adhkār et Lecture du jour seulement s'ils ne sont pas déjà terminés, avec au
+            moins 30 minutes entre deux rappels. Ce qui reste à faire apparaît toujours sur l'accueil.
           </p>
 
           <div className={cn("mt-3", !smart.enabled && "pointer-events-none opacity-40")}>
@@ -486,17 +486,17 @@ function ParametresPage() {
 
             <DisclosureRow label="Adhkār" value={smart.adhkar ? "Activé" : "Désactivé"}>
               <ToggleRow
-                label="Adhkār matin/soir"
+                label="Adhkār du matin et du soir"
                 checked={smart.adhkar}
                 onChange={(v) => updateSmart({ adhkar: v })}
               />
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Matin dès Fajr, soir dès le vrai ʿAsr — uniquement si non terminés.
+                Matin après Fajr, soir après le vrai ʿAsr — uniquement si non terminés. Un appui ouvre le premier dhikr restant.
               </p>
             </DisclosureRow>
 
             <DisclosureRow
-              label="Mon Wird"
+              label="Lecture du jour"
               value={
                 !smart.wird
                   ? "Désactivé"
@@ -504,14 +504,14 @@ function ParametresPage() {
               }
             >
               <ToggleRow
-                label="Rappel Mon Wird"
+                label="Rappel Lecture du jour"
                 checked={smart.wird}
                 onChange={(v) => updateSmart({ wird: v })}
               />
               {smart.wird && (
                 <>
                   <p className="mb-1.5 mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Rappel du Wird
+                    Rappel de la Lecture du jour
                   </p>
                   <div className="space-y-1.5">
                     {WIRD_MODE_OPTIONS.map((o) => (
@@ -550,6 +550,12 @@ function ParametresPage() {
                 </>
               )}
             </DisclosureRow>
+
+            <ToggleRow
+              label="Défis"
+              checked={smart.challenges !== false}
+              onChange={(v) => updateSmart({ challenges: v })}
+            />
 
             <DisclosureRow label="Ne pas déranger" value={`${smart.quietStart} — ${smart.quietEnd}`}>
               <div className="grid grid-cols-2 gap-2">

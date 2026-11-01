@@ -47,12 +47,18 @@ self.addEventListener("activate", (event) => {
 });
 
 // Clic sur une notification (affichée via registration.showNotification) :
+// « Plus tard » prévient l'app (qui reporte le rappel une seule fois) ; sinon
 // ramène l'app au premier plan sur la page prévue.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/";
+  const data = event.notification.data || {};
+  const url = data.url || "/";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      if (event.action === "snooze") {
+        for (const c of list) c.postMessage({ type: "snooze", intent: data.intent, minutes: 30 });
+        return;
+      }
       for (const c of list) {
         if ("focus" in c) {
           c.focus();

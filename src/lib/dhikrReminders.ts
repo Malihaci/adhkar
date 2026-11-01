@@ -34,9 +34,10 @@ export function challengeReminderCandidate(now: Date): SmartCandidate | null {
       body:
         c.myCount > 0
           ? `Continuer votre défi · ${c.type === "individual" ? `${c.myCount}/${c.target}` : `vous : ${c.myCount}`}`
-          : "Votre compteur est prêt",
+          : "Votre compteur est prêt.",
       deepLink: `/challenge/${c.id}`,
       priority: 4,
+      cta: "Continuer",
     };
   }
 
@@ -47,10 +48,11 @@ export function challengeReminderCandidate(now: Date): SmartCandidate | null {
     if (count >= friday.goal) return null;
     return {
       id: `friday-${day}`,
-      title: "Défi du vendredi 🌿",
-      body: count > 0 ? `Continuer votre défi · ${count}/${friday.goal}` : "Votre compteur est prêt",
+      title: "Défi du vendredi",
+      body: count > 0 ? `Continuer votre défi · ${count}/${friday.goal}` : "Votre compteur est prêt.",
       deepLink: `/compteur/${SALAT_DHIKR_ID}`,
       priority: 4,
+      cta: "Continuer",
     };
   }
   return null;

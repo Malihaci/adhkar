@@ -1,5 +1,4 @@
-import { Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
+import { Target } from "lucide-react";
 import {
   SALAT_DHIKR_ID,
   isChallengeEnded,
@@ -9,10 +8,11 @@ import {
   useFridayChallenge,
   useLocalChallenges,
 } from "@/lib/dhikrCounter";
+import { ACTION_COLORS, ActionCard } from "@/components/ActionCard";
 
-/** Petite carte contextuelle d'accueil : seulement s'il existe un défi
- * pertinent maintenant (défi partagé actif non atteint, ou vendredi) —
- * sinon rien n'est rendu. Lecture locale uniquement, aucun appel réseau. */
+/** Carte contextuelle d'accueil : seulement s'il existe un défi pertinent
+ * maintenant (défi actif non atteint, ou vendredi) — sinon rien n'est rendu.
+ * Lecture locale uniquement, aucun appel réseau. */
 export function DhikrChallengeCard() {
   const [challenges] = useLocalChallenges();
   const [friday] = useFridayChallenge();
@@ -27,22 +27,16 @@ export function DhikrChallengeCard() {
     const collective = active.type === "collective";
     const value = collective ? (active.lastKnownTotal ?? active.myCount) : active.myCount;
     return (
-      <Link
+      <ActionCard
         to="/challenge/$id"
         params={{ id: active.id }}
-        className="relative flex min-h-16 items-center gap-3 rounded-2xl border border-gold/50 bg-gradient-to-r from-gold/20 via-gold/10 to-gold/5 px-4 py-3 shadow-[0_6px_18px_-10px_var(--gold)] transition hover:-translate-y-0.5"
-      >
-        <span aria-hidden className="absolute right-3 top-2.5 flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-gold/70" /><span className="relative inline-flex size-2 rounded-full bg-gold" /></span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{active.title}</p>
-          <p className="text-xs tabular-nums text-muted-foreground">
-            {value.toLocaleString("fr-FR")} / {active.target.toLocaleString("fr-FR")}
-          </p>
-        </div>
-        <span className="flex items-center gap-1 text-sm font-semibold text-primary">
-          Continuer <ChevronRight className="size-4" />
-        </span>
-      </Link>
+        color={ACTION_COLORS.doux}
+        icon={<Target />}
+        title={active.title}
+        sub={`${value.toLocaleString("fr-FR")} sur ${active.target.toLocaleString("fr-FR")}`}
+        cta="Continuer"
+        pct={Math.min(100, (value / active.target) * 100)}
+      />
     );
   }
 
@@ -50,24 +44,16 @@ export function DhikrChallengeCard() {
     const count = log[todayKey()]?.[SALAT_DHIKR_ID] ?? 0;
     if (count >= friday.goal) return null;
     return (
-      <Link
+      <ActionCard
         to="/compteur/$dhikrId"
         params={{ dhikrId: SALAT_DHIKR_ID }}
-        className="flex min-h-[3.5rem] items-center gap-3 rounded-2xl border border-gold/60 bg-gold/10 px-3.5 py-2 transition hover:-translate-y-0.5"
-      >
-        <span className="grid size-10 shrink-0 place-items-center text-2xl">🌿</span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-foreground">
-            La prière sur le Prophète ﷺ
-          </span>
-          <span className="block truncate text-xs tabular-nums text-muted-foreground">
-            {count} / {friday.goal} · à faire aujourd'hui
-          </span>
-        </span>
-        <span className="flex shrink-0 items-center gap-0.5 text-[13px] font-bold text-gold">
-          {count > 0 ? "Continuer" : "Commencer"} <ChevronRight className="size-4" />
-        </span>
-      </Link>
+        color={ACTION_COLORS.doux}
+        icon={<Target />}
+        title="La prière sur le Prophète ﷺ"
+        sub={`${count} sur ${friday.goal} · défi du vendredi`}
+        cta={count > 0 ? "Continuer" : "Commencer"}
+        pct={Math.min(100, (count / friday.goal) * 100)}
+      />
     );
   }
 
