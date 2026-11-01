@@ -98,7 +98,9 @@ export function DhikrViewer({
    * uniquement les actions propres au dhikr"). */
   const [liveOpen, setLiveOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [warnOpen, setWarnOpen] = useState(false);
+  /** Dhikr sauté avant la fin : bandeau discret « Revenir », jamais une modale. */
+  const [skipped, setSkipped] = useState<{ idx: number; count: number; total: number } | null>(null);
+  const skipTimer = useRef<number | undefined>(undefined);
   const [audioUnavailable, setAudioUnavailable] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -173,19 +175,39 @@ export function DhikrViewer({
     setLiveOpen(false);
   };
 
+  const tracked = category === "morning" || category === "evening";
+  /** Suivant : jamais bloquant. Sur Matin/Soir, un dhikr à 1 répétition est
+   * validé en passant ; un dhikr à plusieurs répétitions non terminé est
+   * signalé par un bandeau « Revenir » puis repris dans le récap de fin. */
   const tryGo = (d: number) => {
-    // Rappel « dhikr incomplet » : seulement pour Matin/Soir, où le nombre de répétitions prescrit compte.
-    if (d > 0 && !done && (category === "morning" || category === "evening")) {
-      setWarnOpen(true);
-      return;
+    if (d > 0 && !done && tracked) {
+      if (dhikr.repetitions <= 1) {
+        increment(dhikr.id, dhikr.repetitions);
+      } else {
+        setSkipped({ idx, count, total: dhikr.repetitions });
+        window.clearTimeout(skipTimer.current);
+        skipTimer.current = window.setTimeout(() => setSkipped(null), 5000);
+      }
     }
     go(d);
+  };
+  const incomplete = tracked
+    ? list.map((x, i) => ({ i, left: x.repetitions - (progress.counts[x.id] ?? 0) })).filter((x) => x.left > 0)
+    : [];
+  const resumeAt = (i: number) => {
+    setSkipped(null);
+    setIdx(i);
   };
 
   const onCount = () => {
     if (done) return;
     increment(dhikr.id, dhikr.repetitions);
     const newCount = count + 1;
+    try {
+      navigator.vibrate?.(newCount >= dhikr.repetitions ? [30, 40, 30] : 15);
+    } catch {
+      /* vibration indisponible */
+    }
     if (newCount >= dhikr.repetitions && idx < list.length - 1) {
       window.setTimeout(() => go(1), 700);
     }
@@ -297,6 +319,31 @@ export function DhikrViewer({
           )}
         </div>
 
+        {skipped ? (
+          <div className="flex items-center justify-between gap-3 border-t border-border bg-gold/10 px-3 py-2 text-xs text-foreground">
+            <span>Non terminé ({skipped.count}/{skipped.total})</span>
+            <button onClick={() => resumeAt(skipped.idx)} className="font-semibold text-primary">
+              Revenir
+            </button>
+          </div>
+        ) : (
+          idx === list.length - 1 &&
+          incomplete.filter((x) => x.i !== idx).length > 0 && (
+            <div className="flex items-center justify-between gap-3 border-t border-border bg-gold/10 px-3 py-2 text-xs text-foreground">
+              <span>
+                {incomplete.filter((x) => x.i !== idx).length} dhikr non terminé
+                {incomplete.filter((x) => x.i !== idx).length > 1 ? "s" : ""}
+              </span>
+              <button
+                onClick={() => resumeAt(incomplete.find((x) => x.i !== idx)!.i)}
+                className="font-semibold text-primary"
+              >
+                Reprendre
+              </button>
+            </div>
+          )
+        )}
+
         {/* Footer fixe (§12 mission) : Accueil · Précédent · ▶/⏸ (audio du
             dhikr affiché) · Réciter X/Y (compteur, zone tactile principale)
             · Suivant — navigation LTR normale pour l'Adhkār (§31). */}
@@ -372,39 +419,6 @@ export function DhikrViewer({
             </button>
           </div>
         </div>
-
-        {/* Warning: dhikr non complété */}
-        {warnOpen && (
-          <div className="absolute inset-0 z-20 grid place-items-center bg-background/80 p-5 backdrop-blur-sm">
-            <div className="surface-card w-full max-w-sm space-y-4 p-5 text-center">
-              <h4 className="font-display text-lg font-bold text-foreground">Dhikr incomplet</h4>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Vous ne l'avez récité que <span className="font-bold text-foreground">{count}</span>{" "}
-                fois sur <span className="font-bold text-primary">{dhikr.repetitions} fois</span>.
-                Il faut le lire{" "}
-                <span className="font-bold text-primary">{dhikr.repetitions} fois</span> comme l'a
-                enseigné le Prophète ﷺ.
-              </p>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <button
-                  onClick={() => setWarnOpen(false)}
-                  className="h-12 flex-1 rounded-2xl bg-primary font-semibold text-primary-foreground transition active:scale-95"
-                >
-                  Continuer la récitation
-                </button>
-                <button
-                  onClick={() => {
-                    setWarnOpen(false);
-                    go(1);
-                  }}
-                  className="h-12 flex-1 rounded-2xl bg-muted font-semibold text-muted-foreground transition active:scale-95"
-                >
-                  Passer quand même
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Petite feuille "Vivre ce dhikr" (§10 mission) — même langage
             visuel que "Vivre cette page" côté Coran : une vraie icône
