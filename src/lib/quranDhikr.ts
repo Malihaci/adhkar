@@ -1,13 +1,6 @@
 import { SURAH_NAMES } from "@/data/surah-names";
 import type { Dhikr } from "@/data/adhkar";
 
-/** Formule de protection récitée avant le Coran (présentée avant chaque dhikr coranique). */
-export const ISTIADHA = {
-  ar: "أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ",
-  ph: "A'ûdhu billâhi mina-sh-shaytâni-r-rajîm",
-  fr: "Je cherche refuge auprès d'Allah contre Satan, le banni.",
-};
-
 const DIGITS = "٠١٢٣٤٥٦٧٨٩";
 const toArabicDigits = (n: number) => String(n).replace(/\d/g, (d) => DIGITS[Number(d)]);
 const marker = (n: number) => `﴿${toArabicDigits(n)}﴾`;
