@@ -22,11 +22,11 @@ export function AdhkarSheet({
       onClick={onClose}
     >
       <div
-        className="w-full rounded-t-3xl border-t border-border bg-card p-5"
+        className="max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl border-t border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="font-display text-lg font-semibold">Quel Adhkâr souhaitez-vous lire ?</h2>
+          <h2 className="font-display text-lg font-semibold">Quel Adhkār souhaitez-vous lire ?</h2>
           <div className="flex shrink-0 items-center gap-1">
             {/* ⚙️ contextuel (§2 mission "Paramètres centralisés") — ouvre
                 directement Paramètres > Adhkār, jamais un second système. */}
@@ -61,7 +61,7 @@ export function AdhkarSheet({
               <Sunrise className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-foreground">Adhkâr du matin</p>
+              <p className="font-medium text-foreground">Adhkār du matin</p>
               <p className="text-xs text-muted-foreground">{morningPct}% complété aujourd'hui</p>
             </div>
           </Link>
@@ -74,7 +74,7 @@ export function AdhkarSheet({
               <Moon className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-foreground">Adhkâr du soir</p>
+              <p className="font-medium text-foreground">Adhkār du soir</p>
               <p className="text-xs text-muted-foreground">{eveningPct}% complété aujourd'hui</p>
             </div>
           </Link>
