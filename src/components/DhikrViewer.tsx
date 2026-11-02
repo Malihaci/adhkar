@@ -175,6 +175,8 @@ export function DhikrViewer({
     setLiveOpen(false);
   };
 
+  /** Section « Adhkār et ādāb » : lecture seule (pas d'audio ni de compteur pour l'instant). */
+  const plain = dhikr.category === "livre";
   const tracked = category === "morning" || category === "evening";
   /** Suivant : jamais bloquant. Sur Matin/Soir, un dhikr à 1 répétition est
    * validé en passant ; un dhikr à plusieurs répétitions non terminé est
@@ -362,11 +364,11 @@ export function DhikrViewer({
               onClick={() => go(-1)}
               disabled={idx === 0}
               aria-label="Précédent"
-              className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sky-500/15 text-sky-600 transition disabled:opacity-30 active:scale-95"
+              className={cn("grid h-12 place-items-center rounded-2xl bg-sky-500/15 text-sky-600 transition disabled:opacity-30 active:scale-95", plain ? "flex-1" : "w-12 shrink-0")}
             >
               <ChevronLeft className="size-6" />
             </button>
-            {dhikrAudio.available && (
+            {dhikrAudio.available && !plain && (
             <button
               onClick={() => {
                 if (dhikrAudio.available) {
@@ -383,6 +385,7 @@ export function DhikrViewer({
             </button>
             )}
 
+            {!plain && (
             <button
               onClick={onCount}
               disabled={done}
@@ -410,12 +413,13 @@ export function DhikrViewer({
                 )}
               </span>
             </button>
+            )}
 
             <button
               onClick={() => tryGo(1)}
               disabled={idx === list.length - 1}
               aria-label="Suivant"
-              className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sky-500/15 text-sky-600 transition disabled:opacity-30 active:scale-95"
+              className={cn("grid h-12 place-items-center rounded-2xl bg-sky-500/15 text-sky-600 transition disabled:opacity-30 active:scale-95", plain ? "flex-1" : "w-12 shrink-0")}
             >
               <ChevronRight className="size-6" />
             </button>
