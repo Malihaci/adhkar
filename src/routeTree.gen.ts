@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdhkarAdabRouteImport } from './routes/adhkar-adab'
 import { Route as ApresPriereRouteImport } from './routes/apres-priere'
 import { Route as CoucherRouteImport } from './routes/coucher'
 import { Route as DuasCoranRouteImport } from './routes/duas-coran'
@@ -48,6 +49,11 @@ import { Route as ApiChallengesIdProgressRouteImport } from './routes/api.challe
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdhkarAdabRoute = AdhkarAdabRouteImport.update({
+  id: '/adhkar-adab',
+  path: '/adhkar-adab',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApresPriereRoute = ApresPriereRouteImport.update({
@@ -223,6 +229,7 @@ const ApiChallengesIdProgressRoute = ApiChallengesIdProgressRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/adhkar-adab': typeof AdhkarAdabRoute
   '/apres-priere': typeof ApresPriereRoute
   '/coucher': typeof CoucherRoute
   '/duas-coran': typeof DuasCoranRoute
@@ -260,6 +267,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/adhkar-adab': typeof AdhkarAdabRoute
   '/apres-priere': typeof ApresPriereRoute
   '/coucher': typeof CoucherRoute
   '/duas-coran': typeof DuasCoranRoute
@@ -298,6 +306,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/adhkar-adab': typeof AdhkarAdabRoute
   '/apres-priere': typeof ApresPriereRoute
   '/coucher': typeof CoucherRoute
   '/duas-coran': typeof DuasCoranRoute
@@ -337,6 +346,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/adhkar-adab'
     | '/apres-priere'
     | '/coucher'
     | '/duas-coran'
@@ -374,6 +384,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/adhkar-adab'
     | '/apres-priere'
     | '/coucher'
     | '/duas-coran'
@@ -411,6 +422,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/adhkar-adab'
     | '/apres-priere'
     | '/coucher'
     | '/duas-coran'
@@ -449,6 +461,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdhkarAdabRoute: typeof AdhkarAdabRoute
   ApresPriereRoute: typeof ApresPriereRoute
   CoucherRoute: typeof CoucherRoute
   DuasCoranRoute: typeof DuasCoranRoute
@@ -488,6 +501,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/adhkar-adab': {
+      id: '/adhkar-adab'
+      path: '/adhkar-adab'
+      fullPath: '/adhkar-adab'
+      preLoaderRoute: typeof AdhkarAdabRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/apres-priere': {
@@ -771,6 +791,7 @@ const ApiChallengesRouteWithChildren = ApiChallengesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdhkarAdabRoute: AdhkarAdabRoute,
   ApresPriereRoute: ApresPriereRoute,
   CoucherRoute: CoucherRoute,
   DuasCoranRoute: DuasCoranRoute,

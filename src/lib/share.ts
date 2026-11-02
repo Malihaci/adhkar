@@ -15,6 +15,7 @@ const CATEGORY_ROUTE: Record<DhikrCategory, string> = {
   sortie: "/sortie",
   voyage: "/voyage",
   dua_coran: "/duas-coran",
+  livre: "/adhkar-adab",
 };
 
 export function buildDhikrShareText(dhikr: Dhikr, index?: number): string {

@@ -129,6 +129,13 @@ export function AdhkarSheet({
             onClose={onClose}
           />
           <OccasionRow
+            to="/adhkar-adab"
+            icon={<BookOpen className="size-4" />}
+            label="Adhkār et ādāb"
+            arabic="الأذكار والآداب"
+            onClose={onClose}
+          />
+          <OccasionRow
             to="/reveil"
             icon={<Sunrise className="size-4" />}
             label="Réveil"
@@ -176,7 +183,7 @@ function OccasionRow({
   arabic,
   onClose,
 }: {
-  to: "/duas-coran" | "/reveil" | "/coucher" | "/apres-priere" | "/sortie" | "/voyage";
+  to: "/duas-coran" | "/adhkar-adab" | "/reveil" | "/coucher" | "/apres-priere" | "/sortie" | "/voyage";
   icon: ReactNode;
   label: string;
   arabic: string;

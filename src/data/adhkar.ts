@@ -1,5 +1,5 @@
 export type DhikrCategory =
-  "morning" | "evening" | "coucher" | "sortie" | "voyage" | "reveil" | "apres_priere" | "dua_coran";
+  "morning" | "evening" | "coucher" | "sortie" | "voyage" | "reveil" | "apres_priere" | "dua_coran" | "livre";
 
 /**
  * Ce que la preuve établit réellement (chantier adhkār authentiques) —
