@@ -51,6 +51,9 @@ export interface Dhikr {
    * mais évitable pour ces cas précis. Jamais un index de tableau.
    */
   verseKeys?: string[];
+  /** Texte « comme dans le livre » ({{formule}}, <n> = renvoi) et ses notes — section Adhkār et ādāb. */
+  book?: string;
+  bookNotes?: string[];
   /** Thème (catégorie « Duʿāʾ du Coran » uniquement) — voir src/data/duas-coran.ts. */
   theme?: string;
 }

@@ -1,0 +1,483 @@
+/**
+ * Suite de « Al-Adhkâr wa-l-Âdâb » (Dr ʿAbd al-Muḥsin al-Qāsim) : chapitres 7 et
+ * suivants. Même règle que adhkar-livre.ts — références = celles du livre,
+ * traductions et phonétiques rédigées pour l'app et à relire.
+ * Id = « livre-<n° de chapitre sur 2 chiffres><lettre> ».
+ */
+import type { Dhikr } from "@/data/adhkar";
+import { coucherAdhkar } from "@/data/adhkar-occasions";
+
+export const LIVRE_THEMES: { theme: string; label: string; ar: string }[] = [
+  { theme: "merites", label: "Mérites", ar: "الفضائل" },
+  { theme: "purification", label: "Purification", ar: "الطهارة" },
+  { theme: "priere", label: "Prière", ar: "الصلاة" },
+  { theme: "maladie", label: "Maladie", ar: "المرض" },
+  { theme: "janaza", label: "Funérailles", ar: "الجنازة" },
+  { theme: "epreuve", label: "Épreuves", ar: "المصيبة" },
+  { theme: "voyage", label: "Voyage", ar: "السفر" },
+  { theme: "hajj", label: "Ḥajj", ar: "الحج" },
+  { theme: "maison", label: "Maison et vêtement", ar: "البيت واللباس" },
+  { theme: "repas", label: "Repas", ar: "الطعام" },
+  { theme: "mariage", label: "Mariage", ar: "النكاح" },
+  { theme: "sommeil", label: "Nuit et sommeil", ar: "الليل والنوم" },
+  { theme: "reves", label: "Rêves", ar: "الرؤيا" },
+  { theme: "generaux", label: "Adhkār généraux", ar: "أذكار عامة" },
+  { theme: "relations", label: "Relations", ar: "المخالطة" },
+  { theme: "nature", label: "Pluie, vent, animaux", ar: "الريح والمطر" },
+  { theme: "assemblee", label: "Assemblées", ar: "كفارة المجلس" },
+];
+
+/** Titre (fr / ar) de chaque chapitre du livre, par numéro à 2 chiffres. */
+export const LIVRE_CHAPTERS: Record<string, { title: string; ar: string }> = {
+  "01": { title: "Mérite de la quête du savoir", ar: "فَضْلُ طَلَبِ الْعِلْمِ" },
+  "02": { title: "Mérite d'apprendre le Coran", ar: "فَضْلُ تَعَلُّمِ الْقُرْآنِ" },
+  "03": { title: "Mérite des assemblées de rappel", ar: "فَضْلُ مَجَالِسِ الذِّكْرِ" },
+  "04": { title: "En entrant aux toilettes", ar: "دُخُولُ الْخَلَاءِ" },
+  "05": { title: "En sortant des toilettes", ar: "الْخُرُوجُ مِنَ الْخَلَاءِ" },
+  "06": { title: "Après les ablutions", ar: "إِذَا فَرَغَ مِنَ الْوُضُوءِ" },
+  "07": { title: "L'appel à la prière", ar: "الْأَذَانُ" },
+  "08": { title: "Entrer et sortir de la mosquée", ar: "دُخُولُ الْمَسْجِدِ وَالْخُرُوجُ مِنْهُ" },
+  "09": { title: "Invocation d'ouverture", ar: "دُعَاءُ الِاسْتِفْتَاحِ" },
+  "10": { title: "Les chuchotements dans la prière", ar: "الْوَسْوَسَةُ فِي الصَّلَاةِ وَالْقِرَاءَةِ" },
+  "11": { title: "L'inclinaison (rukûʿ)", ar: "الرُّكُوعُ" },
+  "12": { title: "Le redressement après l'inclinaison", ar: "الرَّفْعُ مِنَ الرُّكُوعِ" },
+  "13": { title: "La prosternation (sujûd)", ar: "السُّجُودُ" },
+  "14": { title: "Le tachahhud", ar: "التَّشَهُّدُ" },
+  "15": { title: "Invocation avant le salâm", ar: "الدُّعَاءُ قَبْلَ السَّلَامِ" },
+  "16": { title: "Adhkār après le salâm", ar: "الْأَذْكَارُ بَعْدَ السَّلَامِ" },
+  "17": { title: "Invocation du qunût (witr)", ar: "دُعَاءُ الْقُنُوتِ" },
+  "18": { title: "Après le salâm du witr", ar: "إِذَا سَلَّمَ مِنَ الْوِتْرِ" },
+  "19": { title: "L'istikhâra", ar: "الِاسْتِخَارَةُ" },
+  "20": { title: "Une douleur dans le corps", ar: "مَنْ أَحَسَّ بِوَجَعٍ فِي جَسَدِهِ" },
+  "21": { title: "Invocation pour le malade que l'on visite", ar: "الدُّعَاءُ لِلْمَرِيضِ عِنْدَ زِيَارَتِهِ" },
+  "22": { title: "Ce que dit l'agonisant", ar: "مَا يَقُولُهُ الْمُحْتَضِرُ" },
+  "23": { title: "Invocation pour le défunt (prière funéraire)", ar: "الدُّعَاءُ لِلْمَيِّتِ فِي صَلَاةِ الْجَنَازَةِ" },
+  "24": { title: "Les condoléances", ar: "التَّعْزِيَةُ" },
+  "25": { title: "Invocation pour le défunt après l'enterrement", ar: "الدُّعَاءُ لِلْمَيِّتِ بَعْدَ دَفْنِهِ" },
+  "26": { title: "Visite des tombes", ar: "دُعَاءُ زِيَارَةِ الْمَقَابِرِ" },
+  "27": { title: "Invocation de l'angoisse", ar: "دُعَاءُ الْكَرْبِ" },
+  "28": { title: "Quand un malheur frappe", ar: "إِذَا أُصِيبَ بِمُصِيبَةٍ" },
+  "29": { title: "Quand on craint un peuple", ar: "إِذَا خَافَ قَوْماً" },
+  "30": { title: "Invoquer contre l'ennemi", ar: "الدُّعَاءُ عَلَى الْعَدُوِّ" },
+  "31": { title: "Les adieux au voyageur", ar: "مَا يُقَالُ لِلْمُسَافِرِ عِنْدَ الْوَدَاعِ" },
+  // @@CH
+};
+
+interface Spec {
+  ch: string;
+  k: string;
+  theme: string;
+  title: string;
+  ar: string;
+  ph: string;
+  fr: string;
+  ref: string;
+  expl?: string;
+  type?: Dhikr["propheticEvidenceType"];
+}
+
+const mk = (s: Spec): Dhikr => ({
+  id: `livre-${s.ch}${s.k}`,
+  category: "livre",
+  theme: s.theme,
+  title: s.title,
+  titleAr: LIVRE_CHAPTERS[s.ch]?.ar,
+  arabic: s.ar,
+  phonetic: s.ph,
+  translation: s.fr,
+  repetitions: 1,
+  explanation: s.expl ?? "",
+  merits: "",
+  reference: `Source : ${s.ref} — chapitre ${Number(s.ch)} du livre`,
+  propheticEvidenceType: s.type ?? "A",
+  validationStatus: "needs_review",
+});
+
+export const livreAdhkar2: Dhikr[] = [
+  // — 7. L'appel à la prière —
+  mk({
+    ch: "07", k: "a", theme: "priere", title: "Répéter ce que dit le muezzin",
+    ar: "إِذَا سَمِعْتُمُ الْمُؤَذِّنَ؛ فَقُولُوا مِثْلَ مَا يَقُولُ، ثُمَّ صَلُّوا عَلَيَّ؛ فَإِنَّهُ مَنْ صَلَّى عَلَيَّ صَلَاةً صَلَّى اللَّهُ عَلَيْهِ بِهَا عَشْراً",
+    ph: "Idhâ sami'tumu-l-mu'adhdhina faqûlû mithla mâ yaqûl, thumma sallû 'alayy, fa-innahu man sallâ 'alayya salâtan sallâ-llâhu 'alayhi bihâ 'ashrâ",
+    fr: "Quand vous entendez le muezzin, dites comme il dit, puis priez sur moi : car quiconque prie une fois sur moi, Allah priera sur lui dix fois.",
+    ref: "rapporté par Muslim",
+    expl: "Parole du Prophète ﷺ. Dans le livre : on répète les mots du muezzin, sauf « ḥayya ʿala-ṣ-ṣalâ / ḥayya ʿala-l-falâḥ » où l'on dit « lâ ḥawla wa lâ quwwata illâ billâh ».",
+  }),
+  mk({
+    ch: "07", k: "b", theme: "priere", title: "Après le tachahhud du muezzin",
+    ar: "أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، وَأَنَّ مُحَمَّداً عَبْدُهُ وَرَسُولُهُ، رَضِيتُ بِاللَّهِ رَبّاً، وَبِمُحَمَّدٍ رَسُولاً، وَبِالْإِسْلَامِ دِيناً",
+    ph: "Ash-hadu an lâ ilâha illa-llâhu wahdahu lâ sharîka lah, wa anna Muhammadan 'abduhu wa rasûluh, radîtu bi-llâhi rabbâ, wa bi-Muhammadin rasûlâ, wa bi-l-islâmi dînâ",
+    fr: "Je témoigne qu'il n'y a de divinité digne d'adoration qu'Allah, Seul, sans associé, et que Muhammad est Son serviteur et Son messager. J'agrée Allah comme Seigneur, Muhammad comme messager et l'islam comme religion.",
+    ref: "rapporté par Muslim",
+    expl: "Le Prophète ﷺ a dit : « Celui qui dit, lorsqu'il entend le muezzin (après la fin de ses deux témoignages) : … ses péchés lui sont pardonnés. »",
+  }),
+  mk({
+    ch: "07", k: "c", theme: "priere", title: "À « Ḥayya ʿala-ṣ-ṣalâ » et « Ḥayya ʿala-l-falâḥ »",
+    ar: "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ",
+    ph: "Lâ hawla wa lâ quwwata illâ billâh",
+    fr: "Il n'y a de force ni de puissance qu'en Allah.",
+    ref: "rapporté par Muslim",
+    expl: "Quand le muezzin dit « Ḥayya ʿala-ṣ-ṣalâ », puis « Ḥayya ʿala-l-falâḥ », on répond à chaque fois par cette formule. Dans le livre : c'est-à-dire « il n'y a de changement d'état ni de force pour nous qu'avec Allah ».",
+  }),
+  mk({
+    ch: "07", k: "d", theme: "priere", title: "L'invocation après l'adhan",
+    ar: "اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ، وَالصَّلَاةِ الْقَائِمَةِ، آتِ مُحَمَّداً الْوَسِيلَةَ وَالْفَضِيلَةَ، وَابْعَثْهُ مَقَاماً مَحْمُوداً الَّذِي وَعَدْتَهُ؛ حَلَّتْ لَهُ شَفَاعَتِي يَوْمَ الْقِيَامَةِ",
+    ph: "Allâhumma rabba hâdhihi-d-da'wati-t-tâmmah, wa-s-salâti-l-qâ'imah, âti Muhammadani-l-wasîlata wa-l-fadîlah, wa-b'athhu maqâmam mahmûdani-lladhî wa'adtah",
+    fr: "Ô Allah, Seigneur de cet appel parfait et de la prière qui va être accomplie, accorde à Muhammad al-wasîla et al-fadîla, et ressuscite-le à la station louée que Tu lui as promise.",
+    ref: "rapporté par al-Bukhari",
+    expl: "Le Prophète ﷺ a dit : « Celui qui dit cela en entendant l'appel, mon intercession lui sera due le Jour de la Résurrection. » Dans le livre : al-wasîla = un rang au Paradis ; al-fadîla = un rang supérieur à celui de toute la création ; al-maqâm al-mahmûd = la grande intercession. Après l'adhan, on dit d'abord « Allâhumma salli wa sallim 'alâ nabiyyinâ Muhammad ».",
+  }),
+  // — 8. Mosquée —
+  mk({
+    ch: "08", k: "a", theme: "priere", title: "En entrant dans la mosquée",
+    ar: "اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ",
+    ph: "Allâhumma-ftah lî abwâba rahmatik",
+    fr: "Ô Allah, ouvre-moi les portes de Ta miséricorde.",
+    ref: "rapporté par Muslim",
+    expl: "Le Prophète ﷺ a dit : « Quand l'un de vous entre dans la mosquée, qu'il dise… »",
+  }),
+  mk({
+    ch: "08", k: "b", theme: "priere", title: "En sortant de la mosquée",
+    ar: "اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ",
+    ph: "Allâhumma innî as'aluka min fadlik",
+    fr: "Ô Allah, je Te demande de Ta grâce.",
+    ref: "rapporté par Muslim",
+    expl: "Le Prophète ﷺ a dit : « Et quand il sort, qu'il dise… »",
+  }),
+  // — 9. Invocation d'ouverture —
+  mk({
+    ch: "09", k: "a", theme: "priere", title: "Invocation d'ouverture : Subhânaka Allâhumma",
+    ar: "سُبْحَانَكَ اللَّهُمَّ وَبِحَمْدِكَ، وَتَبَارَكَ اسْمُكَ، وَتَعَالَى جَدُّكَ، وَلَا إِلَهَ غَيْرُكَ",
+    ph: "Subhânaka-llâhumma wa bihamdik, wa tabâraka-smuk, wa ta'âlâ jadduk, wa lâ ilâha ghayruk",
+    fr: "Gloire et louange à Toi, ô Allah. Béni soit Ton nom, élevée est Ta majesté, et il n'y a pas d'autre divinité que Toi.",
+    ref: "rapporté par Abû Dâwûd",
+    expl: "Le Prophète ﷺ disait cette invocation lorsqu'il commençait la prière. Dans le livre : jadduk = l'élévation de Ton rang et la grandeur de Ta majesté.",
+  }),
+  mk({
+    ch: "09", k: "b", theme: "priere", title: "Invocation d'ouverture : Allâhumma bâ'id baynî",
+    ar: "اللَّهُمَّ بَاعِدْ بَيْنِي وَبَيْنَ خَطَايَايَ، كَمَا بَاعَدْتَ بَيْنَ الْمَشْرِقِ وَالْمَغْرِبِ. اللَّهُمَّ نَقِّنِي مِنْ خَطَايَايَ كَمَا يُنَقَّى الثَّوْبُ الْأَبْيَضُ مِنَ الدَّنَسِ. اللَّهُمَّ اغْسِلْنِي مِنْ خَطَايَايَ بِالثَّلْجِ وَالْمَاءِ وَالْبَرَدِ",
+    ph: "Allâhumma bâ'id baynî wa bayna khatâyâya kamâ bâ'adta bayna-l-mashriqi wa-l-maghrib. Allâhumma naqqinî min khatâyâya kamâ yunaqqa-th-thawbu-l-abyadu mina-d-danas. Allâhumma-ghsilnî min khatâyâya bi-th-thalji wa-l-mâ'i wa-l-barad",
+    fr: "Ô Allah, éloigne-moi de mes fautes comme Tu as éloigné l'Orient de l'Occident. Ô Allah, purifie-moi de mes fautes comme on purifie le vêtement blanc de la souillure. Ô Allah, lave-moi de mes fautes avec la neige, l'eau et la grêle.",
+    ref: "Muttafaq ʿalayh (al-Bukhari et Muslim)",
+    expl: "Abû Hurayra : le Prophète ﷺ se taisait un court instant entre le takbîr et la récitation ; il lui demanda ce qu'il disait alors, et il répondit par cette invocation.",
+  }),
+  // — 10. Chuchotements —
+  mk({
+    ch: "10", k: "a", theme: "priere", title: "Quand Satan trouble la prière",
+    ar: "فَتَعَوَّذْ بِاللَّهِ مِنْهُ، وَاتْفِلْ عَلَى يَسَارِكَ ثَلَاثاً",
+    ph: "Fata'awwadh bi-llâhi minhu, wa-tfil 'alâ yasârika thalâthâ",
+    fr: "Cherche refuge auprès d'Allah contre lui, et crache légèrement sur ta gauche, trois fois.",
+    ref: "rapporté par Muslim",
+    expl: "ʿUthmân ibn Abî al-ʿÂs se plaignit au Prophète ﷺ que Satan s'interposait entre lui, sa prière et sa récitation. Il répondit : « C'est un démon appelé Khinzab. Si tu le ressens, cherche refuge auprès d'Allah contre lui et crache légèrement sur ta gauche, trois fois. » Il le fit et Allah l'en délivra.",
+  }),
+  // — 11. Rukûʿ —
+  mk({
+    ch: "11", k: "a", theme: "priere", title: "Dans l'inclinaison : Subhâna Rabbiya-l-ʿAzhîm",
+    ar: "سُبْحَانَ رَبِّيَ الْعَظِيمِ",
+    ph: "Subhâna rabbiya-l-'azhîm",
+    fr: "Gloire à mon Seigneur, le Très Grand.",
+    ref: "rapporté par Ahmad",
+    expl: "Le Prophète ﷺ disait cela dans son inclinaison.",
+  }),
+  mk({
+    ch: "11", k: "b", theme: "priere", title: "Dans l'inclinaison : Subhânaka Allâhumma Rabbanâ",
+    ar: "سُبْحَانَكَ اللَّهُمَّ رَبَّنَا وَبِحَمْدِكَ، اللَّهُمَّ اغْفِرْ لِي",
+    ph: "Subhânaka-llâhumma rabbanâ wa bihamdik, Allâhumma-ghfir lî",
+    fr: "Gloire à Toi, ô Allah, notre Seigneur, et louange à Toi. Ô Allah, pardonne-moi.",
+    ref: "Muttafaq ʿalayh (al-Bukhari et Muslim)",
+    expl: "Le Prophète ﷺ disait cela dans son inclinaison et dans sa prosternation.",
+  }),
+  mk({
+    ch: "11", k: "c", theme: "priere", title: "Dans l'inclinaison : Subbûhun Quddûs",
+    ar: "سُبُّوحٌ، قُدُّوسٌ، رَبُّ الْمَلَائِكَةِ وَالرُّوحِ",
+    ph: "Subbûhun, quddûsun, rabbu-l-malâ'ikati wa-r-rûh",
+    fr: "Très Glorifié, Très Saint, Seigneur des anges et de l'Esprit (Jibrîl).",
+    ref: "rapporté par Muslim",
+    expl: "Dans le livre : subbûh = Tu es glorifié ; quddûs = Tu es sanctifié ; ar-rûh = Jibrîl.",
+  }),
+  // — 12. Redressement —
+  mk({
+    ch: "12", k: "a", theme: "priere", title: "Rabbanâ wa laka-l-hamd, hamdan kathîran",
+    ar: "رَبَّنَا وَلَكَ الْحَمْدُ، حَمْداً كَثِيراً، طَيِّباً، مُبَارَكاً فِيهِ",
+    ph: "Rabbanâ wa laka-l-hamd, hamdan kathîran, tayyiban, mubârakan fîh",
+    fr: "Notre Seigneur, à Toi la louange, une louange abondante, bonne et bénie.",
+    ref: "rapporté par al-Bukhari",
+    expl: "Après « Samiʿa-llâhu li-man hamidah », un homme derrière le Prophète ﷺ dit cela. À la fin de la prière, le Prophète ﷺ demanda qui avait parlé : « J'ai vu plus de trente anges se précipiter pour l'écrire en premier. »",
+  }),
+  mk({
+    ch: "12", k: "b", theme: "priere", title: "Rabbanâ laka-l-hamd, mil'a-s-samâwât",
+    ar: "رَبَّنَا لَكَ الْحَمْدُ، مِلْءَ السَّمَوَاتِ وَالْأَرْضِ، وَمِلْءَ مَا شِئْتَ مِنْ شَيْءٍ بَعْدُ، أَهْلَ الثَّنَاءِ وَالْمَجْدِ، أَحَقُّ مَا قَالَ الْعَبْدُ، وَكُلُّنَا لَكَ عَبْدٌ. اللَّهُمَّ لَا مَانِعَ لِمَا أَعْطَيْتَ، وَلَا مُعْطِيَ لِمَا مَنَعْتَ، وَلَا يَنْفَعُ ذَا الْجَدِّ مِنْكَ الْجَدُّ",
+    ph: "Rabbanâ laka-l-hamd, mil'a-s-samâwâti wa mil'a-l-ardi wa mil'a mâ shi'ta min shay'in ba'd, ahla-th-thanâ'i wa-l-majd, ahaqqu mâ qâla-l-'abd, wa kulluna laka 'abd. Allâhumma lâ mâni'a limâ a'tayt, wa lâ mu'tiya limâ mana't, wa lâ yanfa'u dhâ-l-jaddi minka-l-jadd",
+    fr: "Notre Seigneur, à Toi la louange, qui remplit les cieux et la terre et tout ce que Tu veux ensuite, Toi qui es digne de louange et de gloire, la parole la plus vraie du serviteur, et nous sommes tous Tes serviteurs. Ô Allah, nul ne peut empêcher ce que Tu donnes, nul ne peut donner ce que Tu refuses, et le rang du puissant ne lui sert à rien auprès de Toi.",
+    ref: "rapporté par Muslim",
+    expl: "Dans le livre : ahl ath-thanâ' wa-l-majd = le Maître de la belle qualité et de la grandeur ; « le rang… » = la position d'un homme n'est utile auprès de Toi que par l'obéissance.",
+  }),
+  // — 13. Sujûd —
+  mk({
+    ch: "13", k: "a", theme: "priere", title: "Dans la prosternation : Subhâna Rabbiya-l-A'lâ",
+    ar: "سُبْحَانَ رَبِّيَ الْأَعْلَى",
+    ph: "Subhâna rabbiya-l-a'lâ",
+    fr: "Gloire à mon Seigneur, le Très Haut.",
+    ref: "rapporté par Ahmad",
+    expl: "Le Prophète ﷺ disait cela dans sa prosternation.",
+  }),
+  mk({
+    ch: "13", k: "b", theme: "priere", title: "Dans la prosternation : Allâhumma-ghfir lî dhanbî kullah",
+    ar: "اللَّهُمَّ اغْفِرْ لِي ذَنْبِي كُلَّهُ؛ دِقَّهُ وَجِلَّهُ، وَأَوَّلَهُ وَآخِرَهُ، وَعَلَانِيَتَهُ وَسِرَّهُ",
+    ph: "Allâhumma-ghfir lî dhanbî kullah : diqqahu wa jillah, wa awwalahu wa âkhirah, wa 'alâniyatahu wa sirrah",
+    fr: "Ô Allah, pardonne-moi tous mes péchés : les petits et les grands, les premiers et les derniers, les apparents et les cachés.",
+    ref: "rapporté par Muslim",
+    expl: "Le Prophète ﷺ disait cela dans sa prosternation. Dans le livre : diqqahu wa jillah = les petits et les grands.",
+  }),
+  // — 14. Tachahhud —
+  mk({
+    ch: "14", k: "a", theme: "priere", title: "Le tachahhud",
+    ar: "التَّحِيَّاتُ لِلَّهِ، وَالصَّلَوَاتُ، وَالطَّيِّبَاتُ، السَّلَامُ عَلَيْكَ أَيُّهَا النَّبِيُّ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ، السَّلَامُ عَلَيْنَا وَعَلَى عِبَادِ اللَّهِ الصَّالِحِينَ، أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ، وَأَشْهَدُ أَنَّ مُحَمَّداً عَبْدُهُ وَرَسُولُهُ",
+    ph: "At-tahiyyâtu li-llâh, was-salawâtu wa-t-tayyibât. As-salâmu 'alayka ayyuha-n-nabiyyu wa rahmatu-llâhi wa barakâtuh. As-salâmu 'alaynâ wa 'alâ 'ibâdi-llâhi-s-sâlihîn. Ash-hadu an lâ ilâha illa-llâh, wa ash-hadu anna Muhammadan 'abduhu wa rasûluh",
+    fr: "Les salutations, les prières et les bonnes paroles sont pour Allah. Que la paix soit sur toi, ô Prophète, ainsi que la miséricorde d'Allah et Ses bénédictions. Que la paix soit sur nous et sur les serviteurs vertueux d'Allah. Je témoigne qu'il n'y a de divinité qu'Allah, et je témoigne que Muhammad est Son serviteur et Son messager.",
+    ref: "Muttafaq ʿalayh (al-Bukhari et Muslim)",
+    expl: "Le Prophète ﷺ a dit : « Dites : … ». Dans le livre : at-tahiyyât = toutes les glorifications dues à Allah, Roi et digne de les recevoir ; aṣ-ṣalawât = toutes les invocations ; aṭ-ṭayyibât = les bonnes œuvres.",
+  }),
+  mk({
+    ch: "14", k: "b", theme: "priere", title: "La prière sur le Prophète ﷺ (prière ibrâhîmienne)",
+    ar: "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا صَلَّيْتَ عَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ. اللَّهُمَّ بَارِكْ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا بَارَكْتَ عَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ",
+    ph: "Allâhumma salli 'alâ Muhammadin wa 'alâ âli Muhammad, kamâ sallayta 'alâ âli Ibrâhîm, innaka hamîdun majîd. Allâhumma bârik 'alâ Muhammadin wa 'alâ âli Muhammad, kamâ bârakta 'alâ âli Ibrâhîm, innaka hamîdun majîd",
+    fr: "Ô Allah, prie sur Muhammad et sur la famille de Muhammad, comme Tu as prié sur la famille d'Ibrâhîm ; Tu es Digne de louange et de gloire. Ô Allah, bénis Muhammad et la famille de Muhammad, comme Tu as béni la famille d'Ibrâhîm ; Tu es Digne de louange et de gloire.",
+    ref: "rapporté par al-Bukhari",
+    expl: "Le Prophète ﷺ a dit : « Dites : … ».",
+  }),
+  // — 15. Avant le salâm —
+  mk({
+    ch: "15", k: "a", theme: "priere", title: "Chercher refuge contre quatre choses",
+    ar: "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ جَهَنَّمَ، وَمِنْ عَذَابِ الْقَبْرِ، وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ، وَمِنْ شَرِّ فِتْنَةِ الْمَسِيحِ الدَّجَّالِ",
+    ph: "Allâhumma innî a'ûdhu bika min 'adhâbi jahannam, wa min 'adhâbi-l-qabr, wa min fitnati-l-mahyâ wa-l-mamât, wa min sharri fitnati-l-masîhi-d-dajjâl",
+    fr: "Ô Allah, je cherche refuge auprès de Toi contre le châtiment de l'Enfer, contre le châtiment de la tombe, contre l'épreuve de la vie et de la mort, et contre le mal de l'épreuve du faux messie (ad-Dajjâl).",
+    ref: "rapporté par Muslim",
+    expl: "Le Prophète ﷺ a dit : « Quand l'un de vous a terminé le tachahhud, qu'il cherche refuge auprès d'Allah contre quatre choses : … ». Dans le livre : fitnat al-mahyâ wa-l-mamât = toute épreuve durant la vie et toute épreuve après la mort.",
+  }),
+  // — 16. Après le salâm —
+  mk({
+    ch: "16", k: "a", theme: "priere", title: "Istighfâr puis Allâhumma anta-s-salâm",
+    ar: "أَسْتَغْفِرُ اللَّهَ (ثَلَاثاً). اللَّهُمَّ أَنْتَ السَّلَامُ، وَمِنْكَ السَّلَامُ، تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ",
+    ph: "Astaghfiru-llâh (3 fois). Allâhumma anta-s-salâm, wa minka-s-salâm, tabârakta yâ dhâ-l-jalâli wa-l-ikrâm",
+    fr: "Je demande pardon à Allah (trois fois). Ô Allah, Tu es la Paix, la paix vient de Toi ; béni sois-Tu, ô Détenteur de la Majesté et de la Générosité.",
+    ref: "rapporté par Muslim",
+    expl: "Quand le Prophète ﷺ terminait sa prière, il demandait pardon trois fois puis disait cela. Dans le livre : « Tu es la Paix » = Tu es exempt de tout défaut et de toute imperfection ; « de Toi vient la paix » = c'est de Toi que l'on attend d'être préservé des malheurs et des maux.",
+  }),
+  mk({
+    ch: "16", k: "b", theme: "priere", title: "Lâ ilâha illa-llâhu wahdahu… Allâhumma lâ mâni'a",
+    ar: "لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ، وَلَهُ الْحَمْدُ، وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ. اللَّهُمَّ لَا مَانِعَ لِمَا أَعْطَيْتَ، وَلَا مُعْطِيَ لِمَا مَنَعْتَ، وَلَا يَنْفَعُ ذَا الْجَدِّ مِنْكَ الْجَدُّ",
+    ph: "Lâ ilâha illa-llâhu wahdahu lâ sharîka lah, lahu-l-mulku wa lahu-l-hamdu wa huwa 'alâ kulli shay'in qadîr. Allâhumma lâ mâni'a limâ a'tayt, wa lâ mu'tiya limâ mana't, wa lâ yanfa'u dhâ-l-jaddi minka-l-jadd",
+    fr: "Il n'y a de divinité qu'Allah, Seul, sans associé ; à Lui la royauté et la louange, et Il est capable de toute chose. Ô Allah, nul ne peut empêcher ce que Tu donnes, nul ne peut donner ce que Tu refuses, et le rang du puissant ne lui sert à rien auprès de Toi.",
+    ref: "Muttafaq ʿalayh (al-Bukhari et Muslim)",
+    expl: "Le Prophète ﷺ disait cela quand il avait terminé la prière et prononcé le salâm.",
+  }),
+  mk({
+    ch: "16", k: "c", theme: "priere", title: "Lâ ilâha illa-llâhu… lâ hawla wa lâ quwwata illâ billâh",
+    ar: "لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ، وَلَهُ الْحَمْدُ، وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ، لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ. لَا إِلَهَ إِلَّا اللَّهُ، وَلَا نَعْبُدُ إِلَّا إِيَّاهُ، لَهُ النِّعْمَةُ، وَلَهُ الْفَضْلُ، وَلَهُ الثَّنَاءُ الْحَسَنُ. لَا إِلَهَ إِلَّا اللَّهُ، مُخْلِصِينَ لَهُ الدِّينَ، وَلَوْ كَرِهَ الْكَافِرُونَ",
+    ph: "Lâ ilâha illa-llâhu wahdahu lâ sharîka lah, lahu-l-mulku wa lahu-l-hamdu wa huwa 'alâ kulli shay'in qadîr, lâ hawla wa lâ quwwata illâ billâh. Lâ ilâha illa-llâh, wa lâ na'budu illâ iyyâh, lahu-n-ni'mah, wa lahu-l-fadl, wa lahu-th-thanâ'u-l-hasan. Lâ ilâha illa-llâh, mukhlisîna lahu-d-dîn, wa law kariha-l-kâfirûn",
+    fr: "Il n'y a de divinité qu'Allah, Seul, sans associé ; à Lui la royauté et la louange, et Il est capable de toute chose. Il n'y a de force ni de puissance qu'en Allah. Il n'y a de divinité qu'Allah, et nous n'adorons que Lui ; à Lui le bienfait, à Lui la grâce, à Lui la belle louange. Il n'y a de divinité qu'Allah, nous Lui vouons un culte sincère, même si cela déplaît aux mécréants.",
+    ref: "rapporté par Muslim",
+    expl: "Le Prophète ﷺ disait cela à la fin de chaque prière, au moment du salâm.",
+  }),
+  mk({
+    ch: "16", k: "d", theme: "priere", title: "Allâhumma a'innî 'alâ dhikrik",
+    ar: "اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ، وَشُكْرِكَ، وَحُسْنِ عِبَادَتِكَ",
+    ph: "Allâhumma a'innî 'alâ dhikrika wa shukrika wa husni 'ibâdatik",
+    fr: "Ô Allah, aide-moi à T'invoquer, à Te remercier et à bien T'adorer.",
+    ref: "rapporté par Abû Dâwûd",
+    expl: "Le Prophète ﷺ dit à Muʿâdh : « Ô Muʿâdh, ne manque pas de dire à la fin de chaque prière : … ».",
+  }),
+  mk({
+    ch: "16", k: "e", theme: "priere", title: "Tasbîh, tahmîd et takbîr (33 chacun) puis complément à cent",
+    ar: "سُبْحَانَ اللَّهِ (٣٣)، الْحَمْدُ لِلَّهِ (٣٣)، اللَّهُ أَكْبَرُ (٣٣). تَمَامُ الْمِائَةِ: لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ، وَلَهُ الْحَمْدُ، وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ",
+    ph: "Subhâna-llâh (33), al-hamdu li-llâh (33), Allâhu akbar (33). Tamâmu-l-mi'ah : lâ ilâha illa-llâhu wahdahu lâ sharîka lah, lahu-l-mulku wa lahu-l-hamdu wa huwa 'alâ kulli shay'in qadîr",
+    fr: "Gloire à Allah (33 fois), louange à Allah (33 fois), Allah est le Plus Grand (33 fois). Pour compléter cent : Il n'y a de divinité qu'Allah, Seul, sans associé ; à Lui la royauté et la louange, et Il est capable de toute chose.",
+    ref: "rapporté par Muslim",
+    expl: "Le Prophète ﷺ a dit : « Celui qui glorifie Allah après chaque prière trente-trois fois, Le loue trente-trois fois et proclame Sa grandeur trente-trois fois — cela fait quatre-vingt-dix-neuf — puis dit pour compléter cent : … ses fautes lui sont pardonnées, fussent-elles comme l'écume de la mer. »",
+  }),
+  {
+    ...coucherAdhkar.find((d) => d.id === "coucher-2")!,
+    id: "livre-16f",
+    category: "livre",
+    theme: "priere",
+    title: "Āyat al-Kursî après chaque prière",
+    titleAr: "الْأَذْكَارُ بَعْدَ السَّلَامِ",
+    explanation:
+      "Le Prophète ﷺ a dit : « Celui qui récite Āyat al-Kursî à la fin de chaque prière obligatoire, rien ne l'empêche d'entrer au Paradis, sinon la mort. »",
+    merits: "",
+    context: undefined,
+    reference: "Source : rapporté par an-Nasâ'î — chapitre 16 du livre",
+    validationStatus: "needs_review",
+  },
+  mk({
+    ch: "16", k: "g", theme: "priere", title: "Les trois sourates protectrices (al-Mu'awwidhât)",
+    ar: "قُلْ هُوَ اللَّهُ أَحَدٌ، قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ، قُلْ أَعُوذُ بِرَبِّ النَّاسِ",
+    ph: "Qul huwa-llâhu ahad, qul a'ûdhu bi-rabbi-l-falaq, qul a'ûdhu bi-rabbi-n-nâs",
+    fr: "Les sourates al-Ikhlâs, al-Falaq et an-Nâs.",
+    ref: "rapporté par an-Nasâ'î",
+    expl: "ʿUqba ibn ʿÂmir : « Le Messager d'Allah ﷺ m'a ordonné de réciter les mu'awwidhât à la fin de chaque prière. »",
+    type: "B",
+  }),
+  // — 17. Qunût —
+  mk({
+    ch: "17", k: "a", theme: "priere", title: "Allâhumma-hdinî fîman hadayt",
+    ar: "اللَّهُمَّ اهْدِنِي فِيمَنْ هَدَيْتَ، وَعَافِنِي فِيمَنْ عَافَيْتَ، وَتَوَلَّنِي فِيمَنْ تَوَلَّيْتَ، وَبَارِكْ لِي فِيمَا أَعْطَيْتَ، وَقِنِي شَرَّ مَا قَضَيْتَ، فَإِنَّكَ تَقْضِي وَلَا يُقْضَى عَلَيْكَ، إِنَّهُ لَا يَذِلُّ مَنْ وَالَيْتَ، تَبَارَكْتَ رَبَّنَا وَتَعَالَيْتَ",
+    ph: "Allâhumma-hdinî fîman hadayt, wa 'âfinî fîman 'âfayt, wa tawallanî fîman tawallayt, wa bârik lî fîmâ a'tayt, wa qinî sharra mâ qadayt, fa-innaka taqdî wa lâ yuqdâ 'alayk, innahu lâ yadhillu man wâlayt, tabârakta rabbanâ wa ta'âlayt",
+    fr: "Ô Allah, guide-moi parmi ceux que Tu as guidés, accorde-moi la santé parmi ceux à qui Tu l'as accordée, prends-moi en charge parmi ceux dont Tu t'es chargé, bénis-moi dans ce que Tu m'as donné, préserve-moi du mal de ce que Tu as décrété ; c'est Toi qui décrètes et nul ne décrète contre Toi ; celui que Tu soutiens n'est jamais humilié. Béni sois-Tu, notre Seigneur, et Tu es Très-Haut.",
+    ref: "rapporté par an-Nasâ'î",
+    expl: "Al-Hasan ibn ʿAlî : « Le Prophète ﷺ m'a enseigné des paroles que je dis dans le witr. »",
+  }),
+  mk({
+    ch: "17", k: "b", theme: "priere", title: "Allâhumma innî a'ûdhu bi-ridâka min sakhatik",
+    ar: "اللَّهُمَّ إِنِّي أَعُوذُ بِرِضَاكَ مِنْ سَخَطِكَ، وَبِمُعَافَاتِكَ مِنْ عُقُوبَتِكَ، وَأَعُوذُ بِكَ مِنْكَ، لَا أُحْصِي ثَنَاءً عَلَيْكَ، أَنْتَ كَمَا أَثْنَيْتَ عَلَى نَفْسِكَ",
+    ph: "Allâhumma innî a'ûdhu bi-ridâka min sakhatik, wa bi-mu'âfâtika min 'uqûbatik, wa a'ûdhu bika minka, lâ uhsî thanâ'an 'alayk, anta kamâ athnayta 'alâ nafsik",
+    fr: "Ô Allah, je cherche refuge dans Ton agrément contre Ton courroux, dans Ton pardon contre Ta punition, et je cherche refuge auprès de Toi contre Toi. Je ne saurais Te louer comme il se doit : Tu es tel que Tu T'es loué Toi-même.",
+    ref: "rapporté par an-Nasâ'î",
+    expl: "Le Prophète ﷺ disait cela à la fin de son witr.",
+  }),
+  // — 18. Après le salâm du witr —
+  mk({
+    ch: "18", k: "a", theme: "priere", title: "Subhâna-l-Maliki-l-Quddûs (×3)",
+    ar: "سُبْحَانَ الْمَلِكِ الْقُدُّوسِ (ثَلَاثاً)",
+    ph: "Subhâna-l-maliki-l-quddûs (3 fois)",
+    fr: "Gloire au Roi, le Très Saint (trois fois).",
+    ref: "rapporté par an-Nasâ'î",
+    expl: "Après le salâm du witr, le Prophète ﷺ disait cela trois fois, en élevant la voix à la troisième.",
+  }),
+  // — 19. Istikhâra —
+  mk({
+    ch: "19", k: "a", theme: "priere", title: "Invocation de l'istikhâra",
+    ar: "اللَّهُمَّ إِنِّي أَسْتَخِيرُكَ بِعِلْمِكَ، وَأَسْتَقْدِرُكَ بِقُدْرَتِكَ، وَأَسْأَلُكَ مِنْ فَضْلِكَ الْعَظِيمِ، فَإِنَّكَ تَقْدِرُ وَلَا أَقْدِرُ، وَتَعْلَمُ وَلَا أَعْلَمُ، وَأَنْتَ عَلَّامُ الْغُيُوبِ. اللَّهُمَّ إِنْ كُنْتَ تَعْلَمُ أَنَّ هَذَا الْأَمْرَ خَيْرٌ لِي فِي دِينِي وَمَعَاشِي وَعَاقِبَةِ أَمْرِي ـ أَوْ قَالَ: عَاجِلِ أَمْرِي وَآجِلِهِ ـ فَاقْدُرْهُ لِي، وَيَسِّرْهُ لِي، ثُمَّ بَارِكْ لِي فِيهِ. وَإِنْ كُنْتَ تَعْلَمُ أَنَّ هَذَا الْأَمْرَ شَرٌّ لِي فِي دِينِي وَمَعَاشِي وَعَاقِبَةِ أَمْرِي ـ أَوْ قَالَ: فِي عَاجِلِ أَمْرِي وَآجِلِهِ ـ فَاصْرِفْهُ عَنِّي، وَاصْرِفْنِي عَنْهُ، وَاقْدُرْ لِيَ الْخَيْرَ حَيْثُ كَانَ، ثُمَّ أَرْضِنِي بِهِ",
+    ph: "Allâhumma innî astakhîruka bi-'ilmik, wa astaqdiruka bi-qudratik, wa as'aluka min fadlika-l-'azhîm, fa-innaka taqdiru wa lâ aqdir, wa ta'lamu wa lâ a'lam, wa anta 'allâmu-l-ghuyûb. Allâhumma in kunta ta'lamu anna hâdha-l-amra khayrun lî fî dînî wa ma'âshî wa 'âqibati amrî — aw qâla : 'âjili amrî wa âjilih — faqdurhu lî wa yassirhu lî thumma bârik lî fîh. Wa in kunta ta'lamu anna hâdha-l-amra sharrun lî fî dînî wa ma'âshî wa 'âqibati amrî — aw qâla : fî 'âjili amrî wa âjilih — fasrifhu 'annî wasrifnî 'anh, waqdur liya-l-khayra haythu kân, thumma ardinî bih",
+    fr: "Ô Allah, je Te demande de me guider vers le meilleur par Ta science, et je Te demande la capacité par Ta puissance, et je Te demande de Ta grâce immense : car Tu es capable et je ne le suis pas, Tu sais et je ne sais pas, et Tu es le Connaisseur des choses cachées. Ô Allah, si Tu sais que cette affaire est un bien pour moi dans ma religion, ma vie et l'issue de mon affaire — ou : dans mon présent et mon avenir — alors décrète-la pour moi, facilite-la-moi, puis bénis-la pour moi. Et si Tu sais que cette affaire est un mal pour moi dans ma religion, ma vie et l'issue de mon affaire — ou : dans mon présent et mon avenir — alors écarte-la de moi, écarte-moi d'elle, décrète-moi le bien où qu'il soit, puis fais que j'en sois satisfait.",
+    ref: "rapporté par al-Bukhari",
+    expl: "Jâbir ibn ʿAbd Allâh : le Prophète ﷺ nous enseignait l'istikhâra (demander ce qui est le meilleur) pour toutes les affaires, comme il nous enseignait une sourate du Coran. Il disait : « Quand l'un de vous projette une affaire, qu'il prie deux rak'at en dehors de la prière obligatoire, puis qu'il dise : … », en nommant son besoin à la place de « cette affaire ».",
+  }),
+  // — 20. Douleur —
+  mk({
+    ch: "20", k: "a", theme: "maladie", title: "Quand on ressent une douleur dans le corps",
+    ar: "بِسْمِ اللَّهِ (ثَلَاثاً). أَعُوذُ بِاللَّهِ وَقُدْرَتِهِ مِنْ شَرِّ مَا أَجِدُ وَأُحَاذِرُ (سَبْعَ مَرَّاتٍ)",
+    ph: "Bismi-llâh (3 fois). A'ûdhu bi-llâhi wa qudratihi min sharri mâ ajidu wa uhâdhir (7 fois)",
+    fr: "Au nom d'Allah (trois fois). Je cherche refuge auprès d'Allah et de Sa puissance contre le mal de ce que je ressens et de ce que je redoute (sept fois).",
+    ref: "rapporté par Muslim",
+    expl: "ʿUthmân ibn Abî al-ʿÂs se plaignit au Prophète ﷺ d'une douleur dans son corps depuis qu'il avait embrassé l'islam. Il lui dit : « Pose ta main sur l'endroit qui te fait mal, dis trois fois « Bismillâh », puis sept fois : … ». Dans le livre : uhâdhir = ce que je redoute.",
+    type: "B",
+  }),
+  // — 21. Visite du malade —
+  mk({
+    ch: "21", k: "a", theme: "maladie", title: "Lâ ba'sa tahûrun in shâ'a-llâh",
+    ar: "لَا بَأْسَ طَهُورٌ إِنْ شَاءَ اللَّهُ",
+    ph: "Lâ ba'sa, tahûrun in shâ'a-llâh",
+    fr: "Pas de mal : c'est une purification, si Allah le veut.",
+    ref: "rapporté par al-Bukhari",
+    expl: "Quand le Prophète ﷺ rendait visite à un malade, il lui disait cela. Dans le livre : la maladie purifie de tes péchés.",
+  }),
+  mk({
+    ch: "21", k: "b", theme: "maladie", title: "Allâhumma rabba-n-nâs, adhhibi-l-ba's",
+    ar: "اللَّهُمَّ رَبَّ النَّاسِ، أَذْهِبِ الْبَأْسَ، اشْفِهِ وَأَنْتَ الشَّافِي، لَا شِفَاءَ إِلَّا شِفَاؤُكَ، شِفَاءً لَا يُغَادِرُ سَقَماً",
+    ph: "Allâhumma rabba-n-nâs, adhhibi-l-ba's, ishfihi wa anta-sh-shâfî, lâ shifâ'a illâ shifâ'uk, shifâ'an lâ yughâdiru saqamâ",
+    fr: "Ô Allah, Seigneur des hommes, ôte le mal ; guéris-le, Tu es le Guérisseur ; il n'y a de guérison que la Tienne, une guérison qui ne laisse aucune maladie.",
+    ref: "Muttafaq ʿalayh (al-Bukhari et Muslim)",
+    expl: "Le Prophète ﷺ faisait cette invocation pour certains membres de sa famille, en passant sa main droite sur le malade. Dans le livre : al-ba's = la gravité du mal.",
+  }),
+  // — 22. Agonisant —
+  mk({
+    ch: "22", k: "a", theme: "maladie", title: "Dernières paroles : Lâ ilâha illa-llâh",
+    ar: "لَا إِلَهَ إِلَّا اللَّهُ",
+    ph: "Lâ ilâha illa-llâh",
+    fr: "Il n'y a de divinité qu'Allah.",
+    ref: "rapporté par Abû Dâwûd",
+    expl: "Le Prophète ﷺ a dit : « Celui dont les dernières paroles sont : « Lâ ilâha illa-llâh », entrera au Paradis. »",
+  }),
+  // — 23. Prière funéraire —
+  mk({
+    ch: "23", k: "a", theme: "janaza", title: "Invocation pour le défunt : Allâhumma-ghfir lahu",
+    ar: "اللَّهُمَّ اغْفِرْ لَهُ وَارْحَمْهُ، وَعَافِهِ وَاعْفُ عَنْهُ، وَأَكْرِمْ نُزُلَهُ، وَوَسِّعْ مُدْخَلَهُ، وَاغْسِلْهُ بِالْمَاءِ وَالثَّلْجِ وَالْبَرَدِ، وَنَقِّهِ مِنَ الْخَطَايَا كَمَا نَقَّيْتَ الثَّوْبَ الْأَبْيَضَ مِنَ الدَّنَسِ، وَأَبْدِلْهُ دَاراً خَيْراً مِنْ دَارِهِ، وَأَهْلاً خَيْراً مِنْ أَهْلِهِ، وَزَوْجاً خَيْراً مِنْ زَوْجِهِ، وَأَدْخِلْهُ الْجَنَّةَ، وَأَعِذْهُ مِنْ عَذَابِ الْقَبْرِ وَمِنْ عَذَابِ النَّارِ",
+    ph: "Allâhumma-ghfir lahu warhamhu, wa 'âfihi wa'fu 'anh, wa akrim nuzulah, wa wassi' mudkhalah, wa-ghsilhu bi-l-mâ'i wa-th-thalji wa-l-barad, wa naqqihi mina-l-khatâyâ kamâ naqqayta-th-thawba-l-abyada mina-d-danas, wa abdilhu dâran khayran min dârih, wa ahlan khayran min ahlih, wa zawjan khayran min zawjih, wa adkhilhu-l-jannah, wa a'idhhu min 'adhâbi-l-qabr wa min 'adhâbi-n-nâr",
+    fr: "Ô Allah, pardonne-lui, fais-lui miséricorde, accorde-lui la santé et efface ses fautes ; honore son accueil, élargis sa demeure, lave-le avec l'eau, la neige et la grêle, purifie-le des fautes comme on purifie le vêtement blanc de la souillure ; donne-lui une demeure meilleure que la sienne, une famille meilleure que la sienne, une épouse meilleure que la sienne ; fais-le entrer au Paradis et protège-le du châtiment de la tombe et du châtiment du Feu.",
+    ref: "rapporté par Muslim",
+    expl: "ʿAwf ibn Mâlik : « Le Prophète ﷺ pria sur un défunt et je retins son invocation : … »",
+  }),
+  // — 24. Condoléances —
+  mk({
+    ch: "24", k: "a", theme: "janaza", title: "Présenter ses condoléances",
+    ar: "إِنَّ لِلَّهِ مَا أَخَذَ، وَلَهُ مَا أَعْطَى، وَكُلُّ شَيْءٍ عِنْدَهُ بِأَجَلٍ مُسَمًّى",
+    ph: "Inna li-llâhi mâ akhadh, wa lahu mâ a'tâ, wa kullu shay'in 'indahu bi-ajalin musammâ",
+    fr: "À Allah appartient ce qu'Il a pris, à Lui ce qu'Il a donné, et toute chose auprès de Lui a un terme fixé.",
+    ref: "Muttafaq ʿalayh (al-Bukhari et Muslim)",
+    expl: "Usâma ibn Zayd : une des filles du Prophète ﷺ lui fit annoncer la mort d'un enfant et l'appela. Il dit au messager : « Retourne auprès d'elle et informe-la que… ».",
+  }),
+  // — 25. Après l'enterrement —
+  mk({
+    ch: "25", k: "a", theme: "janaza", title: "Demander l'affermissement pour le défunt",
+    ar: "اسْتَغْفِرُوا لِأَخِيكُمْ، وَسَلُوا اللَّهَ لَهُ التَّثْبِيتَ؛ فَإِنَّهُ الْآنَ يُسْأَلُ",
+    ph: "Istaghfirû li-akhîkum, wa salû-llâha lahu-t-tathbît, fa-innahu-l-âna yus'al",
+    fr: "Demandez pardon pour votre frère et demandez à Allah qu'Il l'affermisse, car il est interrogé en ce moment.",
+    ref: "rapporté par al-Hâkim",
+    expl: "Quand le Prophète ﷺ avait fini d'enterrer le défunt, il se tenait près de la tombe et disait cela.",
+  }),
+  // — 26. Cimetière —
+  mk({
+    ch: "26", k: "a", theme: "janaza", title: "Salutation en visitant les tombes",
+    ar: "السَّلَامُ عَلَيْكُمْ أَهْلَ الدِّيَارِ مِنَ الْمُؤْمِنِينَ وَالْمُسْلِمِينَ، وَإِنَّا إِنْ شَاءَ اللَّهُ لَلَاحِقُونَ، أَسْأَلُ اللَّهَ لَنَا وَلَكُمُ الْعَافِيَةَ",
+    ph: "As-salâmu 'alaykum ahla-d-diyâri mina-l-mu'minîna wa-l-muslimîn, wa innâ in shâ'a-llâhu la-lâhiqûn, as'alu-llâha lanâ wa lakumu-l-'âfiyah",
+    fr: "Que la paix soit sur vous, habitants de ces demeures, croyants et musulmans. Nous vous rejoindrons, si Allah le veut. Je demande à Allah la préservation pour nous et pour vous.",
+    ref: "rapporté par Muslim",
+    expl: "Burayda : le Prophète ﷺ leur enseignait ces paroles quand ils se rendaient aux cimetières.",
+  }),
+  // — 27. Angoisse —
+  mk({
+    ch: "27", k: "a", theme: "epreuve", title: "Invocation de l'angoisse",
+    ar: "لَا إِلَهَ إِلَّا اللَّهُ الْعَظِيمُ الْحَلِيمُ. لَا إِلَهَ إِلَّا اللَّهُ رَبُّ الْعَرْشِ الْعَظِيمِ. لَا إِلَهَ إِلَّا اللَّهُ رَبُّ السَّمَوَاتِ وَرَبُّ الْأَرْضِ وَرَبُّ الْعَرْشِ الْكَرِيمِ",
+    ph: "Lâ ilâha illa-llâhu-l-'azhîmu-l-halîm. Lâ ilâha illa-llâhu rabbu-l-'arshi-l-'azhîm. Lâ ilâha illa-llâhu rabbu-s-samâwâti wa rabbu-l-ardi wa rabbu-l-'arshi-l-karîm",
+    fr: "Il n'y a de divinité qu'Allah, le Très Grand, le Très Clément. Il n'y a de divinité qu'Allah, Seigneur du Trône immense. Il n'y a de divinité qu'Allah, Seigneur des cieux, Seigneur de la terre et Seigneur du Trône noble.",
+    ref: "Muttafaq ʿalayh (al-Bukhari et Muslim)",
+    expl: "Le Prophète ﷺ disait cela dans l'angoisse (al-karb : l'affliction).",
+  }),
+  // — 28. Malheur —
+  mk({
+    ch: "28", k: "a", theme: "epreuve", title: "Ce qui t'atteint : Qaddara-llâhu wa mâ shâ'a fa'al",
+    ar: "قَدَّرَ اللَّهُ وَمَا شَاءَ فَعَلَ",
+    ph: "Qaddara-llâhu wa mâ shâ'a fa'al",
+    fr: "Allah l'a décrété, et ce qu'Il veut, Il le fait.",
+    ref: "rapporté par Muslim",
+    expl: "Le Prophète ﷺ a dit : « Si un malheur t'atteint, ne dis pas : « Si j'avais fait ceci, il en aurait été ainsi et ainsi ». Dis plutôt : … car « si » ouvre la voie à l'œuvre de Satan. »",
+  }),
+  mk({
+    ch: "28", k: "b", theme: "epreuve", title: "Inna li-llâhi wa innâ ilayhi râji'ûn",
+    ar: "إِنَّا لِلَّهِ وَإِنَّا إِلَيْهِ رَاجِعُونَ، اللَّهُمَّ أْجُرْنِي فِي مُصِيبَتِي، وَأَخْلِفْ لِي خَيْراً مِنْهَا",
+    ph: "Innâ li-llâhi wa innâ ilayhi râji'ûn. Allâhumma-jurnî fî musîbatî, wa akhlif lî khayran minhâ",
+    fr: "Nous appartenons à Allah et c'est vers Lui que nous retournons. Ô Allah, récompense-moi dans mon malheur et remplace-le par quelque chose de meilleur.",
+    ref: "rapporté par Muslim",
+    expl: "Le Prophète ﷺ a dit : « Aucun serviteur n'est frappé par un malheur et ne dit cela sans qu'Allah ne le récompense dans son malheur et ne lui accorde mieux en remplacement. »",
+  }),
+  // — 29. Craindre un peuple —
+  mk({
+    ch: "29", k: "a", theme: "epreuve", title: "Quand on craint des gens",
+    ar: "اللَّهُمَّ إِنَّا نَجْعَلُكَ فِي نُحُورِهِمْ، وَنَعُوذُ بِكَ مِنْ شُرُورِهِمْ",
+    ph: "Allâhumma innâ naj'aluka fî nuhûrihim, wa na'ûdhu bika min shurûrihim",
+    fr: "Ô Allah, nous Te plaçons face à eux et nous cherchons refuge auprès de Toi contre leurs maux.",
+    ref: "Muttafaq ʿalayh (al-Bukhari et Muslim)",
+    expl: "Le Prophète ﷺ disait cela quand il craignait un peuple. Dans le livre : fî nuhûrihim = face à leur puissance et à leur violence.",
+  }),
+  // — 30. Contre l'ennemi —
+  mk({
+    ch: "30", k: "a", theme: "epreuve", title: "Contre l'ennemi : Allâhumma munzila-l-kitâb",
+    ar: "اللَّهُمَّ مُنْزِلَ الْكِتَابِ، سَرِيعَ الْحِسَابِ، اهْزِمِ الْأَحْزَابَ، اللَّهُمَّ اهْزِمْهُمْ وَزَلْزِلْهُمْ",
+    ph: "Allâhumma munzila-l-kitâb, sarî'a-l-hisâb, ihzimi-l-ahzâb. Allâhumma-hzimhum wa zalzilhum",
+    fr: "Ô Allah, Toi qui as révélé le Livre, Prompt à demander des comptes, mets en déroute les coalisés. Ô Allah, mets-les en déroute et ébranle-les.",
+    ref: "rapporté par an-Nasâ'î",
+    expl: "Le Prophète ﷺ invoqua ainsi contre les coalisés (al-Ahzâb).",
+  }),
+  // — 31. Adieux —
+  mk({
+    ch: "31", k: "a", theme: "voyage", title: "À celui qui part : Astawdi'u-llâha dînak",
+    ar: "أَسْتَوْدِعُ اللَّهَ دِينَكَ، وَأَمَانَتَكَ، وَخَوَاتِيمَ عَمَلِكَ",
+    ph: "Astawdi'u-llâha dînaka, wa amânataka, wa khawâtîma 'amalik",
+    fr: "Je confie à Allah ta religion, ce qui t'est confié et la fin de tes œuvres.",
+    ref: "rapporté par Ahmad",
+    expl: "Quand le Prophète ﷺ faisait ses adieux à quelqu'un, il disait cela. Dans le livre : « ce qui t'est confié » = ta famille et ce que tu laisses comme bien ; « la fin de tes œuvres » = qu'Allah scelle ta vie par de bonnes œuvres.",
+  }),
+  // @@NEXT
+];

@@ -12,9 +12,9 @@ import {
   Pause,
   Play,
   Share2,
-  X,
-} from "lucide-react";
+  X, BookOpen } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { BookText } from "@/components/BookText";
 import { QuranDhikrText } from "@/components/QuranDhikrText";
 import { SourceInfo } from "@/components/SourceInfo";
 
@@ -297,7 +297,11 @@ export function DhikrViewer({
         {/* Content */}
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-3 sm:px-6">
           <div style={{ ["--ar-k" as string]: arabicScale(dhikr.arabic) } as React.CSSProperties}>
-            <QuranDhikrText dhikr={dhikr} className={ARABIC_SIZE[fontSize]} />
+            {dhikr.book ? (
+              <BookText text={dhikr.book} notes={dhikr.bookNotes} className={ARABIC_SIZE[fontSize]} />
+            ) : (
+              <QuranDhikrText dhikr={dhikr} className={ARABIC_SIZE[fontSize]} />
+            )}
           </div>
 
           {showPhonetic && (
@@ -459,6 +463,18 @@ export function DhikrViewer({
                 )}
                 <p>{dhikr.explanation}</p>
                 {dhikr.merits && <p>{dhikr.merits}</p>}
+                {dhikr.verseKeys?.[0] && (() => {
+                  const [sura, ayah] = dhikr.verseKeys[0].split(":");
+                  return (
+                    <Link
+                      to="/etude/$surah/$ayah"
+                      params={{ surah: sura, ayah }}
+                      className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/8 px-3 py-2.5 text-sm font-semibold text-primary"
+                    >
+                      <BookOpen className="size-4" /> Étudier l'āyah {sura}:{ayah} dans le Mushaf
+                    </Link>
+                  );
+                })()}
                 <div className="flex items-center gap-1 border-t border-border pt-3 text-xs text-muted-foreground">
                   <span>{dhikr.reference}</span>
                   {dhikr.collection && (
