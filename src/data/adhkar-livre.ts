@@ -8,101 +8,139 @@
  */
 import type { Dhikr } from "@/data/adhkar";
 
-export interface LivreHadith {
-  arabic: string;
-  translation: string;
-  /** Référence telle que donnée par le livre. */
-  source: string;
-}
-
-export interface LivreFadl {
-  n: number;
-  title: string;
-  titleAr: string;
-  hadiths: LivreHadith[];
-}
-
 export const LIVRE_TITLE = "Adhkār et ādāb";
 export const LIVRE_SOURCE_NOTE =
   "D'après « Al-Adhkâr wa-l-Âdâb » du Dr ʿAbd al-Muḥsin al-Qāsim. Traductions et phonétiques à relire.";
 
-/** Section « Les mérites » (chapitres 1 à 3) : des hadiths à lire, pas des formules à compter. */
-export const livreFadail: LivreFadl[] = [
-  {
-    n: 1,
-    title: "Mérite de la quête du savoir",
-    titleAr: "فَضْلُ طَلَبِ الْعِلْمِ",
-    hadiths: [
-      {
-        arabic:
-          "قَالَ النَّبِيُّ ﷺ: «مَنْ سَلَكَ طَرِيقاً يَلْتَمِسُ فِيهِ عِلْماً؛ سَهَّلَ اللَّهُ لَهُ بِهِ طَرِيقاً إِلَى الْجَنَّةِ».",
-        translation:
-          "Le Prophète ﷺ a dit : « Quiconque emprunte un chemin en y cherchant un savoir, Allah lui facilite par là un chemin vers le Paradis. »",
-        source: "Rapporté par Muslim",
-      },
-      {
-        arabic: "قَالَ النَّبِيُّ ﷺ: «مَنْ يُرِدِ اللَّهُ بِهِ خَيْراً؛ يُفَقِّهْهُ فِي الدِّينِ».",
-        translation:
-          "Le Prophète ﷺ a dit : « Celui pour qui Allah veut le bien, Il lui donne la compréhension de la religion. »",
-        source: "Muttafaq ʿalayh (al-Bukhari et Muslim)",
-      },
-      {
-        arabic:
-          "قَالَ النَّبِيُّ ﷺ: «إِذَا مَاتَ الْإِنْسَانُ انْقَطَعَ عَنْهُ عَمَلُهُ إِلَّا مِنْ ثَلَاثَةٍ: إِلَّا مِنْ صَدَقَةٍ جَارِيَةٍ، أَوْ عِلْمٍ يُنْتَفَعُ بِهِ، أَوْ وَلَدٍ صَالِحٍ يَدْعُو لَهُ».",
-        translation:
-          "Le Prophète ﷺ a dit : « Quand l'homme meurt, ses œuvres s'interrompent, sauf trois : une aumône continue, un savoir dont on tire profit, ou un enfant pieux qui invoque pour lui. »",
-        source: "Rapporté par Muslim",
-      },
-    ],
-  },
-  {
-    n: 2,
-    title: "Mérite d'apprendre le Coran",
-    titleAr: "فَضْلُ تَعَلُّمِ الْقُرْآنِ",
-    hadiths: [
-      {
-        arabic: "قَالَ النَّبِيُّ ﷺ: «خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ».",
-        translation:
-          "Le Prophète ﷺ a dit : « Le meilleur d'entre vous est celui qui apprend le Coran et l'enseigne. »",
-        source: "Rapporté par al-Bukhari",
-      },
-      {
-        arabic:
-          "قَالَ النَّبِيُّ ﷺ: «مَثَلُ الَّذِي يَقْرَأُ الْقُرْآنَ وَهُوَ حَافِظٌ لَهُ مَعَ السَّفَرَةِ الْكِرَامِ الْبَرَرَةِ، وَمَثَلُ الَّذِي يَقْرَأُ وَهُوَ يَتَعَاهَدُهُ وَهُوَ عَلَيْهِ شَدِيدٌ؛ فَلَهُ أَجْرَانِ».",
-        translation:
-          "Le Prophète ﷺ a dit : « Celui qui récite le Coran en le sachant par cœur sera avec les nobles et vertueux scribes (les anges). Et celui qui le récite en le répétant régulièrement, alors que cela lui est difficile, aura deux récompenses. » (Dans le livre : as-safara = les anges ; al-kirâm = les honorés auprès d'Allah ; al-barara = les obéissants ; yata'âhaduhu = il le répète pour ne pas l'oublier.)",
-        source: "Rapporté par al-Bukhari",
-      },
-      {
-        arabic:
-          "قَالَ النَّبِيُّ ﷺ: «اقْرَؤُوا الْقُرْآنَ؛ فَإِنَّهُ يَأْتِي يَوْمَ الْقِيَامَةِ شَفِيعاً لِأَصْحَابِهِ».",
-        translation:
-          "Le Prophète ﷺ a dit : « Récitez le Coran, car il viendra au Jour de la Résurrection intercéder en faveur de ses compagnons. »",
-        source: "Rapporté par Muslim",
-      },
-    ],
-  },
-  {
-    n: 3,
-    title: "Mérite des assemblées de rappel",
-    titleAr: "فَضْلُ مَجَالِسِ الذِّكْرِ",
-    hadiths: [
-      {
-        arabic:
-          "قَالَ النَّبِيُّ ﷺ: «وَمَا اجْتَمَعَ قَوْمٌ فِي بَيْتٍ مِنْ بُيُوتِ اللَّهِ، يَتْلُونَ كِتَابَ اللَّهِ، وَيَتَدَارَسُونَهُ بَيْنَهُمْ؛ إِلَّا نَزَلَتْ عَلَيْهِمُ السَّكِينَةُ، وَغَشِيَتْهُمُ الرَّحْمَةُ، وَحَفَّتْهُمُ الْمَلَائِكَةُ، وَذَكَرَهُمُ اللَّهُ فِيمَنْ عِنْدَهُ».",
-        translation:
-          "Le Prophète ﷺ a dit : « Jamais des gens ne se réunissent dans une maison d'Allah pour réciter le Livre d'Allah et l'étudier entre eux, sans que la sérénité (as-sakîna : le calme et la quiétude) descende sur eux, que la miséricorde les couvre, que les anges les entourent et qu'Allah les mentionne auprès de ceux qui sont auprès de Lui. »",
-        source: "Rapporté par Muslim",
-      },
-    ],
-  },
+export const LIVRE_SECTIONS: { theme: string; label: string }[] = [
+  { theme: "merites", label: "Les mérites" },
+  { theme: "purification", label: "La purification" },
 ];
 
-/** Section « La purification » (chapitres 4 à 6) : de vrais adhkār, lus dans le viewer. */
 export const livreAdhkar: Dhikr[] = [
+  {
+    id: "livre-01a",
+    category: "livre",
+    theme: "merites",
+    title: "Mérite de la quête du savoir (1/3)",
+    titleAr: "فَضْلُ طَلَبِ الْعِلْمِ",
+    arabic: "مَنْ سَلَكَ طَرِيقاً يَلْتَمِسُ فِيهِ عِلْماً؛ سَهَّلَ اللَّهُ لَهُ بِهِ طَرِيقاً إِلَى الْجَنَّةِ",
+    phonetic: "Man salaka tarîqan yaltamisu fîhi 'ilman, sahhala-llâhu lahu bihi tarîqan ilâ-l-jannah",
+    translation: "Quiconque emprunte un chemin en y cherchant un savoir, Allah lui facilite par là un chemin vers le Paradis.",
+    repetitions: 1,
+    explanation: "Hadith du chapitre 1 du livre : le Prophète ﷺ a dit.",
+    merits: "",
+    reference: "Source : Rapporté par Muslim",
+    context: "Rappel à lire et à méditer",
+    propheticEvidenceType: "A",
+    validationStatus: "needs_review",
+  },
+  {
+    id: "livre-01b",
+    category: "livre",
+    theme: "merites",
+    title: "Mérite de la quête du savoir (2/3)",
+    titleAr: "فَضْلُ طَلَبِ الْعِلْمِ",
+    arabic: "مَنْ يُرِدِ اللَّهُ بِهِ خَيْراً؛ يُفَقِّهْهُ فِي الدِّينِ",
+    phonetic: "Man yuridi-llâhu bihi khayran yufaqqihhu fi-d-dîn",
+    translation: "Celui pour qui Allah veut le bien, Il lui donne la compréhension de la religion.",
+    repetitions: 1,
+    explanation: "Hadith du chapitre 1 du livre : le Prophète ﷺ a dit.",
+    merits: "",
+    reference: "Source : Muttafaq ʿalayh (al-Bukhari et Muslim)",
+    context: "Rappel à lire et à méditer",
+    propheticEvidenceType: "A",
+    validationStatus: "needs_review",
+  },
+  {
+    id: "livre-01c",
+    category: "livre",
+    theme: "merites",
+    title: "Mérite de la quête du savoir (3/3)",
+    titleAr: "فَضْلُ طَلَبِ الْعِلْمِ",
+    arabic: "إِذَا مَاتَ الْإِنْسَانُ انْقَطَعَ عَنْهُ عَمَلُهُ إِلَّا مِنْ ثَلَاثَةٍ: إِلَّا مِنْ صَدَقَةٍ جَارِيَةٍ، أَوْ عِلْمٍ يُنْتَفَعُ بِهِ، أَوْ وَلَدٍ صَالِحٍ يَدْعُو لَهُ",
+    phonetic: "Idhâ mâta-l-insânu inqata'a 'anhu 'amaluhu illâ min thalâthah : illâ min sadaqatin jâriyah, aw 'ilmin yuntafa'u bih, aw waladin sâlihin yad'û lah",
+    translation: "Quand l'homme meurt, ses œuvres s'interrompent, sauf trois : une aumône continue, un savoir dont on tire profit, ou un enfant pieux qui invoque pour lui.",
+    repetitions: 1,
+    explanation: "Hadith du chapitre 1 du livre : le Prophète ﷺ a dit.",
+    merits: "",
+    reference: "Source : Rapporté par Muslim",
+    context: "Rappel à lire et à méditer",
+    propheticEvidenceType: "A",
+    validationStatus: "needs_review",
+  },
+  {
+    id: "livre-02a",
+    category: "livre",
+    theme: "merites",
+    title: "Mérite d'apprendre le Coran (1/3)",
+    titleAr: "فَضْلُ تَعَلُّمِ الْقُرْآنِ",
+    arabic: "خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ",
+    phonetic: "Khayrukum man ta'allama-l-qur'âna wa 'allamah",
+    translation: "Le meilleur d'entre vous est celui qui apprend le Coran et l'enseigne.",
+    repetitions: 1,
+    explanation: "Hadith du chapitre 2 du livre : le Prophète ﷺ a dit.",
+    merits: "",
+    reference: "Source : Rapporté par al-Bukhari",
+    context: "Rappel à lire et à méditer",
+    propheticEvidenceType: "A",
+    validationStatus: "needs_review",
+  },
+  {
+    id: "livre-02b",
+    category: "livre",
+    theme: "merites",
+    title: "Mérite d'apprendre le Coran (2/3)",
+    titleAr: "فَضْلُ تَعَلُّمِ الْقُرْآنِ",
+    arabic: "مَثَلُ الَّذِي يَقْرَأُ الْقُرْآنَ وَهُوَ حَافِظٌ لَهُ مَعَ السَّفَرَةِ الْكِرَامِ الْبَرَرَةِ، وَمَثَلُ الَّذِي يَقْرَأُ وَهُوَ يَتَعَاهَدُهُ وَهُوَ عَلَيْهِ شَدِيدٌ؛ فَلَهُ أَجْرَانِ",
+    phonetic: "Mathalu-lladhî yaqra'u-l-qur'âna wa huwa hâfizun lahu ma'a-s-safarati-l-kirâmi-l-bararah, wa mathalu-lladhî yaqra'u wa huwa yata'âhaduhu wa huwa 'alayhi shadîdun falahu ajrân",
+    translation: "Celui qui récite le Coran en le sachant par cœur sera avec les nobles et vertueux scribes (les anges). Et celui qui le récite en le répétant régulièrement, alors que cela lui est difficile, aura deux récompenses. (Dans le livre : as-safara = les anges ; al-kirâm = les honorés auprès d'Allah ; al-barara = les obéissants.)",
+    repetitions: 1,
+    explanation: "Hadith du chapitre 2 du livre : le Prophète ﷺ a dit.",
+    merits: "",
+    reference: "Source : Rapporté par al-Bukhari",
+    context: "Rappel à lire et à méditer",
+    propheticEvidenceType: "A",
+    validationStatus: "needs_review",
+  },
+  {
+    id: "livre-02c",
+    category: "livre",
+    theme: "merites",
+    title: "Mérite d'apprendre le Coran (3/3)",
+    titleAr: "فَضْلُ تَعَلُّمِ الْقُرْآنِ",
+    arabic: "اقْرَؤُوا الْقُرْآنَ؛ فَإِنَّهُ يَأْتِي يَوْمَ الْقِيَامَةِ شَفِيعاً لِأَصْحَابِهِ",
+    phonetic: "Iqra'û-l-qur'âna fa-innahu ya'tî yawma-l-qiyâmati shafî'an li-ashâbih",
+    translation: "Récitez le Coran, car il viendra au Jour de la Résurrection intercéder en faveur de ses compagnons.",
+    repetitions: 1,
+    explanation: "Hadith du chapitre 2 du livre : le Prophète ﷺ a dit.",
+    merits: "",
+    reference: "Source : Rapporté par Muslim",
+    context: "Rappel à lire et à méditer",
+    propheticEvidenceType: "A",
+    validationStatus: "needs_review",
+  },
+  {
+    id: "livre-03",
+    category: "livre",
+    theme: "merites",
+    title: "Mérite des assemblées de rappel",
+    titleAr: "فَضْلُ مَجَالِسِ الذِّكْرِ",
+    arabic: "وَمَا اجْتَمَعَ قَوْمٌ فِي بَيْتٍ مِنْ بُيُوتِ اللَّهِ، يَتْلُونَ كِتَابَ اللَّهِ، وَيَتَدَارَسُونَهُ بَيْنَهُمْ؛ إِلَّا نَزَلَتْ عَلَيْهِمُ السَّكِينَةُ، وَغَشِيَتْهُمُ الرَّحْمَةُ، وَحَفَّتْهُمُ الْمَلَائِكَةُ، وَذَكَرَهُمُ اللَّهُ فِيمَنْ عِنْدَهُ",
+    phonetic: "Wa mâ ajtama'a qawmun fî baytin min buyûti-llâh, yatlûna kitâba-llâh wa yatadârasûnahu baynahum, illâ nazalat 'alayhimu-s-sakînah, wa ghashiyat-humu-r-rahmah, wa haffat-humu-l-malâ'ikah, wa dhakarahumu-llâhu fîman 'indah",
+    translation: "Jamais des gens ne se réunissent dans une maison d'Allah pour réciter le Livre d'Allah et l'étudier entre eux, sans que la sérénité (as-sakîna : le calme et la quiétude) descende sur eux, que la miséricorde les couvre, que les anges les entourent et qu'Allah les mentionne auprès de ceux qui sont auprès de Lui.",
+    repetitions: 1,
+    explanation: "Hadith du chapitre 3 du livre : le Prophète ﷺ a dit.",
+    merits: "",
+    reference: "Source : Rapporté par Muslim",
+    context: "Rappel à lire et à méditer",
+    propheticEvidenceType: "A",
+    validationStatus: "needs_review",
+  },
   {
     id: "livre-04",
     category: "livre",
+    theme: "purification",
     title: "En entrant aux toilettes",
     titleAr: "دُخُولُ الْخَلَاءِ",
     arabic: "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ",
@@ -122,6 +160,7 @@ export const livreAdhkar: Dhikr[] = [
   {
     id: "livre-05",
     category: "livre",
+    theme: "purification",
     title: "En sortant des toilettes",
     titleAr: "الْخُرُوجُ مِنَ الْخَلَاءِ",
     arabic: "غُفْرَانَكَ",
@@ -140,6 +179,7 @@ export const livreAdhkar: Dhikr[] = [
   {
     id: "livre-06",
     category: "livre",
+    theme: "purification",
     title: "Après les ablutions",
     titleAr: "إِذَا فَرَغَ مِنَ الْوُضُوءِ",
     arabic: "أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ، وَأَنَّ مُحَمَّداً عَبْدُ اللَّهِ وَرَسُولُهُ",
@@ -154,6 +194,42 @@ export const livreAdhkar: Dhikr[] = [
     context: "Une fois les ablutions terminées",
     propheticEvidenceType: "B",
     collection: "Muslim",
+    validationStatus: "needs_review",
+  },
+  {
+    id: "livre-06b",
+    category: "livre",
+    theme: "purification",
+    title: "Après les ablutions : devenir des repentants",
+    titleAr: "بَعْدَ الْوُضُوءِ",
+    arabic: "اللَّهُمَّ اجْعَلْنِي مِنَ التَّوَّابِينَ وَاجْعَلْنِي مِنَ الْمُتَطَهِّرِينَ",
+    phonetic: "Allâhumma-j'alnî mina-t-tawwâbîn, wa-j'alnî mina-l-mutatahhirîn",
+    translation: "Ô Allah, fais de moi l'un de ceux qui se repentent et l'un de ceux qui se purifient.",
+    repetitions: 1,
+    explanation: "Invocation rapportée après les ablutions, à la suite de la chahāda. Ajoutée en complément : elle ne figure pas dans les pages du livre déjà intégrées.",
+    merits: "",
+    reference: "Source : at-Tirmidhi (à vérifier : numéro et degré)",
+    context: "Une fois les ablutions terminées",
+    propheticEvidenceType: "B",
+    collection: "At-Tirmidhi",
+    validationStatus: "needs_review",
+  },
+  {
+    id: "livre-06c",
+    category: "livre",
+    theme: "purification",
+    title: "Après les ablutions : Subhānaka Allāhumma",
+    titleAr: "بَعْدَ الْوُضُوءِ",
+    arabic: "سُبْحَانَكَ اللَّهُمَّ وَبِحَمْدِكَ، أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا أَنْتَ، أَسْتَغْفِرُكَ وَأَتُوبُ إِلَيْكَ",
+    phonetic: "Subhânaka-llâhumma wa bihamdik, ash-hadu an lâ ilâha illâ anta, astaghfiruka wa atûbu ilayk",
+    translation: "Gloire et louange à Toi, ô Allah. Je témoigne qu'il n'y a de divinité digne d'adoration que Toi ; je Te demande pardon et je me repens à Toi.",
+    repetitions: 1,
+    explanation: "Invocation rapportée après les ablutions. Ajoutée en complément : elle ne figure pas dans les pages du livre déjà intégrées.",
+    merits: "",
+    reference: "Source : an-Nasâ'î, ʿAmal al-yawm wa-l-layla (à vérifier : degré)",
+    context: "Une fois les ablutions terminées",
+    propheticEvidenceType: "B",
+    collection: "An-Nasa'i",
     validationStatus: "needs_review",
   },
 ];
