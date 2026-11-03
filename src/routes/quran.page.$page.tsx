@@ -252,8 +252,29 @@ function MushafPage() {
   const loadedKeyRef = useRef<string | null>(null);
   const playbackSessionId = useRef(0);
   const [playing, setPlaying] = useState(false);
+  /** Dernière āyah lue ou étudiée : le ▶ y reprend quand elle est sur la page affichée. */
+  const [resumeKey, setResumeKey] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("nm-quran-resume");
+      if (raw) setResumeKey((JSON.parse(raw) as { key?: string }).key ?? null);
+    } catch {
+      /* stockage indisponible */
+    }
+  }, []);
+  const rememberPosition = (key: string | null) => {
+    setResumeKey(key);
+    try {
+      if (key) window.localStorage.setItem("nm-quran-resume", JSON.stringify({ key, at: Date.now() }));
+      else window.localStorage.removeItem("nm-quran-resume");
+    } catch {
+      /* stockage indisponible */
+    }
+  };
   const [progress, setProgress] = useState(0);
   const [loop, setLoop] = useState(false);
+  /** Minshāwī et Husarī : surbrillance mot par mot seulement (pas d’āyah entière). */
+  const wordSync = getReciter(reciterId).source === "quran";
   const [ayahRepeat, setAyahRepeat] = useState(1); // 1,3,5 ou 0 = ∞
   const [selRepeat, setSelRepeat] = useState(1); // 1,3,5 ou 0 = ∞
   // Vitesse persistée dans ⚙️ Paramètres > Coran — indépendante de la
@@ -332,6 +353,10 @@ function MushafPage() {
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const current = playing || queue.length ? queue[qIndex] : undefined;
+  useEffect(() => {
+    if (playing && current && current !== BASMALA_BRIDGE_KEY) rememberPosition(current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, current]);
   /**
    * Identifie la commande (portée + point de départ, ou bornes pour un
    * intervalle) pour laquelle `queue` a été construite. Tant que rien n'a
@@ -581,7 +606,10 @@ function MushafPage() {
     if (!len) return;
     if (qIndexRef.current + 1 < len) goTo(qIndexRef.current + 1);
     else if (loopRef.current) goTo(0);
-    else resetPlayback(); // fin de file : arrêt propre, plus aucune surbrillance
+    else {
+      rememberPosition(null); // lecture terminée : rien à reprendre
+      resetPlayback(); // fin de file : arrêt propre, plus aucune surbrillance
+    }
   };
 
   const lastProgressRef = useRef<{ t: number; at: number }>({ t: -1, at: 0 });
@@ -815,6 +843,7 @@ function MushafPage() {
   };
 
   const studySelectedVerse = (key: string) => {
+    rememberPosition(key);
     const [s, a] = key.split(":");
     navigate({
       to: "/etude/$surah/$ayah",
@@ -868,8 +897,10 @@ function MushafPage() {
   }, [prefs.quran.francais, prefs.quran.phonetique, verses?.length]);
 
   /** Ayah de référence : la 1re sélectionnée, sinon la 1re de la page. */
+  /** Sans sélection : l’āyah mémorisée, si elle est sur cette page. */
+  const resumeVerse = !selected.length && resumeKey ? verses?.find((v) => v.key === resumeKey) : undefined;
   const anchorVerse =
-    (selected.length ? verses?.find((v) => v.key === selected[0]) : verses?.[0]) ?? verses?.[0];
+    (selected.length ? verses?.find((v) => v.key === selected[0]) : (resumeVerse ?? verses?.[0])) ?? verses?.[0];
   const anchor = {
     key: anchorVerse?.key ?? "",
     surah: anchorVerse?.surah ?? surahOnPage,
@@ -1712,7 +1743,7 @@ function MushafPage() {
                       const isPlayingAyah = current === w.key;
                       // Mot récité (vert) ; tant qu'on ne le connaît pas, l'ayah entière.
                       const isPlayingWord = isPlayingAyah && curWord != null && w.pos === curWord;
-                      const isPlaying = isPlayingAyah && curWord == null;
+                      const isPlaying = isPlayingAyah && curWord == null && !wordSync;
                       return (
                         <span
                           key={`${w.key}-${wi}`}
@@ -1730,8 +1761,8 @@ function MushafPage() {
                             // toutes les pages.
                             w.end && "self-center",
                             isSel && "bg-primary/15",
-                            isPlaying && "bg-gold/20 text-gold",
-                            isPlayingWord && "bg-[#1f9d6b]/25 text-[#0b7a52] dark:text-[#6fe0b0]",
+                            isPlaying && "bg-[#8fd1ae]/30",
+                            isPlayingWord && "bg-[#8fd1ae]/45",
                           )}
                         >
                           {w.end ? (
@@ -1902,7 +1933,9 @@ function MushafPage() {
               <ChevronLeft className="size-[18px]" strokeWidth={1.75} />
             </button>
             <button
-              onClick={() => (isCurrentSession ? toggle() : playFromAnchor())}
+              onClick={() =>
+                isCurrentSession ? toggle() : resumeVerse ? void playSurahEndFromAnchor() : playFromAnchor()
+              }
               aria-label={playing ? "Pause" : "Lecture"}
               className="grid size-14 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elevated)] transition active:scale-95"
             >
