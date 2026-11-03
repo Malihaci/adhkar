@@ -19,6 +19,7 @@ import {
   Search,
   Settings2,
   Share2,
+  SkipForward,
   Sparkles,
   X,
 } from "lucide-react";
@@ -106,7 +107,7 @@ export const Route = createFileRoute("/quran/page/$page")({
 });
 
 /** Portée de lecture choisie dans Options — détermine la file construite. */
-type ReadMode = "ayah" | "page" | "surah" | "juz" | "hizb" | "toEnd" | "range";
+type ReadMode = "ayah" | "page" | "surahEnd" | "surah" | "juz" | "hizb" | "toEnd" | "range";
 
 const ARABIC_DIGITS = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
 const toArabic = (n: number) =>
@@ -947,6 +948,17 @@ function MushafPage() {
     start(all, { turnPages: true });
   };
 
+  /** De l’āyah choisie JUSQU’À LA FIN de sa sourate (reprise après l’étude). */
+  const playSurahEndFromAnchor = async () => {
+    if (!anchor.key) return;
+    resetPlayback();
+    const token = playbackSessionId.current;
+    const all = await fetchSurahVerseKeys(anchor.surah);
+    if (playbackSessionId.current !== token) return;
+    const idx = all.indexOf(anchor.key);
+    start(all.slice(idx < 0 ? 0 : idx), { turnPages: true });
+  };
+
   const playJuzFromAnchor = async () => {
     resetPlayback();
     const token = playbackSessionId.current;
@@ -990,6 +1002,9 @@ function MushafPage() {
         return;
       case "page":
         if (anchor.key) playPageFromAnchor();
+        return;
+      case "surahEnd":
+        void playSurahEndFromAnchor();
         return;
       case "surah":
         if (anchor.key) void playSurahFromAnchor();
@@ -1802,7 +1817,7 @@ function MushafPage() {
                 <X className="size-[18px]" strokeWidth={1.75} />
               </button>
             </div>
-            <div className="grid grid-cols-5 gap-1">
+            <div className="grid grid-cols-6 gap-0.5">
               {(
                 [
                   {
@@ -1813,6 +1828,12 @@ function MushafPage() {
                       if (playing && current === selKey) toggle();
                       else playAyah();
                     },
+                  },
+                  {
+                    key: "continue",
+                    label: "Continuer",
+                    icon: SkipForward,
+                    onClick: () => void playSurahEndFromAnchor(),
                   },
                   {
                     key: "fav",
@@ -1966,6 +1987,11 @@ function MushafPage() {
                   [
                     { id: "ayah", label: "Cette ayah", detail: anchor.key || undefined },
                     { id: "page", label: "Cette page", detail: `Page ${page}` },
+                    {
+                      id: "surahEnd",
+                      label: "Fin de la sourate",
+                      detail: `dès ${anchor.key}`,
+                    },
                     ...(pageSurahs.length > 1 && !selected.length
                       ? pageSurahs.map((s) => ({
                           id: "surah" as ReadMode,
