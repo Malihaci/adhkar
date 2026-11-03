@@ -11,7 +11,7 @@ export function BookText({ text, notes, className }: { text: string; notes?: str
   const parts = text.split(/(\{\{[\s\S]*?\}\}|<\d+>)/g).filter(Boolean);
   return (
     <div lang="ar" dir="rtl" className="font-arabic text-foreground">
-      <p className={cn("leading-[2.3]", className)}>
+      <p className={cn("whitespace-pre-line leading-[2.3]", className)}>
         {parts.map((p, i) => {
           if (p.startsWith("{{")) {
             return (

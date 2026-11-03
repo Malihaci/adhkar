@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeft, BedDouble, BookOpen, Droplets, HandHeart, Heart, HeartPulse, Home, Landmark, Luggage, MessageCircle,
-  Moon, Plane, Search, Sparkles, UtensilsCrossed, Wind, Users, type LucideIcon,
+  Moon, Plane, Repeat2, Search, Sparkles, Sunrise, UtensilsCrossed, Wind, Users, type LucideIcon,
 } from "lucide-react";
 import { HUB_COLORS, HubCardBody, HubGrid, hubCardClass } from "@/components/HubCard";
 import type { Dhikr } from "@/data/adhkar";
@@ -47,6 +47,8 @@ const THEME_ICONS: Record<string, LucideIcon> = {
   mariage: Users,
   sommeil: BedDouble,
   reves: Moon,
+  matinsoir: Sunrise,
+  dhikr: Repeat2,
   generaux: BookOpen,
   relations: MessageCircle,
   nature: Wind,
