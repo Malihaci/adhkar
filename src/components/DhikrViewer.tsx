@@ -304,7 +304,7 @@ export function DhikrViewer({
             )}
           </div>
 
-          {showPhonetic && (
+          {showPhonetic && dhikr.phonetic && (
             <p
               className={cn(
                 "border-t border-border pt-3 italic leading-relaxed text-foreground",
