@@ -73,6 +73,8 @@ import { KaabaIcon, MadinaMosqueIcon } from "@/components/PlaceIcons";
 interface Search {
   r?: string;
   sel?: string;
+  /** Āyah mise en évidence (vert) à l'arrivée depuis « Aller à… » : début d'un juz, hizb ou quart. */
+  mark?: string;
   /** Portion "Mon Wird" partagée (lien direct, jamais le programme complet
    * ni aucune donnée personnelle de l'auteur — voir §"Partage Mon Wird") :
    * `shared=wird` + `end` = dernière page de la portion, la page de l'URL
@@ -85,6 +87,7 @@ export const Route = createFileRoute("/quran/page/$page")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     r: typeof s.r === "string" ? s.r : undefined,
     sel: typeof s.sel === "string" ? s.sel : undefined,
+    mark: typeof s.mark === "string" ? s.mark : undefined,
     end: typeof s.end === "string" || typeof s.end === "number" ? Number(s.end) : undefined,
     shared: typeof s.shared === "string" ? s.shared : undefined,
   }),
@@ -1749,6 +1752,7 @@ function MushafPage() {
                   >
                     {line.words.map((w, wi) => {
                       const isSel = selected.includes(w.key);
+                      const isMark = search.mark === w.key;
                       const isPlayingAyah = current === w.key;
                       // Mot récité (vert) ; tant qu'on ne le connaît pas, l'ayah entière.
                       const isPlayingWord = isPlayingAyah && curWord != null && w.pos === curWord;
@@ -1769,6 +1773,7 @@ function MushafPage() {
                             // ligne de base du texte) : position identique sur
                             // toutes les pages.
                             w.end && "self-center",
+                            isMark && "bg-[#8fd1ae]/40",
                             isSel && "bg-primary/15",
                             isPlaying && "bg-[#8fd1ae]/30",
                             isPlayingWord && "bg-[#8fd1ae]/45",
@@ -2429,8 +2434,9 @@ function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number 
 
 type RubBoundRow = (typeof RUB_BOUNDS)[number];
 
-/** Ligne dépliable : titre + références « début → fin », premiers mots de l'āyah
- * de départ et derniers mots de l'āyah de fin (chacun mène à sa page). */
+/** Ligne dépliable : titre, références « début → fin », puis deux cadres — Début (vert)
+ * et Fin (doré) — avec les premiers mots de la première et de la dernière āyah.
+ * Chaque cadre ouvre la page et met l'āyah en surbrillance. */
 function BoundRow({
   title,
   sub,
@@ -2449,7 +2455,7 @@ function BoundRow({
   current?: boolean;
   isOpen: boolean;
   onToggle: () => void;
-  go: (page: number) => void;
+  go: (page: number, mark?: string) => void;
   children?: ReactNode;
 }) {
   return (
@@ -2463,28 +2469,35 @@ function BoundRow({
         >
           <ChevronDown className={cn("size-4 transition", !isOpen && "-rotate-90")} />
         </button>
-        <div className="min-w-0 flex-1">
-          <button
-            onClick={() => go(start[1])}
-            className="flex w-full items-center justify-between gap-3 py-2 pr-3 text-left"
-          >
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold">{title}</span>
-              <span className="block text-[11px] tabular-nums text-muted-foreground">{sub}</span>
-            </span>
-            <span lang="ar" dir="rtl" className="min-w-0 max-w-[48%] truncate font-arabic text-base">
-              {start[2]}
-            </span>
+        <div className="min-w-0 flex-1 pb-2 pr-2 pt-2">
+          <button onClick={onToggle} className="block w-full text-left">
+            <span className="block text-sm font-semibold">{title}</span>
+            <span className="block text-[11px] tabular-nums text-muted-foreground">{sub}</span>
           </button>
-          <button
-            onClick={() => go(end[4])}
-            className="flex w-full items-center justify-between gap-3 pb-2 pr-3 text-left text-[11px] text-muted-foreground"
-          >
-            <span className="tabular-nums">Fin · {end[3]}</span>
-            <span lang="ar" dir="rtl" className="min-w-0 max-w-[48%] truncate font-arabic text-sm">
-              … {end[5]}
-            </span>
-          </button>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => go(start[1], start[0])}
+              className="rounded-lg border border-[#8fd1ae] bg-[#8fd1ae]/15 px-2 py-1.5 text-left"
+            >
+              <span className="block text-[10px] font-semibold uppercase tracking-wide text-[#3f7a54] dark:text-[#6fe0b0]">
+                Début · {start[0]}
+              </span>
+              <span lang="ar" dir="rtl" className="block font-arabic text-[17px] font-bold leading-[2]">
+                {start[2]} …
+              </span>
+            </button>
+            <button
+              onClick={() => go(end[4], end[3])}
+              className="rounded-lg border border-gold/60 bg-gold/10 px-2 py-1.5 text-left"
+            >
+              <span className="block text-[10px] font-semibold uppercase tracking-wide text-gold">
+                Fin · {end[3]}
+              </span>
+              <span lang="ar" dir="rtl" className="block font-arabic text-[17px] font-bold leading-[2]">
+                {end[5]} …
+              </span>
+            </button>
+          </div>
         </div>
       </div>
       {isOpen && children && <div className="px-2 pb-2">{children}</div>}
@@ -2508,7 +2521,7 @@ function HizbNode({
   rub?: number;
   open: Set<string>;
   toggle: (k: string) => void;
-  go: (page: number) => void;
+  go: (page: number, mark?: string) => void;
 }) {
   const first = RUB_BOUNDS[(h - 1) * 4];
   const last = RUB_BOUNDS[h * 4 - 1];
@@ -2530,17 +2543,17 @@ function HizbNode({
           return (
             <li key={k}>
               <button
-                onClick={() => go(b[1])}
+                onClick={() => go(b[1], b[0])}
                 className={cn(
-                  "flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-left text-xs transition hover:bg-muted",
+                  "flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1 text-left text-xs transition hover:bg-muted",
                   r === rub && "bg-gold/20",
                 )}
               >
                 <span className="tabular-nums text-muted-foreground">
                   {k}/4 · {b[0]}
                 </span>
-                <span lang="ar" dir="rtl" className="min-w-0 max-w-[55%] truncate font-arabic text-[15px]">
-                  {b[2]}
+                <span lang="ar" dir="rtl" className="min-w-0 max-w-[62%] font-arabic text-base font-semibold leading-[2]">
+                  {b[2]} …
                 </span>
               </button>
             </li>
@@ -2594,11 +2607,11 @@ function GoToPanel({
       return next;
     });
 
-  const go = (p: number) => {
+  const go = (p: number, mark?: string) => {
     navigate({
       to: "/quran/page/$page",
       params: { page: String(clampPage(p)) },
-      search: { r: reciterId },
+      search: { r: reciterId, mark },
     });
     onClose();
   };
