@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import {
+  MessagesSquare,
+  Ban,
+  // @@ICONIMPORT
   ArrowLeft, BedDouble, Brush, CupSoda, Shirt, Footprints, Handshake, Star, BookOpen, Droplets, HandHeart, Heart, HeartPulse, Home, Landmark, Luggage, MessageCircle,
   Moon, Plane, Repeat2, Search, Sparkles, Sunrise, UtensilsCrossed, Wind, Users, type LucideIcon,
 } from "lucide-react";
@@ -54,6 +57,9 @@ const THEME_ICONS: Record<string, LucideIcon> = {
   nadafa: Brush,
   libas: Shirt,
   tamam: CupSoda,
+  societe: MessagesSquare,
+  interdits: Ban,
+  // @@ICON
   dhikr: Repeat2,
   generaux: BookOpen,
   relations: MessageCircle,
