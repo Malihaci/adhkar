@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { quranRefLabel } from "@/data/surah-names";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, BookOpen, Compass, Heart, HeartCrack, Home, Lamp, Leaf, Search, ShieldCheck, Sprout, Star, Users, type LucideIcon } from "lucide-react";
+import { HUB_COLORS, HubCardBody, HubGrid, hubCardClass } from "@/components/HubCard";
 import { DhikrViewer } from "@/components/DhikrViewer";
 import { DUA_THEMES, duasCoran } from "@/data/duas-coran";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/duas-coran")({
   head: () => ({
@@ -23,6 +23,19 @@ export const Route = createFileRoute("/duas-coran")({
   }),
   component: DuasCoranPage,
 });
+
+const THEME_ICONS: Record<string, LucideIcon> = {
+  guidance: Compass,
+  pardon: Leaf,
+  dunya: Star,
+  famille: Users,
+  epreuve: HeartCrack,
+  science: Lamp,
+  refuge: ShieldCheck,
+  rizq: Sprout,
+  detresse: Heart,
+  foi: Home,
+};
 
 const normalize = (s: string) =>
   s
@@ -66,8 +79,8 @@ function DuasCoranPage() {
     <div className="mx-auto min-h-[100dvh] max-w-2xl bg-background px-4 pb-10 pt-4">
       <header className="mb-4 flex items-center gap-3">
         <Link
-          to="/"
-          aria-label="Accueil"
+          to={t !== undefined ? "/duas-coran" : "/"}
+          aria-label={t !== undefined ? "Thèmes" : "Accueil"}
           className="grid size-10 shrink-0 place-items-center rounded-full border border-border"
         >
           <ArrowLeft className="size-5" />
@@ -90,27 +103,29 @@ function DuasCoranPage() {
         />
       </label>
 
-      <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {[{ key: "all", label: `Toutes (${duasCoran.length})` }, ...DUA_THEMES].map((th) => {
-          const active = (theme ?? "all") === th.key;
-          return (
-            <Link
-              key={th.key}
-              to="/duas-coran"
-              search={{ t: th.key === "all" ? undefined : th.key }}
-              className={cn(
-                "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition",
-                active
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-foreground",
-              )}
-            >
-              {th.label}
-            </Link>
-          );
-        })}
-      </div>
+      {t === undefined && !q && (
+        <HubGrid>
+          <Link to="/duas-coran" search={{ t: "all", i: undefined }} className={hubCardClass}>
+            <HubCardBody label="Toutes" arabic="الكل" color={HUB_COLORS[0]} icon={<BookOpen />} note={duasCoran.length} />
+          </Link>
+          {DUA_THEMES.map((th, n) => {
+            const Icon = THEME_ICONS[th.key] ?? BookOpen;
+            return (
+              <Link key={th.key} to="/duas-coran" search={{ t: th.key }} className={hubCardClass}>
+                <HubCardBody
+                  label={th.label}
+                  arabic={th.ar}
+                  color={HUB_COLORS[(n + 1) % HUB_COLORS.length]}
+                  icon={<Icon />}
+                  note={duasCoran.filter((d) => d.theme === th.key).length}
+                />
+              </Link>
+            );
+          })}
+        </HubGrid>
+      )}
 
+      {(t !== undefined || q) && (
       <ul className="space-y-2">
         {shown.map(({ d, index }) => (
           <li key={d.id}>
@@ -135,6 +150,7 @@ function DuasCoranPage() {
           </li>
         )}
       </ul>
+      )}
     </div>
   );
 }

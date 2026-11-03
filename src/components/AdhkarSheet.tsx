@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import type { ComponentProps } from "react";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, DoorOpen, Hash, Headphones, Swords, Luggage, Moon, Settings2, Sparkles, Sunrise, X } from "lucide-react";
+import { HUB_COLORS, HubCardBody, HubGrid, hubCardClass } from "@/components/HubCard";
 
 /**
  * Choix Adhkār — Quotidien (Matin/Soir) + Occasions. Composant partagé entre
@@ -48,160 +49,37 @@ export function AdhkarSheet({
             </button>
           </div>
         </div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Quotidien
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Link
-            to="/matin"
-            onClick={onClose}
-            className="surface-card flex items-center gap-3 rounded-2xl px-4 py-4 text-left transition hover:-translate-y-0.5 hover:border-gold/40"
-          >
-            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-gold/15 text-gold">
-              <Sunrise className="size-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-foreground">Adhkār du matin</p>
-              <p className="text-xs text-muted-foreground">{morningPct}% complété aujourd'hui</p>
-            </div>
-          </Link>
-          <Link
-            to="/soir"
-            onClick={onClose}
-            className="surface-card flex items-center gap-3 rounded-2xl px-4 py-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
-          >
-            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
-              <Moon className="size-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-foreground">Adhkār du soir</p>
-              <p className="text-xs text-muted-foreground">{eveningPct}% complété aujourd'hui</p>
-            </div>
-          </Link>
-        </div>
-
-        <Link
-          to="/ecoute"
-          onClick={onClose}
-          className="surface-card mt-3 flex items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
-        >
-          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
-            <Headphones className="size-4" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground">Tout écouter (Matin/Soir)</p>
-            <p className="text-xs text-muted-foreground">Récitation Al-'Afâsy, texte synchronisé</p>
-          </div>
-        </Link>
-
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <Link
-            to="/compteur"
-            onClick={onClose}
-            className="surface-card flex min-h-16 items-center gap-2.5 rounded-2xl px-3 py-3 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
-          >
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
-              <Hash className="size-4" />
-            </span>
-            <span className="min-w-0 text-sm font-medium text-foreground">Compteur de dhikr</span>
-          </Link>
-          <Link
-            to="/defis"
-            onClick={onClose}
-            className="surface-card flex min-h-16 items-center gap-2.5 rounded-2xl px-3 py-3 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
-          >
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
-              <Swords className="size-4" />
-            </span>
-            <span className="min-w-0 text-sm font-medium text-foreground">Mes défis</span>
-          </Link>
-        </div>
-
-        <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Occasions
-        </p>
-        <div className="space-y-1.5">
-          <OccasionRow
-            to="/duas-coran"
-            icon={<BookOpen className="size-4" />}
-            label="Duʿāʾ du Coran"
-            arabic="أدعية القرآن"
-            onClose={onClose}
-          />
-          <OccasionRow
-            to="/adhkar-adab"
-            icon={<BookOpen className="size-4" />}
-            label="Adhkār et ādāb"
-            arabic="الأذكار والآداب"
-            onClose={onClose}
-          />
-          <OccasionRow
-            to="/reveil"
-            icon={<Sunrise className="size-4" />}
-            label="Réveil"
-            arabic="أذكار الاستيقاظ"
-            onClose={onClose}
-          />
-          <OccasionRow
-            to="/coucher"
-            icon={<Moon className="size-4" />}
-            label="Avant de dormir"
-            arabic="أذكار النوم"
-            onClose={onClose}
-          />
-          <OccasionRow
-            to="/apres-priere"
-            icon={<Sparkles className="size-4" />}
-            label="Après la prière"
-            arabic="أذكار بعد الصلاة"
-            onClose={onClose}
-          />
-          <OccasionRow
-            to="/sortie"
-            icon={<DoorOpen className="size-4" />}
-            label="Sortir de la maison"
-            arabic="الخروج من المنزل"
-            onClose={onClose}
-          />
-          <OccasionRow
-            to="/voyage"
-            icon={<Luggage className="size-4" />}
-            label="Voyage"
-            arabic="أذكار السفر"
-            onClose={onClose}
-          />
-        </div>
+        <HubGrid>
+          <HubLink to="/matin" onClose={onClose} label="Matin" arabic="أذكار الصباح" color={HUB_COLORS[0]} icon={<Sunrise />} note={`${morningPct}%`} />
+          <HubLink to="/soir" onClose={onClose} label="Soir" arabic="أذكار المساء" color={HUB_COLORS[7]} icon={<Moon />} note={`${eveningPct}%`} />
+          <HubLink to="/ecoute" onClose={onClose} label="Tout écouter" arabic="استماع" color={HUB_COLORS[1]} icon={<Headphones />} />
+          <HubLink to="/compteur" onClose={onClose} label="Compteur" arabic="العداد" color={HUB_COLORS[3]} icon={<Hash />} />
+          <HubLink to="/defis" onClose={onClose} label="Mes défis" arabic="التحديات" color={HUB_COLORS[4]} icon={<Swords />} />
+          <HubLink to="/duas-coran" onClose={onClose} label="Duʿāʾ du Coran" arabic="أدعية القرآن" color={HUB_COLORS[2]} icon={<BookOpen />} />
+          <HubLink to="/adhkar-adab" onClose={onClose} label="Adhkār et ādāb" arabic="الأذكار والآداب" color={HUB_COLORS[6]} icon={<BookOpen />} />
+          <HubLink to="/reveil" onClose={onClose} label="Réveil" arabic="الاستيقاظ" color={HUB_COLORS[0]} icon={<Sunrise />} />
+          <HubLink to="/coucher" onClose={onClose} label="Avant de dormir" arabic="أذكار النوم" color={HUB_COLORS[7]} icon={<Moon />} />
+          <HubLink to="/apres-priere" onClose={onClose} label="Après la prière" arabic="بعد الصلاة" color={HUB_COLORS[5]} icon={<Sparkles />} />
+          <HubLink to="/sortie" onClose={onClose} label="Sortir de la maison" arabic="الخروج" color={HUB_COLORS[3]} icon={<DoorOpen />} />
+          <HubLink to="/voyage" onClose={onClose} label="Voyage" arabic="السفر" color={HUB_COLORS[1]} icon={<Luggage />} />
+        </HubGrid>
       </div>
     </div>
   );
 }
 
-function OccasionRow({
+type HubTo =
+  | "/matin" | "/soir" | "/ecoute" | "/compteur" | "/defis" | "/duas-coran" | "/adhkar-adab"
+  | "/reveil" | "/coucher" | "/apres-priere" | "/sortie" | "/voyage";
+
+function HubLink({
   to,
-  icon,
-  label,
-  arabic,
   onClose,
-}: {
-  to: "/duas-coran" | "/adhkar-adab" | "/reveil" | "/coucher" | "/apres-priere" | "/sortie" | "/voyage";
-  icon: ReactNode;
-  label: string;
-  arabic: string;
-  onClose: () => void;
-}) {
+  ...card
+}: { to: HubTo; onClose: () => void } & ComponentProps<typeof HubCardBody>) {
   return (
-    <Link
-      to={to}
-      onClick={onClose}
-      className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-muted"
-    >
-      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{label}</span>
-      <span lang="ar" dir="rtl" className="font-arabic text-xs text-muted-foreground">
-        {arabic}
-      </span>
+    <Link to={to} onClick={onClose} className={hubCardClass}>
+      <HubCardBody {...card} />
     </Link>
   );
 }

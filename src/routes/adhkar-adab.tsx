@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, Search } from "lucide-react";
+import {
+  ArrowLeft, BedDouble, BookOpen, Droplets, HandHeart, Heart, HeartPulse, Home, Landmark, Luggage, MessageCircle,
+  Moon, Plane, Search, Sparkles, UtensilsCrossed, Wind, Users, type LucideIcon,
+} from "lucide-react";
+import { HUB_COLORS, HubCardBody, HubGrid, hubCardClass } from "@/components/HubCard";
 import type { Dhikr } from "@/data/adhkar";
 import { DhikrViewer } from "@/components/DhikrViewer";
 import { LIVRE_SOURCE_NOTE, LIVRE_TITLE } from "@/data/adhkar-livre";
 import { LIVRE_CHAPTERS, LIVRE_THEMES } from "@/data/adhkar-livre-2";
 import { livreAll } from "@/data/livre-book";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/adhkar-adab")({
   head: () => ({
@@ -29,6 +32,26 @@ export const Route = createFileRoute("/adhkar-adab")({
 
 /** Chapitre du livre = numéro dans l'id (« livre-06b » → « 06 »). */
 const chapterOf = (d: Dhikr) => d.id.slice(6, 8);
+
+const THEME_ICONS: Record<string, LucideIcon> = {
+  merites: Sparkles,
+  purification: Droplets,
+  priere: Landmark,
+  maladie: HeartPulse,
+  janaza: Heart,
+  epreuve: HandHeart,
+  voyage: Plane,
+  hajj: Luggage,
+  maison: Home,
+  repas: UtensilsCrossed,
+  mariage: Users,
+  sommeil: BedDouble,
+  reves: Moon,
+  generaux: BookOpen,
+  relations: MessageCircle,
+  nature: Wind,
+  assemblee: Users,
+};
 
 const normalize = (s: string) =>
   s
@@ -80,8 +103,8 @@ function AdhkarAdabPage() {
     <div className="mx-auto min-h-[100dvh] max-w-2xl bg-background px-4 pb-10 pt-4">
       <header className="mb-4 flex items-center gap-3">
         <Link
-          to="/"
-          aria-label="Accueil"
+          to={t !== undefined ? "/adhkar-adab" : "/"}
+          aria-label={t !== undefined ? "Thèmes" : "Accueil"}
           className="grid size-10 shrink-0 place-items-center rounded-full border border-border"
         >
           <ArrowLeft className="size-5" />
@@ -116,29 +139,21 @@ function AdhkarAdabPage() {
         />
       </label>
 
-      <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {[{ theme: "all", label: "Tous" }, ...LIVRE_THEMES.filter((th) => livreAll.some((d) => d.theme === th.theme))].map(
-          (th) => {
-            const active = (theme ?? "all") === th.theme;
+      {t === undefined && !q && (
+        <HubGrid>
+          {LIVRE_THEMES.filter((th) => livreAll.some((d) => d.theme === th.theme)).map((th, n) => {
+            const Icon = THEME_ICONS[th.theme] ?? BookOpen;
+            const count = new Set(livreAll.filter((d) => d.theme === th.theme).map(chapterOf)).size;
             return (
-              <Link
-                key={th.theme}
-                to="/adhkar-adab"
-                search={{ t: th.theme === "all" ? undefined : th.theme }}
-                className={cn(
-                  "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition",
-                  active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-foreground",
-                )}
-              >
-                {th.label}
+              <Link key={th.theme} to="/adhkar-adab" search={{ t: th.theme }} className={hubCardClass}>
+                <HubCardBody label={th.label} arabic={th.ar} color={HUB_COLORS[n % HUB_COLORS.length]} icon={<Icon />} note={count} />
               </Link>
             );
-          },
-        )}
-      </div>
+          })}
+        </HubGrid>
+      )}
 
+      {(t !== undefined || q) && (
       <ul className="space-y-2">
         {shown.map(([k, list]) => (
           <li key={k}>
@@ -163,6 +178,7 @@ function AdhkarAdabPage() {
           </li>
         )}
       </ul>
+      )}
     </div>
   );
 }
