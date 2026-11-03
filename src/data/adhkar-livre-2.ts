@@ -5,7 +5,7 @@
  * Id = « livre-<n° de chapitre sur 2 chiffres><lettre> ».
  */
 import type { Dhikr } from "@/data/adhkar";
-import { coucherAdhkar } from "@/data/adhkar-occasions";
+import { coucherAdhkar, sortieAdhkar } from "@/data/adhkar-occasions";
 
 export const LIVRE_THEMES: { theme: string; label: string; ar: string }[] = [
   { theme: "merites", label: "Mérites", ar: "الفضائل" },
@@ -103,6 +103,7 @@ export const LIVRE_CHAPTERS: Record<string, { title: string; ar: string }> = {
   "70": { title: "À la pluie", ar: "عِنْدَ نُزُولِ الْمَطَرِ" },
   "71": { title: "Chant du coq, braiment de l'âne", ar: "سَمَاعُ صِيَاحِ الدِّيكِ وَنَهِيقِ الْحِمَارِ" },
   "72": { title: "Expiation de l'assemblée", ar: "كَفَّارَةُ الْمَجْلِسِ" },
+  "A0": { title: "Sortir de la maison", ar: "الْخُرُوجُ مِنَ الْمَنْزِلِ" },
   // @@CH
 };
 
@@ -1071,5 +1072,21 @@ export const livreAdhkar2: Dhikr[] = [
     ref: "rapporté par at-Tirmidhî",
     expl: "Le Prophète ﷺ a dit : « Celui qui s'assoit dans une assemblée où il y a eu beaucoup de paroles inutiles et dit, avant de se lever, cela, il lui sera pardonné ce qui s'est passé dans cette assemblée. »",
   }),
+  {
+    ...sortieAdhkar.find((d) => d.id === "sortie-1")!,
+    id: "livre-A0a",
+    category: "livre",
+    theme: "maison",
+    title: "En sortant : Bismi-llâhi tawakkaltu ʿala-llâh",
+    titleAr: LIVRE_CHAPTERS["A0"]?.ar,
+  },
+  {
+    ...sortieAdhkar.find((d) => d.id === "sortie-2")!,
+    id: "livre-A0b",
+    category: "livre",
+    theme: "maison",
+    title: "En sortant : Allâhumma innî aʿûdhu bika an adilla",
+    titleAr: LIVRE_CHAPTERS["A0"]?.ar,
+  },
   // @@NEXT
 ];
