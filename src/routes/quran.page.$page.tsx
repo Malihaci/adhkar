@@ -9,7 +9,7 @@ import {
   Copy,
   Heart,
   Home,
-  Lightbulb,
+  Leaf,
   Loader2,
   Maximize2,
   Minimize2,
@@ -19,7 +19,6 @@ import {
   Search,
   Settings2,
   Share2,
-  SkipForward,
   Sparkles,
   X,
 } from "lucide-react";
@@ -40,6 +39,7 @@ import {
   fetchPageLayout,
   fetchSurahVerseKeys,
   fetchVersePage,
+  fetchRubFirstVerseKey,
   fetchVerseSegments,
   type WordSegment,
   getReciter,
@@ -1821,16 +1821,21 @@ function MushafPage() {
                   type="button"
                   onClick={() => setMeditateOpen(true)}
                   aria-label="Méditer cette page"
-                  className="absolute left-[calc(50%+2.2rem)] grid size-8 place-items-center rounded-full text-[#3f7a54] transition active:scale-95 hover:bg-[#8fd1ae]/30 dark:text-[#6fe0b0]"
+                  className="absolute left-2 grid size-9 place-items-center rounded-full text-gold transition active:scale-95 hover:bg-gold/10"
                 >
-                  <Lightbulb className="size-[18px]" strokeWidth={1.75} />
+                  <Leaf className="size-5" strokeWidth={1.75} />
                 </button>
               )}
               {verses[0].hizb ? (
-                <span className="absolute right-2 text-[11px] text-foreground/60">
+                <button
+                  type="button"
+                  onClick={() => openNav("hizb")}
+                  aria-label={`Hizb ${verses[0].hizb} — aller à un autre hizb`}
+                  className="absolute right-2 rounded-md px-1.5 py-1 text-[11px] text-foreground/60 transition hover:bg-muted hover:text-foreground"
+                >
                   Hizb {verses[0].hizb}
                   {verses[0].rub ? ` · ${((verses[0].rub - 1) % 4) + 1}/4` : ""}
-                </span>
+                </button>
               ) : null}
             </div>
           )}
@@ -1861,7 +1866,7 @@ function MushafPage() {
                 <X className="size-[18px]" strokeWidth={1.75} />
               </button>
             </div>
-            <div className="grid grid-cols-6 gap-0.5">
+            <div className="grid grid-cols-5 gap-1">
               {(
                 [
                   {
@@ -1872,12 +1877,6 @@ function MushafPage() {
                       if (playing && current === selKey) toggle();
                       else playAyah();
                     },
-                  },
-                  {
-                    key: "continue",
-                    label: "Continuer",
-                    icon: SkipForward,
-                    onClick: () => void playSurahEndFromAnchor(),
                   },
                   {
                     key: "fav",
@@ -1896,7 +1895,7 @@ function MushafPage() {
                   {
                     key: "study",
                     label: "Étudier",
-                    icon: Sparkles,
+                    icon: Leaf,
                     primary: true,
                     onClick: () => studySelectedVerse(selKey),
                   },
@@ -1990,6 +1989,8 @@ function MushafPage() {
         <GoToPanel
           initialTab={navTab}
           juz={verses?.[0]?.juz}
+          hizb={verses?.[0]?.hizb}
+          rub={verses?.[0]?.rub}
           surahId={surahMeta?.id}
           page={page}
           chapters={chapters ?? []}
@@ -2356,7 +2357,7 @@ function PillRow({
   );
 }
 
-type NavTab = "page" | "surah" | "juz";
+type NavTab = "page" | "surah" | "juz" | "hizb";
 
 /** Première page de chaque juz dans le Mushaf de Médine (604 pages). */
 const JUZ_START_PAGE = [
@@ -2423,6 +2424,8 @@ function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number 
 function GoToPanel({
   initialTab,
   juz,
+  hizb,
+  rub,
   surahId,
   page,
   chapters,
@@ -2431,6 +2434,8 @@ function GoToPanel({
 }: {
   initialTab: NavTab;
   juz?: number;
+  hizb?: number;
+  rub?: number;
   surahId?: number;
   page: number;
   chapters: { id: number; nameArabic: string; nameFrench: string; pages: [number, number] }[];
@@ -2441,6 +2446,20 @@ function GoToPanel({
   const [tab, setTab] = useState<NavTab>(initialTab);
   const [value, setValue] = useState(String(page));
   const [q, setQ] = useState("");
+  const [rubBusy, setRubBusy] = useState<number | null>(null);
+
+  /** Quart de hizb (1–240) : ouvre la page de sa première āyah. */
+  const goRub = async (r: number) => {
+    setRubBusy(r);
+    try {
+      const key = await fetchRubFirstVerseKey(r);
+      go(await fetchVersePage(key));
+    } catch {
+      /* le panneau reste ouvert, on peut réessayer */
+    } finally {
+      setRubBusy(null);
+    }
+  };
 
   const go = (p: number) => {
     navigate({
@@ -2462,6 +2481,7 @@ function GoToPanel({
     { key: "page", label: "Page" },
     { key: "surah", label: "Sourate" },
     { key: "juz", label: "Juz" },
+    { key: "hizb", label: "Hizb" },
   ];
 
   return (
@@ -2477,7 +2497,7 @@ function GoToPanel({
             <X className="size-4" />
           </button>
         </div>
-        <div className="mb-3 grid grid-cols-3 gap-1 rounded-full bg-muted p-1">
+        <div className="mb-3 grid grid-cols-4 gap-1 rounded-full bg-muted p-1">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -2559,6 +2579,46 @@ function GoToPanel({
               ))}
             </ul>
           </>
+        )}
+
+        {tab === "hizb" && (
+          <ul className="space-y-1.5 pb-4">
+            {Array.from({ length: 60 }, (_, i) => i + 1).map((h) => (
+              <li
+                key={h}
+                className={cn(
+                  "flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2",
+                  h === hizb && "border-gold bg-gold/10",
+                )}
+              >
+                <span className="text-sm font-semibold">
+                  Hizb {h}
+                  <span className="ml-1 text-[11px] font-normal text-muted-foreground">
+                    · Juz {Math.ceil(h / 2)}
+                  </span>
+                </span>
+                <span className="flex gap-1">
+                  {[1, 2, 3, 4].map((k) => {
+                    const r = (h - 1) * 4 + k;
+                    return (
+                      <button
+                        key={k}
+                        onClick={() => void goRub(r)}
+                        disabled={rubBusy != null}
+                        aria-label={`Hizb ${h}, ${k}/4`}
+                        className={cn(
+                          "h-8 min-w-9 rounded-lg border border-border px-1.5 text-xs font-semibold tabular-nums transition hover:bg-muted disabled:opacity-60",
+                          r === rub && "border-gold bg-gold/20",
+                        )}
+                      >
+                        {rubBusy === r ? "…" : `${k}/4`}
+                      </button>
+                    );
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
 
         {tab === "juz" && (

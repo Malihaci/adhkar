@@ -258,7 +258,8 @@ function EtudePage() {
     const hits = itemsForAyah(taPage, category, ayah);
     return hits.length || !fallbackToPage ? hits : pageLevelItems(taPage, category);
   };
-  const taTadabbur = meditateItems.length ? [] : forAyah("tadabbur", true);
+  // Méditer : uniquement les waqafat tadabburiya qui visent CETTE āyah (pas de repli sur la page).
+  const taTadabbur = meditateItems.length ? [] : forAyah("tadabbur", false);
   const taAmal = agirItems.length ? [] : forAyah("amal", true);
   const taTawjihat = tawjihatLocal.length ? [] : forAyah("tawjihat", false);
   const plusCount: Record<string, number> = {
@@ -507,20 +508,8 @@ function EtudePage() {
             ))}
 
           {main === "med" &&
-            (lessonItems.length > 0 || mkHasLessons || plusCount.tadabbur > 0 ? (
+            (plusCount.tadabbur > 0 ? (
               <div className="space-y-5">
-                {(lessonItems.length > 0 || mkHasLessons) && (
-                  <section>
-                    <h3 className="mb-2 text-sm font-bold text-foreground">
-                      Leçons à retenir{" "}
-                      <span lang="ar" className="font-arabic text-xs font-normal text-muted-foreground">
-                        دروس
-                      </span>
-                    </h3>
-                    <ContentList items={lessonItems} lang={lang} />
-                    <MokhtasarLessons surah={surah} ayah={ayah} />
-                  </section>
-                )}
                 {plusCount.tadabbur > 0 && (
                   <section>
                     <h3 className="mb-2 text-sm font-bold text-foreground">

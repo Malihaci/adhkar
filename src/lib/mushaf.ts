@@ -290,6 +290,16 @@ export async function fetchJuzVerseKeys(juz: number): Promise<string[]> {
 }
 
 /** Versets d'un hizb (clés uniquement), pagination incluse. */
+/** Clé de la première āyah d'un quart de hizb (1–240). */
+export async function fetchRubFirstVerseKey(rub: number): Promise<string> {
+  const res = await fetch(`${API}/verses/by_rub_el_hizb/${rub}?per_page=1`);
+  if (!res.ok) throw new Error("Quart de hizb indisponible");
+  const json = await res.json();
+  const key = (json.verses as { verse_key?: string }[] | undefined)?.[0]?.verse_key;
+  if (!key) throw new Error("Quart de hizb indisponible");
+  return key;
+}
+
 export async function fetchHizbVerseKeys(hizb: number): Promise<string[]> {
   const keys: string[] = [];
   let page = 1;
