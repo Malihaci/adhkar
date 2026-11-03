@@ -343,8 +343,34 @@ function ParametresPage() {
             Taille de lecture
           </p>
           <SizeRow value={prefs.quran.textSize} onChange={(v) => updateQuran({ textSize: v })} />
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Fond de la page
+          </p>
+          <div className="mt-2 flex gap-1 rounded-full border border-border p-1">
+            {(
+              [
+                { key: "cream", label: "Crème" },
+                { key: "white", label: "Blanc" },
+              ] as const
+            ).map((o) => {
+              const active = (prefs.quran.pageBackground ?? "cream") === o.key;
+              return (
+                <button
+                  key={o.key}
+                  onClick={() => updateQuran({ pageBackground: o.key })}
+                  aria-pressed={active}
+                  className={cn(
+                    "flex-1 rounded-full py-2 text-sm font-semibold transition",
+                    active ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
           <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-            « Mushaf (arabe) » = Mushaf de Médine fidèle (arabe seul, ± Tajwīd). Tous les autres
+            « Mushaf (arabe) » =Mushaf de Médine fidèle (arabe seul, ± Tajwīd). Tous les autres
             modes utilisent le lecteur ayah par ayah — jamais inséré dans les lignes du Mushaf.
           </p>
         </Section>

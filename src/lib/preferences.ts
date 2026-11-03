@@ -35,6 +35,8 @@ export interface QuranPreferences {
   speed: number;
   /** Garde l'écran allumé sur le Mushaf (désactivable dans les options). */
   keepAwake: boolean;
+  /** Fond de la page du Mushaf (mode clair) : papier crème ou blanc. */
+  pageBackground?: "cream" | "white";
 }
 
 /** "afasy" = piste continue existante (Al-'Afâsy, voir src/lib/afasyAudio.ts

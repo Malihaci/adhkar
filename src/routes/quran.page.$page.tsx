@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -39,7 +39,6 @@ import {
   fetchPageLayout,
   fetchSurahVerseKeys,
   fetchVersePage,
-  fetchRubFirstVerseKey,
   fetchVerseSegments,
   type WordSegment,
   getReciter,
@@ -68,6 +67,8 @@ import { fetchMokhtasarLessons, type MokhtasarPassage } from "@/lib/quran";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { cachedAudioBlobUrl } from "@/lib/offline";
 import { cn } from "@/lib/utils";
+import { RUB_BOUNDS } from "@/data/rub-bounds";
+import { KaabaIcon, MadinaMosqueIcon } from "@/components/PlaceIcons";
 
 interface Search {
   r?: string;
@@ -1534,7 +1535,12 @@ function MushafPage() {
   };
 
   return (
-    <div className="relative h-[100dvh] overflow-hidden bg-[#fcf9ef] dark:bg-background">
+    <div
+      className={cn(
+        "relative h-[100dvh] overflow-hidden dark:bg-background",
+        prefs.quran.pageBackground === "white" ? "bg-white" : "bg-[#fcf9ef]",
+      )}
+    >
       <audio
         ref={audioRef}
         preload="none"
@@ -2421,6 +2427,130 @@ function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number 
   );
 }
 
+type RubBoundRow = (typeof RUB_BOUNDS)[number];
+
+/** Ligne dépliable : titre + références « début → fin », premiers mots de l'āyah
+ * de départ et derniers mots de l'āyah de fin (chacun mène à sa page). */
+function BoundRow({
+  title,
+  sub,
+  start,
+  end,
+  current,
+  isOpen,
+  onToggle,
+  go,
+  children,
+}: {
+  title: string;
+  sub: string;
+  start: RubBoundRow;
+  end: RubBoundRow;
+  current?: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  go: (page: number) => void;
+  children?: ReactNode;
+}) {
+  return (
+    <li className={cn("rounded-xl border border-border", current && "border-gold bg-gold/10")}>
+      <div className="flex items-stretch">
+        <button
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          aria-label={isOpen ? `Replier ${title}` : `Déplier ${title}`}
+          className="grid w-9 shrink-0 place-items-center text-muted-foreground"
+        >
+          <ChevronDown className={cn("size-4 transition", !isOpen && "-rotate-90")} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <button
+            onClick={() => go(start[1])}
+            className="flex w-full items-center justify-between gap-3 py-2 pr-3 text-left"
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">{title}</span>
+              <span className="block text-[11px] tabular-nums text-muted-foreground">{sub}</span>
+            </span>
+            <span lang="ar" dir="rtl" className="min-w-0 max-w-[48%] truncate font-arabic text-base">
+              {start[2]}
+            </span>
+          </button>
+          <button
+            onClick={() => go(end[4])}
+            className="flex w-full items-center justify-between gap-3 pb-2 pr-3 text-left text-[11px] text-muted-foreground"
+          >
+            <span className="tabular-nums">Fin · {end[3]}</span>
+            <span lang="ar" dir="rtl" className="min-w-0 max-w-[48%] truncate font-arabic text-sm">
+              … {end[5]}
+            </span>
+          </button>
+        </div>
+      </div>
+      {isOpen && children && <div className="px-2 pb-2">{children}</div>}
+    </li>
+  );
+}
+
+/** Un hizb : début/fin + ses quatre quarts. */
+function HizbNode({
+  h,
+  withJuz,
+  current,
+  rub,
+  open,
+  toggle,
+  go,
+}: {
+  h: number;
+  withJuz?: boolean;
+  current?: number;
+  rub?: number;
+  open: Set<string>;
+  toggle: (k: string) => void;
+  go: (page: number) => void;
+}) {
+  const first = RUB_BOUNDS[(h - 1) * 4];
+  const last = RUB_BOUNDS[h * 4 - 1];
+  return (
+    <BoundRow
+      title={`Hizb ${h}`}
+      sub={`${withJuz ? `Juz ${Math.ceil(h / 2)} · ` : ""}${first[0]} → ${last[3]}`}
+      start={first}
+      end={last}
+      current={h === current}
+      isOpen={open.has(`h${h}`)}
+      onToggle={() => toggle(`h${h}`)}
+      go={go}
+    >
+      <ul className="border-l-2 border-border pl-2">
+        {[1, 2, 3, 4].map((k) => {
+          const r = (h - 1) * 4 + k;
+          const b = RUB_BOUNDS[r - 1];
+          return (
+            <li key={k}>
+              <button
+                onClick={() => go(b[1])}
+                className={cn(
+                  "flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-left text-xs transition hover:bg-muted",
+                  r === rub && "bg-gold/20",
+                )}
+              >
+                <span className="tabular-nums text-muted-foreground">
+                  {k}/4 · {b[0]}
+                </span>
+                <span lang="ar" dir="rtl" className="min-w-0 max-w-[55%] truncate font-arabic text-[15px]">
+                  {b[2]}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </BoundRow>
+  );
+}
+
 function GoToPanel({
   initialTab,
   juz,
@@ -2438,7 +2568,14 @@ function GoToPanel({
   rub?: number;
   surahId?: number;
   page: number;
-  chapters: { id: number; nameArabic: string; nameFrench: string; pages: [number, number] }[];
+  chapters: {
+    id: number;
+    nameArabic: string;
+    nameFrench: string;
+    pages: [number, number];
+    versesCount: number;
+    revelationPlace?: "makkah" | "madinah";
+  }[];
   reciterId: string;
   onClose: () => void;
 }) {
@@ -2446,20 +2583,16 @@ function GoToPanel({
   const [tab, setTab] = useState<NavTab>(initialTab);
   const [value, setValue] = useState(String(page));
   const [q, setQ] = useState("");
-  const [rubBusy, setRubBusy] = useState<number | null>(null);
-
-  /** Quart de hizb (1–240) : ouvre la page de sa première āyah. */
-  const goRub = async (r: number) => {
-    setRubBusy(r);
-    try {
-      const key = await fetchRubFirstVerseKey(r);
-      go(await fetchVersePage(key));
-    } catch {
-      /* le panneau reste ouvert, on peut réessayer */
-    } finally {
-      setRubBusy(null);
-    }
-  };
+  // Nœuds dépliés (juz « j3 », hizb « h5 ») : on ouvre d'emblée ceux de la page en cours.
+  const [open, setOpen] = useState<Set<string>>(
+    () => new Set([juz ? `j${juz}` : "", hizb ? `h${hizb}` : ""].filter(Boolean)),
+  );
+  const toggle = (k: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(k)) next.add(k);
+      return next;
+    });
 
   const go = (p: number) => {
     navigate({
@@ -2567,9 +2700,21 @@ function GoToPanel({
                       c.id === surahId && "bg-gold/10",
                     )}
                   >
-                    <span className="truncate">
-                      <span className="text-muted-foreground">{c.id}. </span>
-                      {c.nameFrench}
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate">
+                        <span className="text-muted-foreground">{c.id}. </span>
+                        {c.nameFrench}
+                      </span>
+                      {c.revelationPlace && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          {c.revelationPlace === "makkah" ? (
+                            <KaabaIcon className="size-3.5 text-foreground" />
+                          ) : (
+                            <MadinaMosqueIcon className="size-3.5 text-[#3f7a54] dark:text-[#6fe0b0]" />
+                          )}
+                          {c.revelationPlace === "makkah" ? "Mecquoise" : "Médinoise"} · {c.versesCount} āyāt
+                        </span>
+                      )}
                     </span>
                     <span lang="ar" className="font-arabic text-gold">
                       {c.nameArabic}
@@ -2584,59 +2729,36 @@ function GoToPanel({
         {tab === "hizb" && (
           <ul className="space-y-1.5 pb-4">
             {Array.from({ length: 60 }, (_, i) => i + 1).map((h) => (
-              <li
-                key={h}
-                className={cn(
-                  "flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2",
-                  h === hizb && "border-gold bg-gold/10",
-                )}
-              >
-                <span className="text-sm font-semibold">
-                  Hizb {h}
-                  <span className="ml-1 text-[11px] font-normal text-muted-foreground">
-                    · Juz {Math.ceil(h / 2)}
-                  </span>
-                </span>
-                <span className="flex gap-1">
-                  {[1, 2, 3, 4].map((k) => {
-                    const r = (h - 1) * 4 + k;
-                    return (
-                      <button
-                        key={k}
-                        onClick={() => void goRub(r)}
-                        disabled={rubBusy != null}
-                        aria-label={`Hizb ${h}, ${k}/4`}
-                        className={cn(
-                          "h-8 min-w-9 rounded-lg border border-border px-1.5 text-xs font-semibold tabular-nums transition hover:bg-muted disabled:opacity-60",
-                          r === rub && "border-gold bg-gold/20",
-                        )}
-                      >
-                        {rubBusy === r ? "…" : `${k}/4`}
-                      </button>
-                    );
-                  })}
-                </span>
-              </li>
+              <HizbNode key={h} h={h} withJuz current={hizb} rub={rub} open={open} toggle={toggle} go={go} />
             ))}
           </ul>
         )}
 
         {tab === "juz" && (
-          <ul className="grid grid-cols-3 gap-2 pb-4">
-            {JUZ_START_PAGE.map((p, i) => (
-              <li key={i}>
-                <button
-                  onClick={() => go(p)}
-                  className={cn(
-                    "flex w-full flex-col items-center rounded-xl border border-border px-2 py-2 text-sm transition hover:bg-muted",
-                    i + 1 === juz && "border-gold bg-gold/10",
-                  )}
+          <ul className="space-y-1.5 pb-4">
+            {Array.from({ length: 30 }, (_, i) => i + 1).map((j) => {
+              const first = RUB_BOUNDS[(j - 1) * 8];
+              const last = RUB_BOUNDS[j * 8 - 1];
+              return (
+                <BoundRow
+                  key={j}
+                  title={`Juz ${j}`}
+                  sub={`${first[0]} → ${last[3]}`}
+                  start={first}
+                  end={last}
+                  current={j === juz}
+                  isOpen={open.has(`j${j}`)}
+                  onToggle={() => toggle(`j${j}`)}
+                  go={go}
                 >
-                  <span className="font-semibold">Juz {i + 1}</span>
-                  <span className="text-[11px] tabular-nums text-muted-foreground">p. {p}</span>
-                </button>
-              </li>
-            ))}
+                  <ul className="space-y-1.5 border-l-2 border-border pl-2">
+                    {[1, 2].map((k) => (
+                      <HizbNode key={k} h={(j - 1) * 2 + k} current={hizb} rub={rub} open={open} toggle={toggle} go={go} />
+                    ))}
+                  </ul>
+                </BoundRow>
+              );
+            })}
           </ul>
         )}
       </div>
