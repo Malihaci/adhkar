@@ -2434,9 +2434,22 @@ function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number 
 
 type RubBoundRow = (typeof RUB_BOUNDS)[number];
 
-/** Ligne dépliable : titre, références « début → fin », puis deux cadres — Début (vert)
- * et Fin (doré) — avec les premiers mots de la première et de la dernière āyah.
- * Chaque cadre ouvre la page et met l'āyah en surbrillance. */
+/** Premiers mots d'une āyah sur UNE seule ligne, alignés à droite. */
+function ArLine({ text, className }: { text: string; className?: string }) {
+  return (
+    <span
+      lang="ar"
+      dir="rtl"
+      className={cn("min-w-0 flex-1 overflow-hidden whitespace-nowrap text-right font-arabic leading-[2]", className)}
+    >
+      {text.split(" ").slice(0, 4).join(" ")} …
+    </span>
+  );
+}
+
+/** Ligne dépliable : titre + références, puis Début et Fin l'un sous l'autre
+ * (une ligne chacun, texte arabe en gras aligné à droite). Chaque ligne ouvre
+ * la page et met l'āyah en surbrillance. */
 function BoundRow({
   title,
   sub,
@@ -2458,6 +2471,7 @@ function BoundRow({
   go: (page: number, mark?: string) => void;
   children?: ReactNode;
 }) {
+  const line = "flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-left transition hover:bg-muted/60";
   return (
     <li className={cn("rounded-xl border border-border", current && "border-gold bg-gold/10")}>
       <div className="flex items-stretch">
@@ -2465,37 +2479,27 @@ function BoundRow({
           onClick={onToggle}
           aria-expanded={isOpen}
           aria-label={isOpen ? `Replier ${title}` : `Déplier ${title}`}
-          className="grid w-9 shrink-0 place-items-center text-muted-foreground"
+          className="grid w-9 shrink-0 place-items-start pt-3 text-muted-foreground"
         >
-          <ChevronDown className={cn("size-4 transition", !isOpen && "-rotate-90")} />
+          <ChevronDown className={cn("mx-auto size-4 transition", !isOpen && "-rotate-90")} />
         </button>
-        <div className="min-w-0 flex-1 pb-2 pr-2 pt-2">
+        <div className="min-w-0 flex-1 py-2 pr-2">
           <button onClick={onToggle} className="block w-full text-left">
-            <span className="block text-sm font-semibold">{title}</span>
+            <span className="block text-sm font-bold">{title}</span>
             <span className="block text-[11px] tabular-nums text-muted-foreground">{sub}</span>
           </button>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <button
-              onClick={() => go(start[1], start[0])}
-              className="rounded-lg border border-[#8fd1ae] bg-[#8fd1ae]/15 px-2 py-1.5 text-left"
-            >
-              <span className="block text-[10px] font-semibold uppercase tracking-wide text-[#3f7a54] dark:text-[#6fe0b0]">
+          <div className="mt-1">
+            <button onClick={() => go(start[1], start[0])} className={line}>
+              <span className="w-[4.6rem] shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground">
                 Début · {start[0]}
               </span>
-              <span lang="ar" dir="rtl" className="block font-arabic text-[17px] font-bold leading-[2]">
-                {start[2]} …
-              </span>
+              <ArLine text={start[2]} className="text-[15px] font-bold" />
             </button>
-            <button
-              onClick={() => go(end[4], end[3])}
-              className="rounded-lg border border-gold/60 bg-gold/10 px-2 py-1.5 text-left"
-            >
-              <span className="block text-[10px] font-semibold uppercase tracking-wide text-gold">
+            <button onClick={() => go(end[4], end[3])} className={line}>
+              <span className="w-[4.6rem] shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground">
                 Fin · {end[3]}
               </span>
-              <span lang="ar" dir="rtl" className="block font-arabic text-[17px] font-bold leading-[2]">
-                {end[5]} …
-              </span>
+              <ArLine text={end[5]} className="text-[15px] font-bold" />
             </button>
           </div>
         </div>
@@ -2549,12 +2553,13 @@ function HizbNode({
                   r === rub && "bg-gold/20",
                 )}
               >
-                <span className="tabular-nums text-muted-foreground">
-                  {k}/4 · {b[0]}
+                <span className="w-[5.4rem] shrink-0">
+                  <span className="block text-sm font-bold">{k}/4</span>
+                  <span className="block text-[11px] tabular-nums text-muted-foreground">
+                    {b[0]} → {b[3]}
+                  </span>
                 </span>
-                <span lang="ar" dir="rtl" className="min-w-0 max-w-[62%] font-arabic text-base font-semibold leading-[2]">
-                  {b[2]} …
-                </span>
+                <ArLine text={b[2]} className="text-[15px] font-bold" />
               </button>
             </li>
           );
