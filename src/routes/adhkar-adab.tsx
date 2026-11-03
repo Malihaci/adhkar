@@ -5,6 +5,9 @@ import {
   Ban,
   MessageSquareQuote,
   Smile,
+  ShieldAlert,
+  EyeOff,
+  Hourglass,
   // @@ICONIMPORT
   ArrowLeft, BedDouble, Brush, CupSoda, Shirt, Footprints, Handshake, Star, BookOpen, Droplets, HandHeart, Heart, HeartPulse, Home, Landmark, Luggage, MessageCircle,
   Moon, Plane, Repeat2, Search, Sparkles, Sunrise, UtensilsCrossed, Wind, Users, type LucideIcon,
@@ -63,6 +66,9 @@ const THEME_ICONS: Record<string, LucideIcon> = {
   interdits: Ban,
   kalam: MessageSquareQuote,
   akhlaq: Smile,
+  sifat: ShieldAlert,
+  mara: EyeOff,
+  liqa: Hourglass,
   // @@ICON
   dhikr: Repeat2,
   generaux: BookOpen,
