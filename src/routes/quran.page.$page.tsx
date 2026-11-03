@@ -9,7 +9,7 @@ import {
   Copy,
   Heart,
   Home,
-  Leaf,
+  Lightbulb,
   Loader2,
   Maximize2,
   Minimize2,
@@ -64,8 +64,7 @@ import {
 } from "@/lib/mushaf";
 import { useLocalState, useFavorites } from "@/lib/storage";
 import { usePreferences } from "@/lib/preferences";
-import { getPageContent, type EtudeCategory } from "@/lib/etude-content";
-import { ContentList, AgirSection } from "@/routes/etude.$surah.$ayah";
+import { fetchMokhtasarLessons, type MokhtasarPassage } from "@/lib/quran";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { cachedAudioBlobUrl } from "@/lib/offline";
 import { cn } from "@/lib/utils";
@@ -282,7 +281,12 @@ function MushafPage() {
   const speed = prefs.quran.speed;
   const setSpeed = (s: number) => updateQuran({ speed: s });
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [pageLifeOpen, setPageLifeOpen] = useState(false);
+  const [meditateOpen, setMeditateOpen] = useState(false);
+  const { data: mkPassages } = useQuery({
+    queryKey: ["mokhtasar-lessons"],
+    queryFn: fetchMokhtasarLessons,
+    staleTime: Infinity,
+  });
   /** Position (dans le verset en cours de lecture) du mot récité : surbrillance
    * verte mot par mot. `null` tant que l'on ne sait pas. */
   const [curWord, setCurWord] = useState<number | null>(null);
@@ -303,7 +307,7 @@ function MushafPage() {
   const [controlsHidden, setControlsHidden] = useState(true);
   const hideTimerRef = useRef<number | null>(null);
   const immersiveBlocked =
-    selected.length > 0 || optionsOpen || searchOpen || showNav || pageLifeOpen;
+    selected.length > 0 || optionsOpen || searchOpen || showNav || meditateOpen;
   const immersiveBlockedRef = useRef(immersiveBlocked);
   immersiveBlockedRef.current = immersiveBlocked;
 
@@ -908,6 +912,15 @@ function MushafPage() {
     hizb: anchorVerse?.hizb ?? 1,
   };
 
+  /** Points à méditer (Tafsīr al-Mukhtasar) des passages qui touchent cette page. */
+  const pagePassages = useMemo(
+    () =>
+      (mkPassages ?? []).filter((p) =>
+        (verses ?? []).some((v) => v.surah === p.surah && v.ayah >= p.from && v.ayah <= p.to),
+      ),
+    [mkPassages, verses],
+  );
+
   /** Sourates présentes sur la page (ex. fin d'Al-Isrā' + début d'Al-Kahf). */
   const pageSurahs = useMemo(
     () => Array.from(new Set((verses ?? []).map((v) => v.surah))),
@@ -1383,7 +1396,7 @@ function MushafPage() {
         else if (optionsOpen) setOptionsOpen(false);
         else if (searchOpen) setSearchOpen(false);
         else if (showNav) setShowNav(false);
-        else if (pageLifeOpen) setPageLifeOpen(false);
+        else if (meditateOpen) setMeditateOpen(false);
         else if (document.fullscreenElement) void document.exitFullscreen();
         return;
       }
@@ -1402,7 +1415,7 @@ function MushafPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected.length, optionsOpen, searchOpen, showNav, pageLifeOpen]);
+  }, [selected.length, optionsOpen, searchOpen, showNav, meditateOpen]);
 
   /* ------------------------------------------------------------- gestes
    * TAP = commandes générales (jamais de sélection) ; APPUI LONG sur une
@@ -1564,16 +1577,6 @@ function MushafPage() {
                 · Juz {verses[0].juz} · Hizb {verses[0].hizb}
               </span>
             )}
-          </button>
-          <button
-            onClick={() => setPageLifeOpen(true)}
-            aria-label="Vivre cette page"
-            className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          >
-            {/* Vraie icône vectorielle, jamais un emoji comme asset final
-                (même langage visuel que la petite feuille "Vivre ce dhikr"
-                côté Adhkār — chantier "Lecture Coran + Adhkār"). */}
-            <Leaf className="size-4" />
           </button>
           <button
             onClick={() => setSearchOpen(true)}
@@ -1813,6 +1816,16 @@ function MushafPage() {
               >
                 {page}
               </button>
+              {pagePassages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setMeditateOpen(true)}
+                  aria-label="Méditer cette page"
+                  className="absolute left-[calc(50%+2.2rem)] grid size-8 place-items-center rounded-full text-[#3f7a54] transition active:scale-95 hover:bg-[#8fd1ae]/30 dark:text-[#6fe0b0]"
+                >
+                  <Lightbulb className="size-[18px]" strokeWidth={1.75} />
+                </button>
+              )}
               {verses[0].hizb ? (
                 <span className="absolute right-2 text-[11px] text-foreground/60">
                   Hizb {verses[0].hizb}
@@ -1883,7 +1896,7 @@ function MushafPage() {
                   {
                     key: "study",
                     label: "Étudier",
-                    icon: Leaf,
+                    icon: Sparkles,
                     primary: true,
                     onClick: () => studySelectedVerse(selKey),
                   },
@@ -2294,12 +2307,12 @@ function MushafPage() {
         </div>
       )}
 
-      {pageLifeOpen && verses && (
-        <PageLifeSheet
+      {meditateOpen && pagePassages.length > 0 && (
+        <PageMeditateSheet
           page={page}
-          verses={verses}
+          passages={pagePassages}
           chapters={chapters ?? []}
-          onClose={() => setPageLifeOpen(false)}
+          onClose={() => setMeditateOpen(false)}
         />
       )}
     </div>
@@ -2819,54 +2832,29 @@ function SearchPanel({
   );
 }
 
-const PAGE_LIFE_SECTIONS: { key: EtudeCategory; icon: string; label: string; subtitle: string }[] =
-  [
-    { key: "tadabbur", icon: "💭", label: "Méditer", subtitle: "تدبر" },
-    { key: "amal", icon: "🌱", label: "Agir", subtitle: "العمل بالآيات" },
-    { key: "tawjihat", icon: "🧭", label: "S'orienter", subtitle: "التوجيهات" },
-    { key: "lesson", icon: "✨", label: "À retenir", subtitle: "دروس" },
-    { key: "today", icon: "🌍", label: "Dès aujourd'hui", subtitle: "اليوم" },
-  ];
-
-/**
- * « Vivre cette page » — répond à une intention différente d'« Étudier
- * cette ayah » : après avoir lu toute la page, que puis-je en retenir et
- * mettre en pratique ? Réutilise exactement les mêmes données (Waqafat/
- * Amal/Tawjihat de القرآن تدبر وعمل) via `getPageContent`, sans
- * réextraction ni deuxième base. Aucune rubrique sans contenu réel ne
- * s'affiche — pas de "Message de la page" tant qu'aucune source ne permet
- * d'en établir un fidèlement.
- */
-function PageLifeSheet({
+/** « Méditer cette page » : les leçons du Tafsīr al-Mukhtasar (français) des passages de la page. */
+function PageMeditateSheet({
   page,
-  verses,
+  passages,
   chapters,
   onClose,
 }: {
   page: number;
-  verses: PageVerse[];
+  passages: MokhtasarPassage[];
   chapters: Chapter[];
   onClose: () => void;
 }) {
-  const pageVerseKeys = verses.map((v) => v.key);
-  const surahesOnPage = [...new Set(verses.map((v) => v.surah))]
-    .map((id) => chapters.find((c) => c.id === id)?.nameFrench)
-    .filter(Boolean);
-  const [openSection, setOpenSection] = useState<EtudeCategory | null>(null);
-
-  const contentBySection = PAGE_LIFE_SECTIONS.map((s) => ({
-    ...s,
-    items: getPageContent(page, pageVerseKeys, s.key),
-  })).filter((s) => s.items.length > 0);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm">
-      <div className="flex max-h-[85dvh] w-full flex-col rounded-t-3xl border-t border-border bg-card">
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="flex max-h-[85dvh] w-full flex-col rounded-t-3xl border-t border-border bg-card"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-4 pb-3 pt-4">
           <div className="min-w-0">
-            <h2 className="font-display text-lg font-semibold">🌿 Vivre cette page</h2>
+            <h2 className="font-display text-lg font-semibold">Méditer cette page</h2>
             <p className="truncate text-xs text-muted-foreground">
-              Page {page} {surahesOnPage.length ? `· ${surahesOnPage.join(", ")}` : ""}
+              Page {page} · Tafsīr al-Mukhtasar (français)
             </p>
           </div>
           <button
@@ -2877,61 +2865,20 @@ function PageLifeSheet({
             <X className="size-4" />
           </button>
         </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          {contentBySection.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Aucun contenu vérifié disponible pour cette page pour le moment.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {contentBySection.map((s) => {
-                const open = openSection === s.key;
-                return (
-                  <div
-                    key={s.key}
-                    className="overflow-hidden rounded-3xl border border-border/40 bg-background"
-                  >
-                    <button
-                      onClick={() => setOpenSection(open ? null : s.key)}
-                      aria-expanded={open}
-                      className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span aria-hidden className="text-base leading-none">
-                          {s.icon}
-                        </span>
-                        <span>
-                          <span className="block text-sm font-bold text-foreground">{s.label}</span>
-                          <span
-                            lang="ar"
-                            className="block font-arabic text-xs text-muted-foreground"
-                          >
-                            {s.subtitle}
-                          </span>
-                        </span>
-                      </span>
-                      <ChevronRight
-                        className={cn(
-                          "size-4 shrink-0 text-muted-foreground transition-transform",
-                          open && "rotate-90",
-                        )}
-                      />
-                    </button>
-                    {open && (
-                      <div className="border-t border-border/40 px-4 py-3.5">
-                        {s.key === "amal" ? (
-                          <AgirSection items={s.items} />
-                        ) : (
-                          <ContentList items={s.items} />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-6">
+          {passages.map((p) => (
+            <section key={`${p.surah}:${p.from}`} className="rounded-2xl border border-border bg-background p-4">
+              <p className="mb-2 text-[11px] font-medium text-muted-foreground">
+                {chapters.find((c) => c.id === p.surah)?.nameFrench ?? p.surah} · āyāt {p.surah}:{p.from}
+                {p.to > p.from ? `–${p.to}` : ""}
+              </p>
+              <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-foreground">
+                {p.lessons.map((l, i) => (
+                  <li key={i}>{l}</li>
+                ))}
+              </ol>
+            </section>
+          ))}
         </div>
       </div>
     </div>

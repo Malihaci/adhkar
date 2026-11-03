@@ -151,6 +151,15 @@ function EtudePage() {
     setMenuOpen(false);
   };
 
+  // Dernière āyah étudiée : le ▶ du Mushaf y reprend la lecture au retour.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("nm-quran-resume", JSON.stringify({ key: verseKey, at: Date.now() }));
+    } catch {
+      /* stockage indisponible */
+    }
+  }, [verseKey]);
+
   const goToAyah = (delta: number) => {
     const next = ayah + delta;
     if (next < 1 || (chapterMeta && next > chapterMeta.versesCount)) return;
@@ -213,10 +222,12 @@ function EtudePage() {
   };
 
   const backToMushaf = () => {
+    // Retour sans sélection : plus de barre d'actions ; le ▶ reprend à cette āyah
+    // (position mémorisée ci-dessus).
     navigate({
       to: "/quran/page/$page",
-      params: { page: search.fromPage ?? String(verse?.page ?? 1) },
-      search: { r: search.r, sel: search.sel ?? verseKey },
+      params: { page: String(verse?.page ?? search.fromPage ?? 1) },
+      search: { r: search.r },
     });
   };
 
