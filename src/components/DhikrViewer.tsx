@@ -104,6 +104,19 @@ export function DhikrViewer({
   const [audioUnavailable, setAudioUnavailable] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  /** Indice affiché une seule fois : les bords gauche/droit de l'écran tournent les pages. */
+  const [tapHint, setTapHint] = useState(false);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem("nm-adhkar-tap-hint")) return;
+      window.localStorage.setItem("nm-adhkar-tap-hint", "1");
+    } catch {
+      /* stockage indisponible : on montre l'indice, sans le mémoriser */
+    }
+    setTapHint(true);
+    const t = window.setTimeout(() => setTapHint(false), 4000);
+    return () => window.clearTimeout(t);
+  }, []);
 
   // La liste peut rétrécir (favori retiré) : rester dans les bornes
   useEffect(() => {
@@ -215,6 +228,20 @@ export function DhikrViewer({
     }
   };
 
+  /** Tape sur le quart gauche = dhikr précédent, sur le quart droit = suivant (de haut en bas).
+   * `click` ne se déclenche pas pour un défilement ou un balayage, ni sur un lien ou un bouton. */
+  const onTapEdges = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("a,button,input,textarea,select,[role=button]")) return;
+    if (window.getSelection()?.toString()) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width;
+    if (x < 0.25) {
+      if (idx > 0) go(-1);
+    } else if (x > 0.75) {
+      if (idx < list.length - 1) tryGo(1);
+    }
+  };
+
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -295,7 +322,10 @@ export function DhikrViewer({
         )}
 
         {/* Content */}
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-3 sm:px-6">
+        <div
+          onClick={onTapEdges}
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-3 sm:px-6"
+        >
           <div style={{ ["--ar-k" as string]: arabicScale(dhikr.arabic) } as React.CSSProperties}>
             {dhikr.book ? (
               <BookText text={dhikr.book} notes={dhikr.bookNotes} className={ARABIC_SIZE[fontSize]} />
@@ -327,6 +357,21 @@ export function DhikrViewer({
           )}
         </div>
 
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-x-0 top-1/2 z-10 flex -translate-y-1/2 justify-between px-1 transition-opacity duration-700",
+            tapHint ? "opacity-100" : "opacity-0",
+          )}
+        >
+          <span className="grid size-9 place-items-center rounded-full bg-foreground/10 text-foreground/60">
+            <ChevronLeft className="size-5" />
+          </span>
+          <span className="grid size-9 place-items-center rounded-full bg-foreground/10 text-foreground/60">
+            <ChevronRight className="size-5" />
+          </span>
+        </div>
+
         {skipped ? (
           <div className="flex items-center justify-between gap-3 border-t border-border bg-gold/10 px-3 py-2 text-xs text-foreground">
             <span>Non terminé ({skipped.count}/{skipped.total})</span>
@@ -352,26 +397,21 @@ export function DhikrViewer({
           )
         )}
 
-        {/* Footer fixe (§12 mission) : Accueil · Précédent · ▶/⏸ (audio du
+        {/* Footer fixe (§12 mission) : Accueil · ▶/⏸ (audio du
             dhikr affiché) · Réciter X/Y (compteur, zone tactile principale)
-            · Suivant — navigation LTR normale pour l'Adhkār (§31). */}
+            · la navigation se fait par tape sur les bords (gauche = précédent, droite = suivant) et par balayage. */}
         <div className="border-t border-border bg-secondary/50 px-2 py-2 sm:px-3">
           <div className="flex items-stretch gap-2">
             <Link
               to={backTo}
               aria-label={backTo === "/favoris" ? "Retour aux favoris" : backTo === "/duas-coran" || backTo === "/adhkar-adab" ? "Retour à la liste" : "Accueil"}
-              className="grid size-12 shrink-0 place-items-center rounded-2xl bg-destructive/15 text-destructive transition active:scale-95"
+              className={cn(
+                "grid h-12 place-items-center rounded-2xl bg-destructive/15 text-destructive transition active:scale-95",
+                plain && !dhikrAudio.available ? "flex-1" : "w-12 shrink-0",
+              )}
             >
               {backTo === "/favoris" ? <Heart className="size-5" /> : backTo === "/duas-coran" || backTo === "/adhkar-adab" ? <List className="size-5" /> : <Home className="size-5" />}
             </Link>
-            <button
-              onClick={() => go(-1)}
-              disabled={idx === 0}
-              aria-label="Précédent"
-              className={cn("grid h-12 place-items-center rounded-2xl bg-sky-500/15 text-sky-600 transition disabled:opacity-30 active:scale-95", plain ? "flex-1" : "w-12 shrink-0")}
-            >
-              <ChevronLeft className="size-6" />
-            </button>
             {dhikrAudio.available && !plain && (
             <button
               onClick={() => {
@@ -418,15 +458,6 @@ export function DhikrViewer({
               </span>
             </button>
             )}
-
-            <button
-              onClick={() => tryGo(1)}
-              disabled={idx === list.length - 1}
-              aria-label="Suivant"
-              className={cn("grid h-12 place-items-center rounded-2xl bg-sky-500/15 text-sky-600 transition disabled:opacity-30 active:scale-95", plain ? "flex-1" : "w-12 shrink-0")}
-            >
-              <ChevronRight className="size-6" />
-            </button>
           </div>
         </div>
 
