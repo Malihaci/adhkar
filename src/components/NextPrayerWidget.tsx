@@ -26,15 +26,18 @@ export function NextPrayerWidget() {
   return (
     <Link
       to="/horaires"
-      className="surface-card flex flex-col items-center gap-0.5 rounded-2xl px-4 py-3 text-center transition duration-150 active:scale-[0.99]"
+      className="surface-card flex flex-col items-center gap-1 rounded-2xl px-4 py-2.5 text-center transition duration-150 active:scale-[0.99]"
     >
-      <span className="text-xs font-medium text-muted-foreground">Prochaine prière</span>
-      <span className="text-xl font-bold leading-tight text-foreground">{PRAYER_LABELS[next.key]}</span>
-      <span className="font-sans text-[2rem] font-extrabold leading-none tabular-nums text-primary">
-        {hh}:{mm}
+      <span className="text-sm font-semibold text-foreground">
+        Prochaine prière · {PRAYER_LABELS[next.key]}
       </span>
-      <span className="mt-1 text-[15px] font-medium text-muted-foreground">
-        dans {formatCountdown(next.time.getTime() - now.getTime())}
+      <span className="flex items-baseline gap-2">
+        <span className="font-sans text-[2rem] font-extrabold leading-none tabular-nums text-primary">
+          {hh}:{mm}
+        </span>
+        <span className="text-[15px] font-medium text-muted-foreground">
+          dans {formatCountdown(next.time.getTime() - now.getTime())}
+        </span>
       </span>
     </Link>
   );
