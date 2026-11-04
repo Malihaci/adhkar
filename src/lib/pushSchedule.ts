@@ -16,7 +16,7 @@ import {
   resolveReminderTimeOn,
   type ReminderConfig,
 } from "@/lib/reminders";
-import { DEFAULT_SMART_PREFS, inQuietHours, type SmartReminderPrefs } from "@/lib/smartReminders";
+import { DEFAULT_SMART_PREFS, inQuietHours, wirdModeOf, type SmartReminderPrefs } from "@/lib/smartReminders";
 import { getWirdResumeTarget, type WirdState } from "@/lib/khatma";
 import { adhkarStatus, pagesLeft } from "@/lib/todayState";
 
@@ -38,7 +38,6 @@ interface Planned extends PushItem {
 const DAYS_AHEAD = 3;
 const MIN_GAP_MS = 30 * 60_000;
 const PRAYER_BUFFER_MS = 10 * 60_000;
-const WIRD_AFTER_ADHKAR_MS = 15 * 60_000;
 
 function iso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -67,8 +66,6 @@ export async function buildPushSchedule(now = new Date()): Promise<PushItem[]> {
   const counts = progress.date === todayStr ? progress.counts : {};
   const morning = adhkarStatus(morningAdhkar, counts);
   const evening = adhkarStatus(eveningAdhkar, counts);
-  const firelog = readJSON<{ doneAt?: Record<string, number> }>("adhkar:smart-firelog", {});
-  const morningDoneAt = firelog.doneAt?.[todayStr] ?? null;
 
   const active = smart.enabled
     ? reminders.filter((r) => !["matin", "soir", "wird"].includes(r.id) && (smart.prayers || !r.prayerKey))
@@ -131,20 +128,17 @@ export async function buildPushSchedule(now = new Date()): Promise<PushItem[]> {
     }
 
     // 3. Lecture du jour (Wird).
-    if (smart.wird && wird && smart.wirdMode !== "off") {
+    // Le Wird est indépendant des Adhkār : après Fajr, ou à l'heure choisie.
+    const wirdMode = wirdModeOf(smart);
+    if (smart.wird && wird && wirdMode !== "off") {
       const target = getWirdResumeTarget(wird, lastPage);
       if (target) {
         let at: number | null = null;
         let flex = true;
-        if (smart.wirdMode === "after-fajr") at = timings?.Fajr ? atOn(date, timings.Fajr) : null;
-        else if (smart.wirdMode === "custom") {
+        if (wirdMode === "after-fajr") at = timings?.Fajr ? atOn(date, timings.Fajr) : null;
+        else {
           at = atOn(date, smart.wirdCustomTime);
           flex = false;
-        } else if (day === 0) {
-          // Après les Adhkār du matin : seulement une fois terminés (le planning est renvoyé à ce moment-là).
-          at = morning.done ? (morningDoneAt ?? now.getTime()) + WIRD_AFTER_ADHKAR_MS : null;
-        } else {
-          at = timings?.Fajr ? atOn(date, timings.Fajr, 120) : null;
         }
         if (at !== null) {
           const id = `wird-${dayStr}`;

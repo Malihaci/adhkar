@@ -37,7 +37,13 @@ function notificationsSupported(): boolean {
   return typeof window !== "undefined" && "Notification" in window;
 }
 
-export type WirdReminderMode = "after-fajr" | "after-morning-adhkar" | "custom" | "off";
+export type WirdReminderMode = "after-fajr" | "custom" | "off";
+
+/** Le Wird ne dépend jamais des Adhkār : l'ancien réglage « après mes Adhkār du
+ * matin » (encore présent dans le stockage de certains appareils) vaut « après Fajr ». */
+export function wirdModeOf(prefs: { wirdMode: string }): WirdReminderMode {
+  return prefs.wirdMode === "custom" || prefs.wirdMode === "off" ? prefs.wirdMode : "after-fajr";
+}
 
 export interface SmartReminderPrefs {
   /** Mode intelligent global (§2 mission) — coupe tout le moteur d'un coup. */
@@ -68,7 +74,7 @@ export const DEFAULT_SMART_PREFS: SmartReminderPrefs = {
   quietEnd: "05:00",
   // Recommandé par la mission : le Wird suit le rythme du matin plutôt
   // qu'une heure fixe (jamais 20h30 par défaut).
-  wirdMode: "after-morning-adhkar",
+  wirdMode: "after-fajr",
   wirdCustomTime: "20:30",
 };
 
@@ -179,28 +185,22 @@ function adhkarCandidate(
 function wirdCandidate(
   now: Date,
   wird: WirdState | null,
-  morningDone: boolean,
   timings: PrayerTimings | null,
   lastMushafPage: number | null,
   prefs: SmartReminderPrefs,
-  morningDoneAt: number | null,
 ): SmartCandidate | null {
-  if (!wird || prefs.wirdMode === "off") return null;
+  const mode = wirdModeOf(prefs);
+  if (!wird || mode === "off") return null;
   const target = getWirdResumeTarget(wird, lastMushafPage);
   if (!target) return null;
 
-  if (prefs.wirdMode === "after-fajr") {
+  if (mode === "after-fajr") {
     if (!timings?.Fajr) return null;
     const [h, m] = timings.Fajr.split(":").map(Number);
     const start = new Date(now);
     start.setHours(h, m, 0, 0);
     if (now.getTime() < start.getTime()) return null;
-  } else if (prefs.wirdMode === "after-morning-adhkar") {
-    // §7/§12 mission : condition de PROGRESSION, jamais une heure fixe —
-    // tant que les Adhkār du matin ne sont pas finis, le Wird attend.
-    // Un délai raisonnable après la fin des Adhkār, pas à la seconde près.
-    if (!morningDone || morningDoneAt === null || now.getTime() - morningDoneAt < WIRD_AFTER_ADHKAR_MS) return null;
-  } else if (prefs.wirdMode === "custom") {
+  } else if (mode === "custom") {
     const [h, m] = prefs.wirdCustomTime.split(":").map(Number);
     const start = new Date(now);
     start.setHours(h, m, 0, 0);
@@ -224,7 +224,6 @@ function wirdCandidate(
 
 /** Délai minimal entre deux notifications (toutes sources, prières comprises). */
 const MIN_GLOBAL_GAP_MS = 30 * 60_000;
-const WIRD_AFTER_ADHKAR_MS = 15 * 60_000;
 /** Pas de rappel juste après l'ouverture de l'app : la personne est déjà là. */
 const APP_OPENED_AT = typeof window === "undefined" ? 0 : Date.now();
 const QUIET_AFTER_OPEN_MS = 2 * 60_000;
@@ -262,7 +261,6 @@ export function useSmartReminderEngine() {
     if (morningDone && stored.doneAt?.[today] === undefined) {
       setFireLog((log) => ({ ...log, doneAt: { [today]: now.getTime() } }));
     }
-    const morningDoneAt = stored.doneAt?.[today] ?? null;
     if (now.getTime() - APP_OPENED_AT < QUIET_AFTER_OPEN_MS) return;
     // Anti-empilement toutes sources (prière incluse) : la dernière notification date de trop peu.
     const lastAny = Number(readJSON<string | number | null>(LAST_NOTIF_KEY, null) ?? 0);
@@ -276,7 +274,7 @@ export function useSmartReminderEngine() {
       if (e) candidates.push(e);
     }
     if (prefs.wird) {
-      const w = wirdCandidate(now, wird, morningDone, timings ?? null, lastMushafPage, prefs, morningDoneAt);
+      const w = wirdCandidate(now, wird, timings ?? null, lastMushafPage, prefs);
       if (w) candidates.push(w);
     }
     if (prefs.challenges !== false) {

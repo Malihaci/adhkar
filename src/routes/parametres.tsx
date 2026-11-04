@@ -7,7 +7,7 @@ import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { OfflineSettings } from "@/components/OfflineSettings";
 import { useTheme, type ThemeMode } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
-import { useSmartReminderPrefs, type WirdReminderMode } from "@/lib/smartReminders";
+import { useSmartReminderPrefs, wirdModeOf, type WirdReminderMode } from "@/lib/smartReminders";
 import {
   CALC_METHODS,
   getMosqueCalendar,
@@ -133,7 +133,6 @@ function SpeedRow({ value, onChange }: { value: number; onChange: (v: number) =>
 
 const WIRD_MODE_OPTIONS: { key: WirdReminderMode; label: string }[] = [
   { key: "after-fajr", label: "Après Fajr" },
-  { key: "after-morning-adhkar", label: "Après mes Adhkār du matin" },
   { key: "custom", label: "Heure personnalisée" },
   { key: "off", label: "Désactivé" },
 ];
@@ -559,7 +558,7 @@ function ParametresPage() {
               value={
                 !smart.wird
                   ? "Désactivé"
-                  : (WIRD_MODE_OPTIONS.find((o) => o.key === smart.wirdMode)?.label ?? "")
+                  : (WIRD_MODE_OPTIONS.find((o) => o.key === wirdModeOf(smart))?.label ?? "")
               }
             >
               <ToggleRow
@@ -579,7 +578,7 @@ function ParametresPage() {
                         onClick={() => updateSmart({ wirdMode: o.key })}
                         className={cn(
                           "flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-sm transition",
-                          smart.wirdMode === o.key
+                          wirdModeOf(smart) === o.key
                             ? "border-primary/50 bg-primary/5 text-foreground"
                             : "border-border text-muted-foreground",
                         )}
@@ -587,14 +586,14 @@ function ParametresPage() {
                         <span
                           className={cn(
                             "size-4 shrink-0 rounded-full border-2",
-                            smart.wirdMode === o.key ? "border-primary bg-primary" : "border-border",
+                            wirdModeOf(smart) === o.key ? "border-primary bg-primary" : "border-border",
                           )}
                         />
                         {o.label}
                       </button>
                     ))}
                   </div>
-                  {smart.wirdMode === "custom" && (
+                  {wirdModeOf(smart) === "custom" && (
                     <input
                       type="time"
                       value={smart.wirdCustomTime}
