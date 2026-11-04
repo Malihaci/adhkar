@@ -4,8 +4,12 @@
  * ne peut jamais dire « terminé » pendant qu'une notification dit le contraire.
  */
 export interface AdhkarStatus {
+  /** Nombre de dhikr de la liste. */
   total: number;
+  /** Nombre de dhikr terminés (un dhikr à 100 répétitions compte pour UN, comme les autres). */
   completed: number;
+  /** Au moins une récitation déjà comptée aujourd'hui. */
+  started: boolean;
   done: boolean;
   pct: number;
   /** Index du premier dhikr non terminé (0 si rien n'est commencé), ou null si tout est fait. */
@@ -16,13 +20,15 @@ export function adhkarStatus(
   list: { id: string; repetitions: number }[],
   counts: Record<string, number>,
 ): AdhkarStatus {
-  const total = list.reduce((n, d) => n + d.repetitions, 0);
-  const completed = list.reduce((n, d) => n + Math.min(counts[d.id] ?? 0, d.repetitions), 0);
+  const total = list.length;
+  const completed = list.filter((d) => (counts[d.id] ?? 0) >= d.repetitions).length;
+  const started = list.some((d) => (counts[d.id] ?? 0) > 0);
   const idx = list.findIndex((d) => (counts[d.id] ?? 0) < d.repetitions);
   const done = total > 0 && idx === -1;
   return {
     total,
     completed,
+    started,
     done,
     pct: total ? Math.round((completed / total) * 100) : 0,
     firstUndoneIndex: done ? null : Math.max(idx, 0),

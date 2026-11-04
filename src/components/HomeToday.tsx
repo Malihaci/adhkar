@@ -58,8 +58,12 @@ export function HomeToday({
           color={ACTION_COLORS.adhkar}
           icon={<meta.Icon />}
           title={meta.label}
-          sub={status.completed > 0 ? `${status.pct} % terminé · ${meta.sub.toLowerCase()}` : meta.sub}
-          cta={status.completed > 0 ? "Continuer" : "Commencer"}
+          sub={
+            status.started
+              ? `${status.completed} / ${status.total} faits · ${meta.sub.toLowerCase()}`
+              : meta.sub
+          }
+          cta={status.started ? "Continuer" : "Commencer"}
           pct={status.pct}
         />
       )}

@@ -2,9 +2,8 @@
  * Douas et hadiths authentiques proposés sur l'accueil (« Doua du moment »).
  *
  * Choix éditorial : uniquement des invocations qui NE figurent PAS déjà dans
- * les adhkār du matin / du soir de l'application, tirées du Coran, des Sahīh
- * (Al-Bukhārī, Muslim) ou des Sunan avec leur degré indiqué quand il n'est
- * pas dans les Sahīh. Chaque entrée porte sa source et une courte explication
+ * les adhkār du matin / du soir de l'application, tirées du Coran, des deux Sahīh
+ * (Al-Bukhārī, Muslim) ou des Sunan dont le degré « sahīh » est indiqué. Chaque entrée porte sa source et une courte explication
  * (quand la dire / ce qu'elle signifie). Aucune formule n'est reconstruite.
  */
 
@@ -30,14 +29,6 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     note: "C'était l'invocation que le Prophète ﷺ répétait le plus (selon Anas). Elle réunit le bien de ce monde et celui de l'au-delà ; on peut la dire à tout moment.",
   },
   {
-    id: "muqallib",
-    kind: "dua",
-    arabic: "يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ",
-    french: "Ô Toi qui retournes les cœurs, raffermis mon cœur dans Ta religion.",
-    source: "At-Tirmidhī 2140 (hasan)",
-    note: "Umm Salama rapporte que le Prophète ﷺ l'invoquait très souvent. À dire à tout moment, surtout dans les périodes de doute ou de faiblesse.",
-  },
-  {
     id: "huda-tuqa",
     kind: "dua",
     arabic: "اللَّهُمَّ إِنِّي أَسْأَلُكَ الْهُدَى وَالتُّقَى وَالْعَفَافَ وَالْغِنَى",
@@ -45,30 +36,6 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
       "Ô Allah, je Te demande la bonne direction, la piété, la chasteté et l'indépendance (de ne dépendre que de Toi).",
     source: "Muslim 2721",
     note: "Invocation du Prophète ﷺ. Elle demande l'essentiel : guidance, piété, pureté et suffisance. À dire à tout moment.",
-  },
-  {
-    id: "afuww",
-    kind: "dua",
-    arabic: "اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي",
-    french: "Ô Allah, Tu es Pardonneur et Tu aimes le pardon : pardonne-moi.",
-    source: "At-Tirmidhī 3513 (sahīh) · Ibn Māja 3850",
-    note: "ʿĀʾisha demanda quoi dire si elle rencontrait la nuit du Destin : le Prophète ﷺ lui enseigna cette invocation. Surtout dans les dernières nuits du Ramadan, mais permise en tout temps.",
-  },
-  {
-    id: "yunus",
-    kind: "dua",
-    arabic: "لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ",
-    french: "Il n'y a de divinité que Toi ! Gloire à Toi ! J'étais vraiment du nombre des injustes.",
-    source: "Coran 21:87 · At-Tirmidhī 3505 (sahīh)",
-    note: "Invocation de Yūnus (ﷺ) dans le ventre de la baleine. Le Prophète ﷺ a dit qu'aucun musulman ne l'invoque pour une affaire sans qu'Allah l'exauce. À dire dans l'épreuve.",
-  },
-  {
-    id: "aini-ala-dhikrik",
-    kind: "dua",
-    arabic: "اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ",
-    french: "Ô Allah, aide-moi à T'évoquer, à Te remercier et à bien T'adorer.",
-    source: "Abū Dāwūd 1522 · An-Nasāʾī 1303 (sahīh)",
-    note: "Le Prophète ﷺ la recommanda à Muʿādh : à dire à la fin de chaque prière.",
   },
   {
     id: "sharh-sadr",
@@ -140,14 +107,6 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     note: "Un rappel du mérite d'apprendre le Coran et de le transmettre, même un seul verset.",
   },
   {
-    id: "tabassum",
-    kind: "hadith",
-    arabic: "تَبَسُّمُكَ فِي وَجْهِ أَخِيكَ لَكَ صَدَقَةٌ",
-    french: "Ton sourire à ton frère est une aumône.",
-    source: "At-Tirmidhī 1956 (hasan)",
-    note: "Le bien ne se limite pas à l'argent : un sourire, une bonne parole sont des aumônes. À mettre en pratique dans la journée.",
-  },
-  {
     id: "yuhibbu-li-akhihi",
     kind: "hadith",
     arabic: "لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ",
@@ -167,20 +126,122 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     note: "Mérite de la quête du savoir : y compris le tadabbur (méditation du Coran) et l'étude de sa religion.",
   },
   {
-    id: "dua-ibada",
-    kind: "hadith",
-    arabic: "الدُّعَاءُ هُوَ الْعِبَادَةُ",
-    french: "L'invocation, c'est l'adoration.",
-    source: "Abū Dāwūd 1479 · At-Tirmidhī 2969 (sahīh)",
-    note: "Invoquer Allah est en soi un acte d'adoration : ne pas hésiter à Lui demander, grand ou petit.",
-  },
-  {
     id: "salat-ashr",
     kind: "hadith",
     arabic: "مَنْ صَلَّى عَلَيَّ وَاحِدَةً صَلَّى اللَّهُ عَلَيْهِ عَشْرًا",
     french: "Quiconque prie une fois sur moi, Allah priera dix fois sur lui.",
     source: "Muslim 408",
     note: "Mérite de la prière sur le Prophète ﷺ, que l'on multiplie surtout le vendredi.",
+  },
+  {
+    id: "hawqala",
+    kind: "dua",
+    arabic: "لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ",
+    french: "Il n'y a de force ni de puissance qu'en Allah.",
+    source: "Al-Bukhārī 4205 · Muslim 2704",
+    note: "Le Prophète ﷺ l'a décrite comme un trésor du Paradis. À dire dans la difficulté ou quand une tâche dépasse nos forces.",
+  },
+  {
+    id: "hasbunallah",
+    kind: "dua",
+    arabic: "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ",
+    french: "Allah nous suffit, et quel excellent garant !",
+    source: "Coran 3:173 · Al-Bukhārī 4563",
+    note: "Paroles d'Ibrāhīm (ﷺ) quand il fut jeté dans le feu, et des Compagnons face à la peur. À dire en cas de crainte ou d'épreuve.",
+  },
+  {
+    id: "ihtimam",
+    kind: "dua",
+    arabic:
+      "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ، وَالْعَجْزِ وَالْكَسَلِ، وَالْبُخْلِ وَالْجُبْنِ، وَضَلَعِ الدَّيْنِ وَغَلَبَةِ الرِّجَالِ",
+    french:
+      "Ô Allah, je cherche refuge auprès de Toi contre le souci et la tristesse, l'impuissance et la paresse, l'avarice et la lâcheté, le poids des dettes et la domination des hommes.",
+    source: "Al-Bukhārī 6369",
+    note: "Invocation que le Prophète ﷺ faisait très souvent. À dire en cas d'inquiétude, de tristesse ou de dette.",
+  },
+  {
+    id: "adhab-qabr",
+    kind: "dua",
+    arabic:
+      "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ الْقَبْرِ، وَمِنْ عَذَابِ جَهَنَّمَ، وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ، وَمِنْ شَرِّ فِتْنَةِ الْمَسِيحِ الدَّجَّالِ",
+    french:
+      "Ô Allah, je cherche refuge auprès de Toi contre le châtiment de la tombe, contre le châtiment de l'Enfer, contre les épreuves de la vie et de la mort, et contre le mal de l'épreuve de l'Antéchrist (Al-Masīh ad-Dajjāl).",
+    source: "Muslim 588",
+    note: "Le Prophète ﷺ ordonnait de la dire à la fin du tachahhud, avant le salām de la prière.",
+  },
+  {
+    id: "khayr-aw-yasmut",
+    kind: "hadith",
+    arabic: "مَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الْآخِرِ فَلْيَقُلْ خَيْرًا أَوْ لِيَصْمُتْ",
+    french: "Que celui qui croit en Allah et au Jour dernier dise du bien ou qu'il se taise.",
+    source: "Al-Bukhārī 6018 · Muslim 47",
+    note: "Règle d'or de la parole : avant de parler, se demander si cela est un bien, sinon garder le silence.",
+  },
+  {
+    id: "shadid-ghadab",
+    kind: "hadith",
+    arabic: "لَيْسَ الشَّدِيدُ بِالصُّرَعَةِ، إِنَّمَا الشَّدِيدُ الَّذِي يَمْلِكُ نَفْسَهُ عِنْدَ الْغَضَبِ",
+    french: "Le fort n'est pas celui qui terrasse les autres, le fort est celui qui se maîtrise lorsqu'il est en colère.",
+    source: "Al-Bukhārī 6114 · Muslim 2609",
+    note: "La vraie force est la maîtrise de soi. À se rappeler au moment où la colère monte.",
+  },
+  {
+    id: "nasiha",
+    kind: "hadith",
+    arabic: "الدِّينُ النَّصِيحَةُ",
+    french: "La religion, c'est la sincérité (le bon conseil).",
+    source: "Muslim 55",
+    note: "Être sincère envers Allah, Son Livre, Son Messager ﷺ, les dirigeants des musulmans et les gens en général.",
+  },
+  {
+    id: "qulub",
+    kind: "hadith",
+    arabic: "إِنَّ اللَّهَ لَا يَنْظُرُ إِلَى صُوَرِكُمْ وَأَمْوَالِكُمْ، وَلَكِنْ يَنْظُرُ إِلَى قُلُوبِكُمْ وَأَعْمَالِكُمْ",
+    french: "Allah ne regarde ni vos apparences ni vos biens, mais Il regarde vos cœurs et vos actes.",
+    source: "Muslim 2564",
+    note: "Ce qui compte devant Allah, c'est la sincérité du cœur et la qualité des actes, pas l'apparence ni la richesse.",
+  },
+  {
+    id: "amr-mu-min",
+    kind: "hadith",
+    arabic:
+      "عَجَبًا لِأَمْرِ الْمُؤْمِنِ إِنَّ أَمْرَهُ كُلَّهُ خَيْرٌ، وَلَيْسَ ذَاكَ لِأَحَدٍ إِلَّا لِلْمُؤْمِنِ: إِنْ أَصَابَتْهُ سَرَّاءُ شَكَرَ فَكَانَ خَيْرًا لَهُ، وَإِنْ أَصَابَتْهُ ضَرَّاءُ صَبَرَ فَكَانَ خَيْرًا لَهُ",
+    french:
+      "Comme l'affaire du croyant est étonnante : tout est un bien pour lui, et cela n'appartient qu'au croyant. S'il lui arrive une joie, il remercie, et c'est un bien pour lui ; s'il lui arrive un malheur, il patiente, et c'est un bien pour lui.",
+    source: "Muslim 2999",
+    note: "Dans la joie comme dans l'épreuve, le croyant gagne : par la gratitude ou par la patience.",
+  },
+  {
+    id: "afuww",
+    kind: "dua",
+    arabic: "اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي",
+    french: "Ô Allah, Tu es Pardonneur et Tu aimes le pardon : pardonne-moi.",
+    source: "At-Tirmidhī 3513 (sahīh) · Ibn Māja 3850",
+    note: "ʿĀʾisha demanda quoi dire si elle rencontrait la nuit du Destin : le Prophète ﷺ lui enseigna cette invocation. Surtout dans les dernières nuits du Ramadan, mais permise en tout temps.",
+  },
+  {
+    id: "yunus",
+    kind: "dua",
+    arabic: "لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ",
+    french: "Il n'y a de divinité que Toi ! Gloire à Toi ! J'étais vraiment du nombre des injustes.",
+    source: "Coran 21:87 · At-Tirmidhī 3505 (sahīh)",
+    note: "Invocation de Yūnus (ﷺ) dans le ventre de la baleine. Le Prophète ﷺ a dit qu'aucun musulman ne l'invoque pour une affaire sans qu'Allah l'exauce. À dire dans l'épreuve.",
+  },
+  {
+    id: "aini-ala-dhikrik",
+    kind: "dua",
+    arabic: "اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ",
+    french: "Ô Allah, aide-moi à T'évoquer, à Te remercier et à bien T'adorer.",
+    source: "Abū Dāwūd 1522 · An-Nasāʾī 1303 (sahīh)",
+    note: "Le Prophète ﷺ la recommanda à Muʿādh : à dire à la fin de chaque prière.",
+  },
+  {
+    id: "dua-ibada",
+    kind: "hadith",
+    arabic: "الدُّعَاءُ هُوَ الْعِبَادَةُ",
+    french: "L'invocation, c'est l'adoration.",
+    source: "Abū Dāwūd 1479 · At-Tirmidhī 2969 (sahīh)",
+    note: "Invoquer Allah est en soi un acte d'adoration : ne pas hésiter à Lui demander, grand ou petit.",
   },
 ];
 

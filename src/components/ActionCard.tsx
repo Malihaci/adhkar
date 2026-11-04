@@ -55,7 +55,7 @@ export function ActionCard({
       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[color-mix(in_srgb,var(--c)_16%,transparent)] text-[var(--c)] [&_svg]:size-5">
         {icon}
       </span>
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0 flex-1 text-center">
         <span className="block text-[15px] font-semibold leading-tight text-foreground">{title}</span>
         {sub && <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">{sub}</span>}
         {pct !== undefined && (
