@@ -1257,7 +1257,9 @@ function MushafPage() {
       // débordement. Sur un téléphone en paysage (écran très bas) le texte
       // deviendrait illisible : on y garde le défilement.
       const boxPaddingY = parseFloat(boxStyle.paddingTop) + parseFloat(boxStyle.paddingBottom);
-      const fitHeight = !(isLandscape && window.innerHeight < 600);
+      // Avec le volet de traduction (style Ayat) : toute la largeur est utilisée,
+      // la page défile verticalement et le volet la recouvre par le bas.
+      const fitHeight = !belowPanelOn && !(isLandscape && window.innerHeight < 600);
       if (fitHeight) fitBox.style.height = `${box.clientHeight - boxPaddingY}px`;
       else fitBox.style.height = "";
       const fitsHeight = () => !fitHeight || fitBox.scrollHeight <= fitBox.clientHeight + 1;
@@ -1359,7 +1361,7 @@ function MushafPage() {
     // dépend que de l'écran/police) — voir l'effet séparé ci-dessous qui se
     // contente de réappliquer `ceilingFontPx * textSize`, instantané.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, qcfName]);
+  }, [lines, qcfName, belowPanelOn]);
 
   // Changement de "Standard/Grand/Très grand" : pas besoin de refaire la
   // recherche en largeur, seulement réappliquer la fraction du plafond déjà
