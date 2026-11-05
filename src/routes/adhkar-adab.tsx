@@ -18,6 +18,7 @@ import { DhikrViewer } from "@/components/DhikrViewer";
 import { LIVRE_SOURCE_NOTE, LIVRE_TITLE } from "@/data/adhkar-livre";
 import { LIVRE_CHAPTERS, LIVRE_THEMES } from "@/data/adhkar-livre-2";
 import { livreAll } from "@/data/livre-book";
+import { ADHKAR_GROUPS, GROUPED_THEMES, findDhikr, groupById, naturalList, normalizeText, searchAdhkar } from "@/lib/adhkarIndex";
 
 export const Route = createFileRoute("/adhkar-adab")({
   head: () => ({
@@ -30,7 +31,9 @@ export const Route = createFileRoute("/adhkar-adab")({
       },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>): { c?: string; t?: string; i?: number } => ({
+  validateSearch: (search: Record<string, unknown>): { c?: string; t?: string; i?: number; g?: string; d?: string } => ({
+    g: typeof search["g"] === "string" ? (search["g"] as string) : undefined,
+    d: typeof search["d"] === "string" ? (search["d"] as string) : undefined,
     c: typeof search["c"] === "string" ? (search["c"] as string) : undefined,
     t: typeof search["t"] === "string" ? (search["t"] as string) : undefined,
     i: search["i"] !== undefined ? Number(search["i"]) : undefined,
@@ -77,14 +80,9 @@ const THEME_ICONS: Record<string, LucideIcon> = {
   assemblee: Users,
 };
 
-const normalize = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
 
 function AdhkarAdabPage() {
-  const { c, t, i } = Route.useSearch();
+  const { c, t, i, g, d } = Route.useSearch();
   const [query, setQuery] = useState("");
   const [showNote, setShowNote] = useState(false);
 
@@ -100,28 +98,59 @@ function AdhkarAdabPage() {
     return [...by.entries()];
   }, [theme]);
 
-  const chapterList = c ? livreAll.filter((d) => chapterOf(d) === c) : [];
-  if (chapterList.length > 0) {
+  const startAt = i !== undefined && Number.isFinite(i) ? i : 0;
+
+  // Regroupement (Maison, Prière) : un seul parcours, on enchaîne sans sortir.
+  const group = groupById(g);
+  if (group) {
     return (
       <DhikrViewer
-        list={chapterList}
+        list={group.list}
         accent="gold"
-        label={LIVRE_CHAPTERS[c!]?.title ?? LIVRE_TITLE}
+        label={group.label}
         backTo="/adhkar-adab"
-        initialIndex={i !== undefined && Number.isFinite(i) ? i : 0}
+        initialIndex={startAt}
         persist={false}
       />
     );
   }
 
-  const q = normalize(query.trim());
-  const shown = chapters.filter(
-    ([k, list]) =>
-      !q ||
-      normalize(
-        `${LIVRE_CHAPTERS[k]?.title ?? ""} ${list.map((d) => `${d.title} ${d.translation} ${d.phonetic}`).join(" ")}`,
-      ).includes(q),
-  );
+  // Dhikr ouvert depuis la recherche : on continue dans sa liste naturelle.
+  const picked = findDhikr(d);
+  if (picked) {
+    const nat = naturalList(picked);
+    return (
+      <DhikrViewer
+        list={nat.list}
+        accent="gold"
+        label={nat.label}
+        backTo="/adhkar-adab"
+        initialIndex={Math.max(0, nat.list.findIndex((x) => x.id === picked.id))}
+        persist={false}
+      />
+    );
+  }
+
+  // Chapitre : la liste est celle du THÈME entier, positionnée sur le chapitre —
+  // on passe au chapitre suivant en balayant, sans revenir à la liste.
+  const chapterFirst = c ? livreAll.find((x) => chapterOf(x) === c) : undefined;
+  if (chapterFirst) {
+    const nat = naturalList(chapterFirst);
+    const base = Math.max(0, nat.list.findIndex((x) => x.id === chapterFirst.id));
+    return (
+      <DhikrViewer
+        list={nat.list}
+        accent="gold"
+        label={nat.label}
+        backTo="/adhkar-adab"
+        initialIndex={base + startAt}
+        persist={false}
+      />
+    );
+  }
+
+  const q = normalizeText(query.trim());
+  const found = q ? searchAdhkar(query) : [];
 
   return (
     <div className="mx-auto min-h-[100dvh] max-w-2xl bg-background px-4 pb-10 pt-4">
@@ -158,14 +187,25 @@ function AdhkarAdabPage() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rechercher (prière, malade, voyage…)"
+          placeholder="Rechercher en français ou en arabe (دعاء، سفر، malade…)"
           className="h-11 w-full rounded-xl border border-border bg-card pl-9 pr-3 text-sm outline-none focus:border-primary"
         />
       </label>
 
       {t === undefined && !q && (
         <HubGrid>
-          {LIVRE_THEMES.filter((th) => livreAll.some((d) => d.theme === th.theme)).map((th, n) => {
+          {ADHKAR_GROUPS.map((gr, n) => (
+            <Link key={gr.id} to="/adhkar-adab" search={{ g: gr.id }} className={hubCardClass}>
+              <HubCardBody
+                label={gr.label}
+                arabic={gr.ar}
+                color={HUB_COLORS[(n + 2) % HUB_COLORS.length]}
+                icon={gr.id === "maison" ? <Home /> : <Landmark />}
+                note={gr.list.length}
+              />
+            </Link>
+          ))}
+          {LIVRE_THEMES.filter((th) => !GROUPED_THEMES.has(th.theme) && livreAll.some((d) => d.theme === th.theme)).map((th, n) => {
             const Icon = THEME_ICONS[th.theme] ?? BookOpen;
             const count = new Set(livreAll.filter((d) => d.theme === th.theme).map(chapterOf)).size;
             return (
@@ -177,31 +217,55 @@ function AdhkarAdabPage() {
         </HubGrid>
       )}
 
-      {(t !== undefined || q) && (
-      <ul className="space-y-2">
-        {shown.map(([k, list]) => (
-          <li key={k}>
-            <Link
-              to="/adhkar-adab"
-              search={{ c: k }}
-              className="surface-card flex items-center justify-between gap-3 rounded-2xl px-4 py-3 transition hover:border-primary/40"
-            >
-              <span className="min-w-0">
-                <span className="block font-medium text-foreground">{LIVRE_CHAPTERS[k]?.title ?? list[0].title}</span>
-                {list.length > 1 && <span className="text-xs text-muted-foreground">{list.length} textes</span>}
-              </span>
-              <span lang="ar" dir="rtl" className="shrink-0 font-arabic text-2xl leading-[1.9] text-primary">
-                {LIVRE_CHAPTERS[k]?.ar ?? list[0].titleAr}
-              </span>
-            </Link>
-          </li>
-        ))}
-        {shown.length === 0 && (
-          <li className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-            Aucun résultat.
-          </li>
-        )}
-      </ul>
+      {q ? (
+        <ul className="space-y-2">
+          {found.map((x) => (
+            <li key={x.id}>
+              <Link
+                to="/adhkar-adab"
+                search={{ d: x.id }}
+                className="surface-card block rounded-2xl px-4 py-3 transition hover:border-primary/40"
+              >
+                <span className="block text-sm font-medium text-foreground">{x.title}</span>
+                <span
+                  lang="ar"
+                  dir="rtl"
+                  className="mt-1 line-clamp-2 block font-arabic text-lg leading-[1.9] text-primary"
+                >
+                  {x.arabic}
+                </span>
+                <span className="line-clamp-2 text-xs text-muted-foreground">{x.translation}</span>
+              </Link>
+            </li>
+          ))}
+          {found.length === 0 && (
+            <li className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+              Aucun résultat.
+            </li>
+          )}
+        </ul>
+      ) : (
+        t !== undefined && (
+          <ul className="space-y-2">
+            {chapters.map(([k, list]) => (
+              <li key={k}>
+                <Link
+                  to="/adhkar-adab"
+                  search={{ c: k }}
+                  className="surface-card flex items-center justify-between gap-3 rounded-2xl px-4 py-3 transition hover:border-primary/40"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-medium text-foreground">{LIVRE_CHAPTERS[k]?.title ?? list[0].title}</span>
+                    {list.length > 1 && <span className="text-xs text-muted-foreground">{list.length} textes</span>}
+                  </span>
+                  <span lang="ar" dir="rtl" className="shrink-0 font-arabic text-2xl leading-[1.9] text-primary">
+                    {LIVRE_CHAPTERS[k]?.ar ?? list[0].titleAr}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )
       )}
     </div>
   );

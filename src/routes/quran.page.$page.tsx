@@ -1596,14 +1596,14 @@ function MushafPage() {
           Plus fine en paysage pour laisser le maximum d'espace au Mushaf. */}
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-20 border-b border-border/40 bg-card/80 px-2 py-1 backdrop-blur-xl transition-transform duration-300 [@media(orientation:landscape)_and_(max-height:500px)]:py-0.5",
+          "fixed inset-x-0 top-0 z-20 border-b border-border/40 bg-card/80 px-2 py-0.5 backdrop-blur-xl transition-transform duration-300 [@media(orientation:landscape)_and_(max-height:500px)]:py-0",
           (controlsHidden || selected.length > 0) && "-translate-y-full",
         )}
       >
         <div className="mx-auto flex max-w-2xl items-center gap-1.5">
           <button
             onClick={() => openNav("surah")}
-            className="min-w-0 flex-1 truncate rounded-full border border-border/60 bg-background px-3 py-1 text-left text-[13px] font-semibold"
+            className="min-w-0 flex-1 truncate rounded-full border border-border/60 bg-background px-2.5 py-0.5 text-left text-[12px] font-semibold"
           >
             {surahMeta ? (
               <>
@@ -1627,9 +1627,9 @@ function MushafPage() {
           <button
             onClick={() => setSearchOpen(true)}
             aria-label="Recherche"
-            className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            className="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
-            <Search className="size-[17px]" />
+            <Search className="size-[16px]" />
           </button>
           {/* Plein écran — desktop uniquement (souris fine), discret, à côté
               de la recherche. Aucun impact mobile. */}
@@ -1693,7 +1693,7 @@ function MushafPage() {
           {/* Métadonnées DANS la page (comme le Mushaf papier) : sourate à gauche,
               juz' à droite — jamais une barre d'application permanente. */}
           {verses?.[0] && (
-            <div className="flex min-h-11 shrink-0 items-center justify-between gap-2 px-2 pb-2 pt-1">
+            <div className="flex min-h-8 shrink-0 items-center justify-between gap-2 px-2 pb-1 pt-0.5">
               {/* Sourate à gauche, juz à droite : un tap ouvre la liste et
                   l'on arrive au début de l'élément choisi. */}
               <button
@@ -1701,7 +1701,7 @@ function MushafPage() {
                 lang="ar"
                 onClick={() => openNav("surah")}
                 aria-label="Changer de sourate"
-                className="inline-flex min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-gold/60 px-3.5 py-1 font-arabic text-[15px] font-bold leading-[1.9] text-[#140d05] dark:text-[#fbf5e6]"
+                className="inline-flex min-w-[4.25rem] items-center justify-center gap-1 rounded-md border border-gold/60 px-2.5 py-0 font-arabic text-[12.5px] font-bold leading-[1.7] text-[#140d05] dark:text-[#fbf5e6]"
               >
                 <span style={{ transform: `translateY(${surahChipInk}em)` }}>
                   {surahMeta?.nameArabic ?? ""}
@@ -1713,7 +1713,7 @@ function MushafPage() {
                 lang="ar"
                 onClick={() => openNav("juz")}
                 aria-label="Changer de juz"
-                className="inline-flex min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-gold/60 px-3.5 py-1 font-arabic text-[15px] font-bold leading-[1.9] text-[#140d05] dark:text-[#fbf5e6]"
+                className="inline-flex min-w-[4.25rem] items-center justify-center gap-1 rounded-md border border-gold/60 px-2.5 py-0 font-arabic text-[12.5px] font-bold leading-[1.7] text-[#140d05] dark:text-[#fbf5e6]"
               >
                 <span dir="rtl" style={{ transform: `translateY(${juzChipInk}em)` }}>
                   {juzChipText}

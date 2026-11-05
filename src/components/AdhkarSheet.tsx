@@ -59,8 +59,12 @@ export function AdhkarSheet({
           <HubLink to="/adhkar-adab" onClose={onClose} label="Adhkār et ādāb" arabic="الأذكار والآداب" color={HUB_COLORS[6]} icon={<BookOpen />} />
           <HubLink to="/reveil" onClose={onClose} label="Réveil" arabic="الاستيقاظ" color={HUB_COLORS[0]} icon={<Sunrise />} />
           <HubLink to="/coucher" onClose={onClose} label="Avant de dormir" arabic="أذكار النوم" color={HUB_COLORS[7]} icon={<Moon />} />
-          <HubLink to="/apres-priere" onClose={onClose} label="Après la prière" arabic="بعد الصلاة" color={HUB_COLORS[5]} icon={<Sparkles />} />
-          <HubLink to="/sortie" onClose={onClose} label="Sortir de la maison" arabic="الخروج" color={HUB_COLORS[3]} icon={<DoorOpen />} />
+          <Link to="/adhkar-adab" search={{ g: "priere" }} onClick={onClose} className={hubCardClass}>
+            <HubCardBody label="Prière" arabic="أذكار الصلاة" color={HUB_COLORS[5]} icon={<Sparkles />} />
+          </Link>
+          <Link to="/adhkar-adab" search={{ g: "maison" }} onClick={onClose} className={hubCardClass}>
+            <HubCardBody label="Maison" arabic="أذكار البيت" color={HUB_COLORS[3]} icon={<DoorOpen />} />
+          </Link>
           <HubLink to="/voyage" onClose={onClose} label="Voyage" arabic="السفر" color={HUB_COLORS[1]} icon={<Luggage />} />
         </HubGrid>
       </div>
@@ -70,7 +74,7 @@ export function AdhkarSheet({
 
 type HubTo =
   | "/matin" | "/soir" | "/ecoute" | "/compteur" | "/defis" | "/duas-coran" | "/adhkar-adab"
-  | "/reveil" | "/coucher" | "/apres-priere" | "/sortie" | "/voyage";
+  | "/reveil" | "/coucher" | "/voyage";
 
 function HubLink({
   to,
