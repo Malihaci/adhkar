@@ -110,7 +110,7 @@ export const Route = createFileRoute("/quran/page/$page")({
 });
 
 /** Portée de lecture choisie dans Options — détermine la file construite. */
-type ReadMode = "ayah" | "page" | "surahEnd" | "surah" | "juz" | "hizb" | "toEnd" | "range";
+type ReadMode = "ayah" | "page" | "pageToEnd" | "surahEnd" | "surah" | "juz" | "hizb" | "toEnd" | "range";
 
 const ARABIC_DIGITS = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
 const toArabic = (n: number) =>
@@ -1025,6 +1025,13 @@ function MushafPage() {
     start(all.slice(idx < 0 ? 0 : idx), { turnPages: true });
   };
 
+  /** Du début de la page affichée jusqu'à la fin du Coran. */
+  const playPageToEnd = () => {
+    const first = verses?.[0]?.key;
+    if (!chapters || !first) return;
+    start(keysToEndOfQuran(first, chapters), { turnPages: true, skipSelRepeat: true });
+  };
+
   /** Jusqu'à la fin du Coran, depuis l'ayah sélectionnée. */
   const playToEndFromAnchor = () => {
     if (!chapters || !anchor.key) return;
@@ -1050,6 +1057,9 @@ function MushafPage() {
         return;
       case "page":
         if (anchor.key) playPageFromAnchor();
+        return;
+      case "pageToEnd":
+        playPageToEnd();
         return;
       case "surahEnd":
         void playSurahEndFromAnchor();
@@ -1574,7 +1584,7 @@ function MushafPage() {
                 <span lang="ar" className="font-arabic">
                   {surahMeta.nameArabic}
                 </span>{" "}
-                · {surahMeta.versesCount} āyāt ·{" "}
+                ·{" "}
               </>
             ) : (
               ""
@@ -1720,6 +1730,7 @@ function MushafPage() {
                     <SurahBanner
                       nameArabic={meta?.nameArabic ?? ""}
                       surah={startSurah}
+                      versesCount={meta?.versesCount}
                     />
                   )}
                   {showBasmala && (
@@ -2045,11 +2056,6 @@ function MushafPage() {
                   [
                     { id: "ayah", label: "Cette ayah", detail: anchor.key || undefined },
                     { id: "page", label: "Cette page", detail: `Page ${page}` },
-                    {
-                      id: "surahEnd",
-                      label: "Fin de la sourate",
-                      detail: `dès ${anchor.key}`,
-                    },
                     ...(pageSurahs.length > 1 && !selected.length
                       ? pageSurahs.map((s) => ({
                           id: "surah" as ReadMode,
@@ -2067,7 +2073,8 @@ function MushafPage() {
                         ]),
                     { id: "juz", label: "Ce juz'", detail: `Juz ${anchor.juz}` },
                     { id: "hizb", label: "Ce hizb", detail: `Hizb ${anchor.hizb}` },
-                    { id: "toEnd", label: "Jusqu'à la fin", detail: undefined },
+                    { id: "toEnd", label: "À partir de cette āyah", detail: anchor.key ? `${anchor.key} → fin du Coran` : "→ fin du Coran" },
+                    { id: "pageToEnd", label: "À partir de cette page", detail: `Page ${page} → fin du Coran` },
                   ] as { id: ReadMode; label: string; detail?: string; surah?: number }[]
                 ).map((m) => {
                   const active =
@@ -2100,6 +2107,7 @@ function MushafPage() {
                   onClick={() => {
                     setReadMode("range");
                     if (!rangeStart && anchor.key) setRangeStart(anchor.key);
+                    if (!rangeEnd && anchor.key) setRangeEnd(anchor.key);
                   }}
                   aria-pressed={readMode === "range"}
                   className={cn(
@@ -2114,28 +2122,22 @@ function MushafPage() {
               </div>
 
               {readMode === "range" && (
-                <div className="mb-2 grid grid-cols-2 gap-2 rounded-2xl border border-border bg-background p-3">
-                  <label className="text-xs font-medium text-muted-foreground">
-                    De
-                    <input
-                      value={rangeStart}
-                      onChange={(e) => setRangeStart(e.target.value.trim())}
-                      placeholder="ex : 5:39"
-                      className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
-                    />
-                  </label>
-                  <label className="text-xs font-medium text-muted-foreground">
-                    À
-                    <input
-                      value={rangeEnd}
-                      onChange={(e) => setRangeEnd(e.target.value.trim())}
-                      placeholder="ex : 5:50"
-                      className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
-                    />
-                  </label>
-                  {rangeInvalidReason && (
-                    <p className="col-span-2 text-xs text-destructive">{rangeInvalidReason}</p>
-                  )}
+                <div className="mb-2 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Sélectionner l'intervalle</p>
+                  <VersePick
+                    label="Verset initial"
+                    value={rangeStart || anchor.key}
+                    chapters={chapters ?? []}
+                    onChange={setRangeStart}
+                  />
+                  <VersePick
+                    label="Verset final"
+                    value={rangeEnd || rangeStart || anchor.key}
+                    chapters={chapters ?? []}
+                    onChange={setRangeEnd}
+                    last
+                  />
+                  {rangeInvalidReason && <p className="text-xs text-destructive">{rangeInvalidReason}</p>}
                 </div>
               )}
 
@@ -2381,7 +2383,7 @@ const JUZ_START_PAGE = [
  * accolade qui porte le nom. La taille du nom suit la hauteur du bandeau (et
  * non celle du texte), il ne peut donc jamais déborder du cartouche. La petite
  * feuille (panneau de gauche) ouvre la fiche de la sourate. */
-function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number }) {
+function SurahBanner({ nameArabic, surah, versesCount }: { nameArabic: string; surah: number; versesCount?: number }) {
   const ogee =
     "M96 30C104 15 114 8 130 8H270C286 8 296 15 304 30C296 45 286 52 270 52H130C114 52 104 45 96 30Z";
   const name = `سُورَةُ ${nameArabic}`;
@@ -2428,6 +2430,70 @@ function SurahBanner({ nameArabic, surah }: { nameArabic: string; surah: number 
       >
         🌿
       </Link>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-[13.5%] top-1/2 flex -translate-y-1/2 translate-x-1/2 flex-col items-center rounded-md bg-background/85 px-[2%] py-[1.5%] font-sans font-bold leading-none"
+      >
+        <span className="text-[30cqh]">{surah}</span>
+        {versesCount ? <span className="mt-[2cqh] text-[17cqh] font-semibold opacity-80">({versesCount})</span> : null}
+      </span>
+    </div>
+  );
+}
+
+/** Choix d'un verset : sourate + numéro d'āyah (listes déroulantes). */
+function VersePick({
+  label,
+  value,
+  chapters,
+  onChange,
+  last,
+}: {
+  label: string;
+  value: string;
+  chapters: { id: number; nameSimple: string; versesCount: number }[];
+  onChange: (key: string) => void;
+  last?: boolean;
+}) {
+  const [sRaw, aRaw] = value.split(":");
+  const surah = Number(sRaw) || 1;
+  const ayah = Number(aRaw) || 1;
+  const ch = chapters.find((c) => c.id === surah);
+  const n = ch?.versesCount ?? 1;
+  const cls = "h-11 min-w-0 rounded-xl border border-border bg-card px-3 text-sm font-medium";
+  return (
+    <div className="rounded-2xl border border-border bg-background p-3">
+      <p className="mb-1.5 text-xs font-semibold text-muted-foreground">{label}</p>
+      <div className="flex gap-2">
+        <select
+          aria-label={label + " — sourate"}
+          value={surah}
+          onChange={(e) => {
+            const id = Number(e.target.value);
+            const c = chapters.find((x) => x.id === id);
+            onChange(`${id}:${last ? (c?.versesCount ?? 1) : 1}`);
+          }}
+          className={cn(cls, "flex-1")}
+        >
+          {chapters.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.id} - {c.nameSimple}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={label + " — āyah"}
+          value={Math.min(ayah, n)}
+          onChange={(e) => onChange(`${surah}:${e.target.value}`)}
+          className={cn(cls, "w-24")}
+        >
+          {Array.from({ length: n }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              {i + 1}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }
