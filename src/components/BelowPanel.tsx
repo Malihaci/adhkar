@@ -57,6 +57,44 @@ export function BelowText({
   );
 }
 
+/** Ne charge le contenu d'une āyah que lorsqu'elle approche de l'écran (un appel par āyah). */
+export function LazyBelow({
+  verseKey,
+  source,
+  size,
+}: {
+  verseKey: string;
+  source: BelowSource;
+  size: ReadingSize;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || seen) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setSeen(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setSeen(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "400px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [seen]);
+  return (
+    <div ref={ref} className="min-h-6">
+      <BelowText verseKey={verseKey} source={source} size={size} enabled={seen} />
+    </div>
+  );
+}
+
 const HEIGHT_KEY = "nm-below-height";
 const MIN_H = 96;
 
@@ -66,12 +104,18 @@ const MIN_H = 96;
  * réglable ; la flèche replie le volet en une fine barre.
  */
 export function BelowPanel({
+  verseKeys,
   verseKey,
   source,
   size,
+  onSelect,
   onHeight,
 }: {
+  /** Toutes les āyāt de la page (dans l'ordre). */
+  verseKeys: string[];
+  /** L'āyah suivie : touchée, récitée ou, à défaut, la première de la page. */
   verseKey: string;
+  onSelect: (key: string) => void;
   source: Exclude<BelowSource, "none">;
   size: ReadingSize;
   /** Hauteur occupée par le volet (px), pour réserver la place sous la page. */
@@ -81,6 +125,15 @@ export function BelowPanel({
   const [height, setHeight] = useState(180);
   const [collapsed, setCollapsed] = useState(false);
   const drag = useRef<{ y: number; h: number } | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // L'āyah suivie vient se placer en haut de la liste.
+  useEffect(() => {
+    const box = listRef.current;
+    if (!box || collapsed) return;
+    const el = box.querySelector<HTMLElement>(`[data-k="${verseKey}"]`);
+    if (el) box.scrollTo({ top: Math.max(0, el.offsetTop - box.offsetTop), behavior: "smooth" });
+  }, [verseKey, collapsed, verseKeys.length]);
 
   useEffect(() => {
     try {
@@ -143,9 +196,26 @@ export function BelowPanel({
         </button>
       </div>
       {!collapsed && (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3">
+        <div ref={listRef} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
           <div className="mx-auto max-w-2xl">
-            <BelowText verseKey={verseKey} source={source} size={size} />
+            {verseKeys.map((k) => {
+              const on = k === verseKey;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  data-k={k}
+                  onClick={() => onSelect(k)}
+                  className={cn(
+                    "block w-full border-b border-border/40 px-4 py-2.5 text-left transition-colors",
+                    on ? "bg-primary/10" : "hover:bg-muted/40",
+                  )}
+                >
+                  <span className="mb-0.5 block text-xs font-semibold text-primary">({k.split(":")[1]})</span>
+                  <LazyBelow verseKey={k} source={source} size={size} />
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

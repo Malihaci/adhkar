@@ -911,11 +911,10 @@ function MushafPage() {
   const belowSource = prefs.quran.belowSource ?? "none";
   const belowPanelOn = belowSource !== "none" && (prefs.quran.belowMode ?? "panel") === "panel";
   const playingKey = current && current !== BASMALA_BRIDGE_KEY ? current : undefined;
-  const focusKey = playing ? (playingKey ?? selected[0]) : (selected[0] ?? playingKey);
+  const startKey = resumeKey && verses?.some((v) => v.key === resumeKey) ? resumeKey : verses?.[0]?.key;
+  const focusKey = playing ? (playingKey ?? selected[0] ?? startKey) : (selected[0] ?? playingKey ?? startKey);
   const [belowH, setBelowH] = useState(0);
-  /** Volet fermé (✕) pour cette āyah : il revient dès qu'une autre āyah est suivie ou sélectionnée. */
-  const [belowDismissed, setBelowDismissed] = useState<string | null>(null);
-  const belowVisible = belowPanelOn && !!focusKey && belowDismissed !== focusKey;
+  const belowVisible = belowPanelOn && !!focusKey;
   // Garde l'āyah suivie visible au-dessus du volet.
   useEffect(() => {
     if (!belowVisible || !focusKey) return;
@@ -1502,7 +1501,6 @@ function MushafPage() {
       } catch {
         /* indisponible */
       }
-      setBelowDismissed(null);
       setSelected([key]);
     }, LONG_PRESS_MS);
   };
@@ -1571,10 +1569,7 @@ function MushafPage() {
     e.preventDefault();
     if (Date.now() < touchContextUntil.current) return;
     const key = wordKeyOf(e.target);
-    if (key) {
-      setBelowDismissed(null);
-      setSelected([key]);
-    }
+    if (key) setSelected([key]);
   };
 
   return (
@@ -2065,26 +2060,25 @@ function MushafPage() {
       {belowVisible && focusKey && (
         <>
           <BelowPanel
+            verseKeys={[...new Set((verses ?? []).map((v) => v.key))]}
             verseKey={focusKey}
             source={belowSource}
             size={prefs.quran.textSize}
+            onSelect={(k) => setSelected([k])}
             onHeight={setBelowH}
           />
-          {/* Trois boutons flottants au-dessus du volet : fermer, lecture, options. */}
+          {/* Boutons flottants au-dessus du volet : accueil, lecture, options. */}
           <div
             style={{ bottom: `calc(${belowH}px + env(safe-area-inset-bottom) + 8px)` }}
             className="pointer-events-none fixed inset-x-0 z-[26] flex items-center justify-between px-3 transition-[bottom] duration-300"
           >
-            <button
-              onClick={() => {
-                setBelowDismissed(focusKey);
-                setSelected([]);
-              }}
-              aria-label="Fermer"
+            <Link
+              to="/"
+              aria-label="Accueil"
               className="pointer-events-auto grid size-10 place-items-center rounded-full bg-card/95 text-foreground shadow-[var(--shadow-soft)] ring-1 ring-border/60 active:scale-95"
             >
-              <X className="size-[18px]" strokeWidth={2} />
-            </button>
+              <Home className="size-[18px]" strokeWidth={1.75} />
+            </Link>
             <button
               onClick={() =>
                 isCurrentSession ? toggle() : resumeVerse ? void playSurahEndFromAnchor() : playFromAnchor()

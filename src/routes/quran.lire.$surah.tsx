@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Settings2, Sparkles } from "lucide-react";
@@ -7,7 +7,7 @@ import { fetchHamidullahSura } from "@/lib/hamidullah";
 import { writeJSON } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { belowSourceInfo } from "@/lib/belowContent";
-import { BelowText } from "@/components/BelowPanel";
+import { LazyBelow } from "@/components/BelowPanel";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { cn } from "@/lib/utils";
 
@@ -26,44 +26,6 @@ const ARABIC_SIZE: Record<ReadingSize, string> = {
   large: "text-xl leading-[2]",
   xlarge: "text-2xl leading-[2.1]",
 };
-
-/** Ne charge le contenu d'une āyah que lorsqu'elle approche de l'écran (tafsirs : un appel par āyah). */
-function LazyBelow({
-  verseKey,
-  source,
-  size,
-}: {
-  verseKey: string;
-  source: Parameters<typeof BelowText>[0]["source"];
-  size: ReadingSize;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [seen, setSeen] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || seen) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setSeen(true);
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setSeen(true);
-          io.disconnect();
-        }
-      },
-      { rootMargin: "400px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [seen]);
-  return (
-    <div ref={ref} className="min-h-6">
-      <BelowText verseKey={verseKey} source={source} size={size} enabled={seen} />
-    </div>
-  );
-}
 
 function LirePage() {
   const { surah: surahParam } = Route.useParams();
