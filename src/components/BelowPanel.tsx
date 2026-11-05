@@ -69,14 +69,11 @@ export function BelowPanel({
   verseKey,
   source,
   size,
-  bottom,
   onHeight,
 }: {
   verseKey: string;
   source: Exclude<BelowSource, "none">;
   size: ReadingSize;
-  /** Hauteur (px) de la barre de commandes fixe en bas, pour se poser au-dessus. */
-  bottom: number;
   /** Hauteur occupée par le volet (px), pour réserver la place sous la page. */
   onHeight: (px: number) => void;
 }) {
@@ -106,7 +103,7 @@ export function BelowPanel({
   return (
     <section
       aria-label="Contenu de l'āyah"
-      style={{ bottom, height: shown }}
+      style={{ bottom: 0, height: `calc(${shown}px + env(safe-area-inset-bottom))`, paddingBottom: "env(safe-area-inset-bottom)" }}
       className="fixed inset-x-0 z-[25] flex flex-col rounded-t-2xl border-t border-border/50 bg-card/95 shadow-[0_-6px_20px_-12px_rgba(0,0,0,.35)] backdrop-blur-xl transition-[bottom] duration-300"
     >
       <div

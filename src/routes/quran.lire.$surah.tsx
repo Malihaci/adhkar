@@ -119,7 +119,7 @@ function LirePage() {
 
   return (
     <div className="flex h-[100dvh] flex-col bg-background">
-      <header className="shrink-0 border-b border-border/40 bg-card/80 px-3 py-2.5 backdrop-blur-xl">
+      <header className="relative z-30 shrink-0 border-b border-border/40 bg-card/80 px-3 py-2.5 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center gap-2">
           <Link
             to="/"
@@ -156,7 +156,8 @@ function LirePage() {
           </button>
         </div>
         {optionsOpen && (
-          <div className="mx-auto mt-2 max-h-[70dvh] max-w-2xl overflow-y-auto px-1">
+          <div className="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-border bg-card px-4 pb-4 pt-3 shadow-xl">
+            <div className="mx-auto max-w-2xl">
             <QuranDisplayModes quran={layers} onChange={(next) => updateQuran(next)} compact />
 
             <p className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -194,6 +195,7 @@ function LirePage() {
             >
               Tous les paramètres
             </Link>
+            </div>
           </div>
         )}
       </header>

@@ -912,32 +912,23 @@ function MushafPage() {
   const belowPanelOn = belowSource !== "none" && (prefs.quran.belowMode ?? "panel") === "panel";
   const playingKey = current && current !== BASMALA_BRIDGE_KEY ? current : undefined;
   const focusKey = playing ? (playingKey ?? selected[0]) : (selected[0] ?? playingKey);
-  const navElRef = useRef<HTMLElement | null>(null);
-  const [navH, setNavH] = useState(0);
   const [belowH, setBelowH] = useState(0);
-  useEffect(() => {
-    const el = navElRef.current;
-    if (!el) return;
-    const upd = () => setNavH(el.offsetHeight);
-    upd();
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(upd);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [selected.length > 0]);
+  /** Volet fermé (✕) pour cette āyah : il revient dès qu'une autre āyah est suivie ou sélectionnée. */
+  const [belowDismissed, setBelowDismissed] = useState<string | null>(null);
+  const belowVisible = belowPanelOn && !!focusKey && belowDismissed !== focusKey;
   // Garde l'āyah suivie visible au-dessus du volet.
   useEffect(() => {
-    if (!belowPanelOn || !focusKey) return;
+    if (!belowVisible || !focusKey) return;
     const box = boxRef.current;
     const el = box?.querySelector<HTMLElement>(`[data-word-key="${focusKey}"]`);
     if (!box || !el) return;
     const r = el.getBoundingClientRect();
-    const visibleBottom = window.innerHeight - belowH - (controlsHidden ? 0 : navH) - 8;
+    const visibleBottom = window.innerHeight - belowH - 8;
     if (r.bottom > visibleBottom || r.top < 56) {
       box.scrollBy({ top: r.top - Math.max(80, visibleBottom / 3), behavior: "smooth" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusKey, belowPanelOn, verses?.length]);
+  }, [focusKey, belowVisible, verses?.length]);
 
   /** Ayah de référence : la 1re sélectionnée, sinon la 1re de la page. */
   /** Sans sélection : l’āyah mémorisée, si elle est sur cette page. */
@@ -1511,6 +1502,7 @@ function MushafPage() {
       } catch {
         /* indisponible */
       }
+      setBelowDismissed(null);
       setSelected([key]);
     }, LONG_PRESS_MS);
   };
@@ -1579,7 +1571,10 @@ function MushafPage() {
     e.preventDefault();
     if (Date.now() < touchContextUntil.current) return;
     const key = wordKeyOf(e.target);
-    if (key) setSelected([key]);
+    if (key) {
+      setBelowDismissed(null);
+      setSelected([key]);
+    }
   };
 
   return (
@@ -1678,7 +1673,7 @@ function MushafPage() {
           déborder en largeur (voir le fit ci-dessus, seule contrainte dure). */}
       <div
         ref={boxRef}
-        style={belowPanelOn && focusKey ? { paddingBottom: belowH + (controlsHidden ? 0 : navH) + 8 } : undefined}
+        style={belowVisible ? { paddingBottom: belowH + 12 } : undefined}
         className="absolute inset-0 overflow-x-hidden overflow-y-auto px-0.5 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-[max(0.25rem,env(safe-area-inset-top))]"
         onTouchStart={onSheetTouchStart}
         onTouchMove={onSheetTouchMove}
@@ -1903,11 +1898,8 @@ function MushafPage() {
       {/* Une seule barre basse à la fois (§13 mission menu ayah) : les
           actions de l'ayah sélectionnée REMPLACENT les contrôles Mushaf,
           jamais les deux empilés. */}
-      {selected.length > 0 && selKey ? (
+      {belowVisible ? null : selected.length > 0 && selKey && !belowPanelOn ? (
         <nav
-          ref={(el) => {
-            navElRef.current = el;
-          }}
           aria-label="Actions de l'āyah"
           className={cn(
             "fixed inset-x-0 bottom-0 z-20 border-t border-border/40 bg-card/95 px-2 pt-1 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
@@ -1985,9 +1977,6 @@ function MushafPage() {
         </nav>
       ) : (
         <nav
-          ref={(el) => {
-            navElRef.current = el;
-          }}
           className={cn(
             "fixed inset-x-0 bottom-0 z-20 border-t border-border/40 bg-card/90 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
             controlsHidden && "translate-y-full",
@@ -2073,14 +2062,47 @@ function MushafPage() {
         />
       )}
 
-      {belowPanelOn && focusKey && (
-        <BelowPanel
-          verseKey={focusKey}
-          source={belowSource}
-          size={prefs.quran.textSize}
-          bottom={controlsHidden ? 0 : navH}
-          onHeight={setBelowH}
-        />
+      {belowVisible && focusKey && (
+        <>
+          <BelowPanel
+            verseKey={focusKey}
+            source={belowSource}
+            size={prefs.quran.textSize}
+            onHeight={setBelowH}
+          />
+          {/* Trois boutons flottants au-dessus du volet : fermer, lecture, options. */}
+          <div
+            style={{ bottom: `calc(${belowH}px + env(safe-area-inset-bottom) + 8px)` }}
+            className="pointer-events-none fixed inset-x-0 z-[26] flex items-center justify-between px-3 transition-[bottom] duration-300"
+          >
+            <button
+              onClick={() => {
+                setBelowDismissed(focusKey);
+                setSelected([]);
+              }}
+              aria-label="Fermer"
+              className="pointer-events-auto grid size-10 place-items-center rounded-full bg-card/95 text-foreground shadow-[var(--shadow-soft)] ring-1 ring-border/60 active:scale-95"
+            >
+              <X className="size-[18px]" strokeWidth={2} />
+            </button>
+            <button
+              onClick={() =>
+                isCurrentSession ? toggle() : resumeVerse ? void playSurahEndFromAnchor() : playFromAnchor()
+              }
+              aria-label={playing ? "Pause" : "Lecture"}
+              className="pointer-events-auto grid size-11 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elevated)] active:scale-95"
+            >
+              {playing ? <Pause className="size-5" strokeWidth={1.75} /> : <Play className="size-5" strokeWidth={1.75} />}
+            </button>
+            <button
+              onClick={() => setOptionsOpen(true)}
+              aria-label="Options de récitation"
+              className="pointer-events-auto grid size-10 place-items-center rounded-full bg-card/95 text-foreground shadow-[var(--shadow-soft)] ring-1 ring-border/60 active:scale-95"
+            >
+              <Settings2 className="size-[18px]" strokeWidth={1.75} />
+            </button>
+          </div>
+        </>
       )}
 
       {optionsOpen && (
