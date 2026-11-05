@@ -1,43 +1,54 @@
 import { Check } from "lucide-react";
-import type { QuranPreferences } from "@/lib/preferences";
+import type { BelowMode, BelowSource, QuranPreferences } from "@/lib/preferences";
+import { BELOW_SOURCES } from "@/lib/belowContent";
 import { cn } from "@/lib/utils";
 
 /**
- * Modes d'affichage du Coran — l'utilisateur choisit ce qu'il veut LIRE,
- * l'application choisit le rendu technique : arabe seul = Mushaf de Médine ;
- * dès que Français ou Phonétique est choisi = lecteur ayah par ayah (jamais
- * injecté dans les 15 lignes du Mushaf). Écrit uniquement les mêmes trois
- * préférences que d'habitude (arabic/francais/phonetique) — aucun nouveau
- * modèle de données.
+ * « Sous le Mushaf » — l'utilisateur choisit UNE source (Français,
+ * Phonétique, un tafsir…) et le mode d'affichage :
+ *  - volet : page du Mushaf + une āyah dessous (celle touchée / récitée) ;
+ *  - āyah par āyah : l'arabe puis la source choisie, une āyah par bloc.
  */
-type Layers = Pick<QuranPreferences, "arabic" | "francais" | "phonetique">;
+type Patch = Pick<QuranPreferences, "belowSource" | "belowMode">;
 
-export const QURAN_DISPLAY_MODES: { id: string; label: string; hint?: string; layers: Layers }[] = [
-  {
-    id: "mushaf",
-    label: "Mushaf (arabe)",
-    hint: "Arabe seul · mise en page du Mushaf de Médine, 604 pages",
-    layers: { arabic: true, francais: false, phonetique: false },
-  },
-  { id: "ar-fr", label: "Arabe + Français", layers: { arabic: true, francais: true, phonetique: false } },
-  { id: "ar-ph", label: "Arabe + Phonétique", layers: { arabic: true, francais: false, phonetique: true } },
-  {
-    id: "ar-fr-ph",
-    label: "Arabe + Français + Phonétique",
-    layers: { arabic: true, francais: true, phonetique: true },
-  },
-  { id: "fr", label: "Français", layers: { arabic: false, francais: true, phonetique: false } },
-  { id: "ph", label: "Phonétique", layers: { arabic: false, francais: false, phonetique: true } },
-];
-
-export function currentQuranMode(q: Layers): string | null {
+function Radio({
+  on,
+  label,
+  hint,
+  onClick,
+  compact,
+}: {
+  on: boolean;
+  label: string;
+  hint?: string;
+  onClick: () => void;
+  compact?: boolean;
+}) {
   return (
-    QURAN_DISPLAY_MODES.find(
-      (m) =>
-        m.layers.arabic === q.arabic &&
-        m.layers.francais === q.francais &&
-        m.layers.phonetique === q.phonetique,
-    )?.id ?? null
+    <button
+      type="button"
+      role="radio"
+      aria-checked={on}
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-2xl border px-4 text-left transition",
+        compact ? "min-h-11 py-2" : "min-h-12 py-2.5",
+        on ? "border-primary bg-primary/8" : "border-border bg-card hover:bg-muted/50",
+      )}
+    >
+      <span
+        className={cn(
+          "grid size-5 shrink-0 place-items-center rounded-full border",
+          on ? "border-primary bg-primary text-primary-foreground" : "border-border",
+        )}
+      >
+        {on && <Check className="size-3" strokeWidth={3} />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-foreground">{label}</span>
+        {hint && !compact && <span className="block text-xs text-muted-foreground">{hint}</span>}
+      </span>
+    </button>
   );
 }
 
@@ -46,45 +57,60 @@ export function QuranDisplayModes({
   onChange,
   compact,
 }: {
-  quran: Layers;
-  onChange: (layers: Layers) => void;
+  quran: Pick<QuranPreferences, "belowSource" | "belowMode">;
+  onChange: (patch: Patch) => void;
   compact?: boolean;
 }) {
-  const active = currentQuranMode(quran);
+  const source: BelowSource = quran.belowSource ?? "none";
+  const mode: BelowMode = quran.belowMode ?? "panel";
+  const groups = ["Traduction", "Phonétique", "Tafsir"] as const;
   return (
-    <div role="radiogroup" aria-label="Affichage" className="space-y-1.5">
-      {QURAN_DISPLAY_MODES.map((m) => {
-        const on = m.id === active;
-        return (
-          <button
-            key={m.id}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            onClick={() => onChange(m.layers)}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-2xl border px-4 text-left transition",
-              compact ? "min-h-11 py-2" : "min-h-12 py-2.5",
-              on ? "border-primary bg-primary/8" : "border-border bg-card hover:bg-muted/50",
-            )}
-          >
-            <span
-              className={cn(
-                "grid size-5 shrink-0 place-items-center rounded-full border",
-                on ? "border-primary bg-primary text-primary-foreground" : "border-border",
-              )}
-            >
-              {on && <Check className="size-3" strokeWidth={3} />}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-foreground">{m.label}</span>
-              {m.hint && !compact && (
-                <span className="block text-xs text-muted-foreground">{m.hint}</span>
-              )}
-            </span>
-          </button>
-        );
-      })}
+    <div className="space-y-3">
+      <div role="radiogroup" aria-label="Contenu sous le Mushaf" className="space-y-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Contenu sous le Mushaf
+        </p>
+        <Radio
+          compact={compact}
+          on={source === "none"}
+          label="Aucun (arabe seul)"
+          hint="Mushaf de Médine, 604 pages"
+          onClick={() => onChange({ belowSource: "none", belowMode: mode })}
+        />
+        {groups.map((g) =>
+          BELOW_SOURCES.filter((s) => s.group === g).map((s) => (
+            <Radio
+              key={s.id}
+              compact={compact}
+              on={source === s.id}
+              label={s.label}
+              onClick={() => onChange({ belowSource: s.id, belowMode: mode })}
+            />
+          )),
+        )}
+      </div>
+
+      {source !== "none" && (
+        <div role="radiogroup" aria-label="Mode d'affichage" className="space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Affichage
+          </p>
+          <Radio
+            compact={compact}
+            on={mode === "panel"}
+            label="Page du Mushaf + volet d'une āyah"
+            hint="L'āyah touchée ou récitée est traduite dessous"
+            onClick={() => onChange({ belowSource: source, belowMode: "panel" })}
+          />
+          <Radio
+            compact={compact}
+            on={mode === "ayah"}
+            label="Une āyah par bloc"
+            hint="L'arabe, puis le contenu choisi"
+            onClick={() => onChange({ belowSource: source, belowMode: "ayah" })}
+          />
+        </div>
+      )}
     </div>
   );
 }

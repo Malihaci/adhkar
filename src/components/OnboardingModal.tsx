@@ -1,4 +1,5 @@
 import { RECITERS } from "@/lib/mushaf";
+import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
@@ -87,21 +88,7 @@ export function OnboardingModal() {
               Coran — comment souhaitez-vous lire ?
             </p>
             <div className="space-y-2">
-              <Check
-                label="Arabe"
-                checked={prefs.quran.arabic}
-                onChange={(v) => updateQuran({ arabic: v })}
-              />
-              <Check
-                label="Français"
-                checked={prefs.quran.francais}
-                onChange={(v) => updateQuran({ francais: v })}
-              />
-              <Check
-                label="Phonétique"
-                checked={prefs.quran.phonetique}
-                onChange={(v) => updateQuran({ phonetique: v })}
-              />
+              <QuranDisplayModes quran={prefs.quran} onChange={(p) => updateQuran(p)} compact />
               <Check
                 label="Tajwīd (couleurs)"
                 checked={prefs.quran.tajweed}

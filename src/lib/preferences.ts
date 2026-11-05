@@ -24,6 +24,18 @@ import { readJSON, writeJSON } from "@/lib/storage";
 
 export type ReadingSize = "normal" | "large" | "xlarge";
 
+/** Contenu affiché sous le Mushaf (ou sous l'arabe en mode āyah par āyah). */
+export type BelowSource =
+  | "none"
+  | "fr"
+  | "phonetic"
+  | "mukhtasar-fr"
+  | "muyassar"
+  | "mukhtasar-ar"
+  | "saadi";
+/** "panel" = page du Mushaf + volet d'une āyah ; "ayah" = une āyah arabe puis le contenu. */
+export type BelowMode = "panel" | "ayah";
+
 export interface QuranPreferences {
   arabic: boolean;
   francais: boolean;
@@ -37,6 +49,9 @@ export interface QuranPreferences {
   keepAwake: boolean;
   /** Fond de la page du Mushaf (mode clair) : papier crème ou blanc. */
   pageBackground?: "cream" | "white";
+  /** Contenu sous le Mushaf. Absent = "none" (ou repris des anciens réglages Français/Phonétique). */
+  belowSource?: BelowSource;
+  belowMode?: BelowMode;
 }
 
 /** "afasy" = piste continue existante (Al-'Afâsy, voir src/lib/afasyAudio.ts
@@ -175,10 +190,16 @@ export function loadPreferences(): AppPreferences {
       // remplacerait tout `adhkar`/`quran` déjà enregistré et perdrait ces
       // nouveaux champs (undefined), au lieu de simplement les compléter.
       const parsed = JSON.parse(raw) as Partial<AppPreferences>;
+      const quran = { ...DEFAULT_QURAN, ...parsed.quran };
+      // Anciens réglages Français / Phonétique → nouveau choix de contenu (mode āyah par āyah).
+      if (quran.belowSource === undefined && (quran.francais || quran.phonetique)) {
+        quran.belowSource = quran.francais ? "fr" : "phonetic";
+        quran.belowMode = "ayah";
+      }
       return {
         ...DEFAULT_PREFERENCES,
         ...parsed,
-        quran: { ...DEFAULT_QURAN, ...parsed.quran },
+        quran,
         adhkar: { ...DEFAULT_ADHKAR, ...parsed.adhkar },
         general: { ...DEFAULT_GENERAL, ...parsed.general },
       };
@@ -256,7 +277,6 @@ export function usePreferences() {
  * à côte comme deux écrans séparés).
  */
 export function resolveCoranMode(prefs: AppPreferences): "mushaf" | "lire" {
-  return prefs.quran.arabic && !prefs.quran.francais && !prefs.quran.phonetique
-    ? "mushaf"
-    : "lire";
+  const q = prefs.quran;
+  return q.belowMode === "ayah" && q.belowSource && q.belowSource !== "none" ? "lire" : "mushaf";
 }

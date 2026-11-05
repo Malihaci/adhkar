@@ -1,23 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Copy,
-  Heart,
-  Pause,
-  Play,
-  Settings2,
-  Share2,
-  Sparkles,
-} from "lucide-react";
-import { RECITERS, fetchChapters, fetchVersePage, verseAudioUrl } from "@/lib/mushaf";
+import { ChevronLeft, ChevronRight, Settings2, Sparkles } from "lucide-react";
+import { fetchChapters, fetchVersePage } from "@/lib/mushaf";
 import { fetchHamidullahSura } from "@/lib/hamidullah";
-import { useFavorites, writeJSON } from "@/lib/storage";
+import { writeJSON } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
+import { belowSourceInfo } from "@/lib/belowContent";
+import { BelowText } from "@/components/BelowPanel";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
-import { resolveAudioSrc } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/quran/lire/$surah")({
@@ -27,21 +18,52 @@ export const Route = createFileRoute("/quran/lire/$surah")({
   component: LirePage,
 });
 
-/** Ce réglage vient désormais du centre unique ⚙️ Paramètres > Coran
- * (chantier "Paramètres intelligents") — voir src/lib/preferences.ts.
- * Ce mode ayah-par-ayah gère déjà toutes les combinaisons A-F de la
- * mission (chaque couche est indépendante) : Arabe seul, Arabe+Français,
- * Arabe+Phonétique, les trois, Français seul, Phonétique seule. */
+/** Mode « une āyah par bloc » : l'arabe, puis UNE source choisie dans les
+ * Options (Français, Phonétique ou un tafsir). Aucun bouton d'action : pour
+ * copier, on sélectionne le texte. */
 const ARABIC_SIZE: Record<ReadingSize, string> = {
   normal: "text-lg leading-[1.9]",
   large: "text-xl leading-[2]",
   xlarge: "text-2xl leading-[2.1]",
 };
-const TEXT_SIZE: Record<ReadingSize, string> = {
-  normal: "text-[0.85rem]",
-  large: "text-[0.95rem]",
-  xlarge: "text-[1.05rem]",
-};
+
+/** Ne charge le contenu d'une āyah que lorsqu'elle approche de l'écran (tafsirs : un appel par āyah). */
+function LazyBelow({
+  verseKey,
+  source,
+  size,
+}: {
+  verseKey: string;
+  source: Parameters<typeof BelowText>[0]["source"];
+  size: ReadingSize;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || seen) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setSeen(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setSeen(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "400px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [seen]);
+  return (
+    <div ref={ref} className="min-h-6">
+      <BelowText verseKey={verseKey} source={source} size={size} enabled={seen} />
+    </div>
+  );
+}
 
 function LirePage() {
   const { surah: surahParam } = Route.useParams();
@@ -49,19 +71,15 @@ function LirePage() {
   const surah = Number(surahParam);
   const { prefs, updateQuran } = usePreferences();
   const layers = prefs.quran;
-  const setLayer = (key: "arabic" | "francais" | "phonetique", value: boolean) =>
-    updateQuran({ [key]: value });
+  const source = layers.belowSource ?? "none";
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const { isFavorite, toggle: toggleFavorite } = useFavorites();
-  const [playingKey, setPlayingKey] = useState<string | null>(null);
-  const [audioEl] = useState(() => (typeof Audio !== "undefined" ? new Audio() : null));
 
   const { data: chapters } = useQuery({
     queryKey: ["chapters-fr"],
     queryFn: fetchChapters,
     staleTime: Infinity,
   });
+  // Sourate entière en un appel : donne l'arabe (et le français Hamidullah).
   const { data: verses, isPending } = useQuery({
     queryKey: ["hamidullah-sura", surah],
     queryFn: () => fetchHamidullahSura(surah),
@@ -70,91 +88,33 @@ function LirePage() {
 
   const chapter = chapters?.find((c) => c.id === surah);
 
-  // Mémorise la dernière sourate visitée ici — même convention que
-  // `quran-last-page` côté Mushaf (écriture directe, pas d'abonnement
-  // nécessaire) — utilisée par l'entrée directe "Coran" (§1/§2 mission
-  // "Coran direct") pour rouvrir exactement ce mode/cette position.
   useEffect(() => {
     writeJSON("quran-last-surah", surah);
   }, [surah]);
 
-  // Retour automatique au Mushaf (§15 mission) : dès que Français ET
-  // Phonétique sont désactivés (arabe seul), ce mode ayah-par-ayah n'a plus
-  // lieu d'être — on rouvre le Mushaf de Médine sur la page de cette
-  // sourate, sans redemander confirmation. `fetchVersePage` préserve la
-  // position (première āyah de la sourate en cours) au lieu de renvoyer à
-  // la page 1.
+  // Retour automatique au Mushaf dès que ce mode n'est plus choisi (arabe
+  // seul, ou mode « volet ») — sur la page de cette sourate.
+  const stay = layers.belowMode === "ayah" && source !== "none";
   useEffect(() => {
-    if (!prefs.quran.arabic || prefs.quran.francais || prefs.quran.phonetique) return;
+    if (stay) return;
     let cancelled = false;
     fetchVersePage(`${surah}:1`)
       .then((page) => {
         if (!cancelled) navigate({ to: "/quran/page/$page", params: { page: String(page) } });
       })
       .catch(() => {
-        /* échec réseau ponctuel — l'utilisateur reste sur ce mode, aucune page inventée */
+        /* échec réseau ponctuel — l'utilisateur reste ici */
       });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefs.quran.arabic, prefs.quran.francais, prefs.quran.phonetique]);
+  }, [stay]);
 
   const goSurah = (delta: number) => {
     const next = surah + delta;
     if (next < 1 || next > 114) return;
     navigate({ to: "/quran/lire/$surah", params: { surah: String(next) } });
-  };
-
-  const toggleAudio = (verseKey: string) => {
-    if (!audioEl) return;
-    if (playingKey === verseKey) {
-      audioEl.pause();
-      setPlayingKey(null);
-      return;
-    }
-    const url = verseAudioUrl(prefs.quran.reciterId, verseKey);
-    audioEl.playbackRate = prefs.quran.speed;
-    audioEl.onended = () => setPlayingKey(null);
-    setPlayingKey(verseKey);
-    const start = (src: string) => {
-      audioEl.src = src;
-      audioEl.play().catch(() => setPlayingKey(null));
-    };
-    if (navigator.onLine) start(url);
-    else void resolveAudioSrc(url).then(start);
-  };
-
-  const shareAyah = async (verseKey: string, arabic: string, translation: string) => {
-    const [s, a] = verseKey.split(":");
-    const url = new URL(`/etude/${s}/${a}`, window.location.origin);
-    const label = chapter ? `${chapter.nameFrench} — ${verseKey}` : verseKey;
-    const text = [arabic, translation, label, url.toString()].filter(Boolean).join("\n\n");
-    try {
-      if (navigator.share) await navigator.share({ text, url: url.toString() });
-      else await navigator.clipboard.writeText(text);
-    } catch {
-      /* annulé */
-    }
-  };
-
-  /** COPIER = exactement les couches AFFICHÉES, dans l'ordre référence →
-   * arabe → phonétique → français, sans libellés ni couche désactivée. Le
-   * français copié est celui affiché (Hamidullah). La phonétique du Coran n'a
-   * aucune source fiable dans l'app (message affiché à la place) : elle n'est
-   * donc jamais copiée ni inventée. */
-  const copyAyah = async (verseKey: string, arabic: string, translation: string) => {
-    const parts = [verseKey];
-    if (layers.arabic) parts.push(arabic);
-    if (layers.francais) parts.push(translation);
-    if (parts.length === 1) return;
-    try {
-      await navigator.clipboard.writeText(parts.join("\n\n"));
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* refusé */
-    }
   };
 
   return (
@@ -196,7 +156,7 @@ function LirePage() {
           </button>
         </div>
         {optionsOpen && (
-          <div className="mx-auto mt-2 max-w-2xl px-1">
+          <div className="mx-auto mt-2 max-h-[70dvh] max-w-2xl overflow-y-auto px-1">
             <QuranDisplayModes quran={layers} onChange={(next) => updateQuran(next)} compact />
 
             <p className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -226,36 +186,6 @@ function LirePage() {
               ))}
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <select
-                value={layers.reciterId}
-                onChange={(e) => updateQuran({ reciterId: e.target.value })}
-                aria-label="Récitateur"
-                className="h-10 rounded-full border border-border bg-background px-3 text-xs font-medium"
-              >
-                {RECITERS.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-              <div className="flex gap-1 rounded-full border border-border p-1">
-                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => updateQuran({ speed: s })}
-                    aria-pressed={layers.speed === s}
-                    className={cn(
-                      "flex-1 rounded-full text-xs font-semibold transition",
-                      layers.speed === s ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-                    )}
-                  >
-                    {s}×
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <Link
               to="/parametres"
               search={{ section: "coran" }}
@@ -279,79 +209,40 @@ function LirePage() {
           ) : (
             verses.map((v) => {
               const verseKey = `${surah}:${v.ayah}`;
-              const fav = isFavorite("ayah", verseKey);
-              const playing = playingKey === verseKey;
               return (
                 <div key={verseKey} className="surface-card space-y-2.5 rounded-2xl px-4 py-4">
-                  <p className="text-xs font-semibold text-muted-foreground">{verseKey}</p>
-                  {layers.arabic && (
-                    <p
-                      lang="ar"
-                      dir="rtl"
-                      className={cn("font-arabic font-bold text-foreground", ARABIC_SIZE[layers.textSize])}
-                    >
-                      {v.arabic}
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground">
+                      {verseKey}
+                      <span className="font-normal"> · {belowSourceInfo(source)?.label}</span>
                     </p>
-                  )}
-                  {layers.francais && (
-                    <p className={cn("leading-[1.85] text-foreground/90", TEXT_SIZE[layers.textSize])}>
-                      {v.translation}
-                    </p>
-                  )}
-                  {layers.phonetique && (
-                    <p className="rounded-xl bg-muted/60 px-3 py-2 text-xs italic text-muted-foreground">
-                      Phonétique indisponible — aucune source complète et fiable identifiée pour
-                      l'instant.
-                    </p>
-                  )}
-                  <div className="flex items-center gap-1.5 border-t border-border/40 pt-2.5">
-                    <button
-                      onClick={() => toggleAudio(verseKey)}
-                      className="flex h-8 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium text-foreground"
-                    >
-                      {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-                      Écouter
-                    </button>
-                    <button
-                      onClick={() => toggleFavorite("ayah", verseKey)}
-                      aria-pressed={fav}
-                      className="flex h-8 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium text-foreground"
-                    >
-                      <Heart className={cn("size-3.5", fav && "fill-gold text-gold")} />
-                    </button>
-                    <button
-                      onClick={() => shareAyah(verseKey, v.arabic, v.translation)}
-                      className="flex h-8 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium text-foreground"
-                    >
-                      <Share2 className="size-3.5" />
-                    </button>
-                    <button
-                      onClick={() => copyAyah(verseKey, v.arabic, v.translation)}
-                      disabled={!layers.arabic && !layers.francais}
-                      aria-label="Copier"
-                      className="flex h-9 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium text-foreground disabled:opacity-40"
-                    >
-                      <Copy className="size-3.5" /> Copier
-                    </button>
                     <Link
                       to="/etude/$surah/$ayah"
                       params={{ surah: String(surah), ayah: String(v.ayah) }}
-                      className="ml-auto flex h-8 items-center gap-1 rounded-full bg-primary/10 px-3 text-xs font-semibold text-primary"
+                      aria-label="Étudier cette āyah"
+                      className="grid size-7 place-items-center rounded-full text-primary hover:bg-primary/10"
                     >
-                      <Sparkles className="size-3.5" /> Étudier
+                      <Sparkles className="size-3.5" />
                     </Link>
                   </div>
+                  <p
+                    lang="ar"
+                    dir="rtl"
+                    className={cn("select-text font-arabic font-bold text-foreground", ARABIC_SIZE[layers.textSize])}
+                  >
+                    {v.arabic}
+                  </p>
+                  {source === "fr" ? (
+                    <p className="select-text text-[0.95rem] leading-[1.85] text-foreground/90">{v.translation}</p>
+                  ) : source !== "none" ? (
+                    <LazyBelow verseKey={verseKey} source={source} size={layers.textSize} />
+                  ) : null}
                 </div>
               );
             })
           )}
         </div>
       </div>
-      {copied && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-8 z-50 flex justify-center">
-          <span className="rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground">Copié</span>
-        </div>
-      )}
     </div>
   );
 }

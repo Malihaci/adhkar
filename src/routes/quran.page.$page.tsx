@@ -65,6 +65,7 @@ import { useLocalState, useFavorites } from "@/lib/storage";
 import { usePreferences } from "@/lib/preferences";
 import { fetchMokhtasarLessons, type MokhtasarPassage } from "@/lib/quran";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
+import { BelowPanel } from "@/components/BelowPanel";
 import { cachedAudioBlobUrl } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 import { RUB_BOUNDS } from "@/data/rub-bounds";
@@ -898,11 +899,45 @@ function MushafPage() {
    * affichée (position préservée au mieux, voir §15). */
   useEffect(() => {
     if (!verses?.length) return; // sourate pas encore connue, jamais naviguer à l'aveugle
-    if (prefs.quran.francais || prefs.quran.phonetique) {
+    if (prefs.quran.belowMode === "ayah" && (prefs.quran.belowSource ?? "none") !== "none") {
       navigate({ to: "/quran/lire/$surah", params: { surah: String(surahOnPage) } });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefs.quran.francais, prefs.quran.phonetique, verses?.length]);
+  }, [prefs.quran.belowMode, prefs.quran.belowSource, verses?.length]);
+
+  /* ------------------------------------------- volet « sous le Mushaf »
+   * L'āyah traduite en bas est TOUJOURS celle qui est surlignée dans la page :
+   * pendant la récitation, l'āyah en cours ; sinon l'āyah sélectionnée. */
+  const belowSource = prefs.quran.belowSource ?? "none";
+  const belowPanelOn = belowSource !== "none" && (prefs.quran.belowMode ?? "panel") === "panel";
+  const playingKey = current && current !== BASMALA_BRIDGE_KEY ? current : undefined;
+  const focusKey = playing ? (playingKey ?? selected[0]) : (selected[0] ?? playingKey);
+  const navElRef = useRef<HTMLElement | null>(null);
+  const [navH, setNavH] = useState(0);
+  const [belowH, setBelowH] = useState(0);
+  useEffect(() => {
+    const el = navElRef.current;
+    if (!el) return;
+    const upd = () => setNavH(el.offsetHeight);
+    upd();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(upd);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [selected.length > 0]);
+  // Garde l'āyah suivie visible au-dessus du volet.
+  useEffect(() => {
+    if (!belowPanelOn || !focusKey) return;
+    const box = boxRef.current;
+    const el = box?.querySelector<HTMLElement>(`[data-word-key="${focusKey}"]`);
+    if (!box || !el) return;
+    const r = el.getBoundingClientRect();
+    const visibleBottom = window.innerHeight - belowH - (controlsHidden ? 0 : navH) - 8;
+    if (r.bottom > visibleBottom || r.top < 56) {
+      box.scrollBy({ top: r.top - Math.max(80, visibleBottom / 3), behavior: "smooth" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey, belowPanelOn, verses?.length]);
 
   /** Ayah de référence : la 1re sélectionnée, sinon la 1re de la page. */
   /** Sans sélection : l’āyah mémorisée, si elle est sur cette page. */
@@ -1643,6 +1678,7 @@ function MushafPage() {
           déborder en largeur (voir le fit ci-dessus, seule contrainte dure). */}
       <div
         ref={boxRef}
+        style={belowPanelOn && focusKey ? { paddingBottom: belowH + (controlsHidden ? 0 : navH) + 8 } : undefined}
         className="absolute inset-0 overflow-x-hidden overflow-y-auto px-0.5 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-[max(0.25rem,env(safe-area-inset-top))]"
         onTouchStart={onSheetTouchStart}
         onTouchMove={onSheetTouchMove}
@@ -1869,6 +1905,9 @@ function MushafPage() {
           jamais les deux empilés. */}
       {selected.length > 0 && selKey ? (
         <nav
+          ref={(el) => {
+            navElRef.current = el;
+          }}
           aria-label="Actions de l'āyah"
           className={cn(
             "fixed inset-x-0 bottom-0 z-20 border-t border-border/40 bg-card/95 px-2 pt-1 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
@@ -1946,6 +1985,9 @@ function MushafPage() {
         </nav>
       ) : (
         <nav
+          ref={(el) => {
+            navElRef.current = el;
+          }}
           className={cn(
             "fixed inset-x-0 bottom-0 z-20 border-t border-border/40 bg-card/90 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
             controlsHidden && "translate-y-full",
@@ -2028,6 +2070,16 @@ function MushafPage() {
           onSelectVerse={goToSearchResult}
           onGoToPage={goToPageDirect}
           onClose={() => setSearchOpen(false)}
+        />
+      )}
+
+      {belowPanelOn && focusKey && (
+        <BelowPanel
+          verseKey={focusKey}
+          source={belowSource}
+          size={prefs.quran.textSize}
+          bottom={controlsHidden ? 0 : navH}
+          onHeight={setBelowH}
         />
       )}
 
