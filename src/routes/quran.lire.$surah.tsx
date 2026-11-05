@@ -177,7 +177,7 @@ function LirePage() {
             <ChevronLeft className="size-4" />
           </button>
           <p className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-foreground">
-            {chapter ? `${chapter.nameFrench} · ${chapter.nameArabic}` : `Sourate ${surah}`}
+            {chapter ? `${chapter.id}. ${chapter.nameFrench} · ${chapter.nameArabic} · ${chapter.versesCount} āyāt` : `Sourate ${surah}`}
           </p>
           <button
             onClick={() => goSurah(1)}

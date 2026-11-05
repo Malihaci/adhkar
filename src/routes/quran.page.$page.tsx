@@ -1570,11 +1570,11 @@ function MushafPage() {
           >
             {surahMeta ? (
               <>
-                {surahMeta.nameSimple} ·{" "}
+                <span className="text-muted-foreground">{surahMeta.id}.</span> {surahMeta.nameSimple} ·{" "}
                 <span lang="ar" className="font-arabic">
                   {surahMeta.nameArabic}
                 </span>{" "}
-                ·{" "}
+                · {surahMeta.versesCount} āyāt ·{" "}
               </>
             ) : (
               ""
