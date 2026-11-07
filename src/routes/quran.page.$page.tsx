@@ -184,6 +184,7 @@ function MushafPage() {
     setShowNav(true);
   };
   const [copied, setCopied] = useState(false);
+  const [pageEditing, setPageEditing] = useState(false);
   const [searchNav, setSearchNav] = useState<SearchSession | null>(() => lastSearchSession);
   const updateSearchNav = (v: SearchSession | null) => {
     lastSearchSession = v;
@@ -1627,56 +1628,9 @@ function MushafPage() {
         className={cn(
           "fixed inset-x-0 top-0 z-20 border-b border-border/40 bg-card/80 px-2 py-0.5 backdrop-blur-xl transition-transform duration-300 [@media(orientation:landscape)_and_(max-height:500px)]:py-0",
           (controlsHidden || selected.length > 0) && "-translate-y-full",
-          belowVisible && "hidden",
+          !(search.shared === "wird" && search.end) && "hidden",
         )}
       >
-        <div className="mx-auto flex max-w-2xl items-center gap-1.5">
-          <button
-            onClick={() => openNav("surah")}
-            className="min-w-0 flex-1 truncate rounded-full border border-border/60 bg-background px-2.5 py-0.5 text-left text-[12px] font-semibold"
-          >
-            {surahMeta ? (
-              <>
-                <span className="text-muted-foreground">{surahMeta.id}.</span> {surahMeta.nameSimple} ·{" "}
-                <span lang="ar" className="font-arabic">
-                  {surahMeta.nameArabic}
-                </span>{" "}
-                ·{" "}
-              </>
-            ) : (
-              ""
-            )}
-            Page {page}
-            {verses?.[0] && (
-              <span className="text-muted-foreground">
-                {" "}
-                · Juz {verses[0].juz} · Hizb {verses[0].hizb}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setSearchOpen(true)}
-            aria-label="Recherche"
-            className="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          >
-            <Search className="size-[16px]" />
-          </button>
-          {/* Plein écran — desktop uniquement (souris fine), discret, à côté
-              de la recherche. Aucun impact mobile. */}
-          {fullscreenSupported && (
-            <button
-              onClick={toggleFullscreen}
-              aria-label={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
-              className="hidden size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground [@media(pointer:fine)]:grid"
-            >
-              {isFullscreen ? (
-                <Minimize2 className="size-[15px]" />
-              ) : (
-                <Maximize2 className="size-[15px]" />
-              )}
-            </button>
-          )}
-        </div>
         {/* Portion "Mon Wird" partagée (lien direct reçu, jamais le
             programme complet ni aucune donnée personnelle de l'auteur) —
             discret, informatif, ne bloque jamais la navigation normale. */}
@@ -1911,7 +1865,7 @@ function MushafPage() {
               >
                 Juz {verses[0].juz}
               </button>
-              <PageNumberInput page={page} onGo={goToPageDirect} />
+              <PageNumberInput page={page} onGo={goToPageDirect} onEditing={setPageEditing} />
               {verses[0].hizb ? (
                 <button
                   type="button"
@@ -2013,7 +1967,7 @@ function MushafPage() {
           className={cn(
             "fixed inset-x-0 bottom-0 border-t border-border/40 bg-card/95 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
             belowVisible ? "z-[27]" : "z-20",
-            controlsHidden && "translate-y-full",
+            (controlsHidden || pageEditing) && "translate-y-full",
           )}
         >
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-1">
@@ -3439,7 +3393,15 @@ function SearchPanel({
 }
 
 /** Numéro de page : on tape directement, Entrée ouvre la page (1–604). */
-function PageNumberInput({ page, onGo }: { page: number; onGo: (p: number) => void }) {
+function PageNumberInput({
+  page,
+  onGo,
+  onEditing,
+}: {
+  page: number;
+  onGo: (p: number) => void;
+  onEditing: (v: boolean) => void;
+}) {
   const [val, setVal] = useState(String(page));
   useEffect(() => setVal(String(page)), [page]);
   const commit = (el: HTMLInputElement) => {
@@ -3461,12 +3423,24 @@ function PageNumberInput({ page, onGo }: { page: number; onGo: (p: number) => vo
       maxLength={3}
       value={val}
       aria-label={`Page ${page} sur 604 — saisir un numéro puis Entrée`}
-      onFocus={(e) => e.currentTarget.select()}
+      onFocus={(e) => {
+        const el = e.currentTarget;
+        el.select();
+        onEditing(true);
+        // Après l'ouverture du clavier : amener le champ au centre de la zone visible.
+        window.setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 350);
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
       onChange={(e) => setVal(e.target.value.replace(/\D/g, "").slice(0, 3))}
       onKeyDown={(e) => {
         if (e.key === "Enter") commit(e.currentTarget);
       }}
-      onBlur={() => setVal(String(page))}
+      onBlur={() => {
+        setVal(String(page));
+        onEditing(false);
+      }}
       className="w-14 rounded-md border-2 border-gold/70 bg-gold/10 px-1 py-1 text-center text-[15px] font-bold tabular-nums text-[#140d05] outline-none focus:border-gold focus:ring-2 focus:ring-gold/30 dark:text-[#fbf5e6]"
     />
   );
