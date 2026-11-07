@@ -738,3 +738,92 @@ export function parseQuranQuery(raw: string, chapters: Chapter[] | undefined): Q
 
   return { kind: "text" };
 }
+
+/* ------------------------------------------------- Recherche locale (surlignage) */
+/**
+ * Recherche sur le texte Uthmani complet (téléchargé une fois), SANS limite à
+ * 20 : tous les versets, dans l'ordre du Coran (donc groupés par sourate).
+ * Comparaison « repliée » : voyelles, tatwīl, alif (toutes variantes, y compris
+ * l'alif suscrit que l'orthographe uthmanienne omet : « إيمنكم » = « ايمانكم »),
+ * ى/ي, ة/ه, hamza. Chaque mot de la requête doit être présent (ordre libre).
+ * Le texte affiché reste le texte Uthmani d'origine ; seules les positions des
+ * mots trouvés sont renvoyées pour le surlignage.
+ */
+const MARKS = /[ؐ-ًؚ-ٰٟۖ-ۭـ]/;
+const FOLD_DROP = /[ؐ-ًؚ-ٰٟۖ-ۭـءآأإاٱ]/;
+function foldChar(ch: string): string {
+  if (FOLD_DROP.test(ch)) return "";
+  if (ch === "ى") return "ي"; // ى → ي
+  if (ch === "ة") return "ه"; // ة → ه
+  if (ch === "ؤ") return "و"; // ؤ → و
+  if (ch === "ئ") return "ي"; // ئ → ي
+  return ch;
+}
+
+/** Texte replié + position (dans l'original) de chaque caractère conservé. */
+export function foldWithMap(text: string): { s: string; map: number[] } {
+  let s = "";
+  const map: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const f = foldChar(text[i]);
+    if (!f) continue;
+    s += f;
+    for (let k = 0; k < f.length; k++) map.push(i);
+  }
+  return { s, map };
+}
+
+export interface LocalSearchResult {
+  key: string;
+  surah: number;
+  ayah: number;
+  text: string;
+  /** Intervalles [début, fin[ du texte d'origine à surligner. */
+  ranges: [number, number][];
+}
+
+export interface FoldedVerse {
+  v: FullVerseText;
+  s: string;
+  map: number[];
+}
+
+export function foldVerses(verses: FullVerseText[]): FoldedVerse[] {
+  return verses.map((v) => ({ v, ...foldWithMap(v.text) }));
+}
+
+export function searchLocal(rawQuery: string, folded: FoldedVerse[]): LocalSearchResult[] {
+  const q = rawQuery
+    .split(/\s+/)
+    .map((w) => foldWithMap(w).s)
+    .filter(Boolean);
+  if (q.length === 0 || q.join("").length < 2) return [];
+  const out: LocalSearchResult[] = [];
+  for (const f of folded) {
+    if (!q.every((w) => f.s.includes(w))) continue;
+    const raw: [number, number][] = [];
+    for (const w of q) {
+      let from = 0;
+      for (;;) {
+        const at = f.s.indexOf(w, from);
+        if (at < 0) break;
+        const start = f.map[at];
+        let end = f.map[at + w.length - 1] + 1;
+        // inclure les voyelles qui suivent la dernière lettre trouvée
+        while (end < f.v.text.length && MARKS.test(f.v.text[end])) end++;
+        raw.push([start, end]);
+        from = at + w.length;
+      }
+    }
+    raw.sort((a, b) => a[0] - b[0]);
+    const ranges: [number, number][] = [];
+    for (const r of raw) {
+      const last = ranges[ranges.length - 1];
+      if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
+      else ranges.push([r[0], r[1]]);
+    }
+    const [surah, ayah] = f.v.key.split(":").map(Number);
+    out.push({ key: f.v.key, surah, ayah, text: f.v.text, ranges });
+  }
+  return out;
+}

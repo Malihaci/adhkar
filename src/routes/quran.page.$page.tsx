@@ -29,7 +29,9 @@ import { readJSON, writeJSON } from "@/lib/storage";
 import { effectiveSchedule, type WirdState } from "@/lib/khatma";
 import { useInkOffset } from "@/lib/inkCenter";
 import {
-  MIN_FALLBACK_QUERY_LENGTH,
+  foldVerses,
+  searchLocal,
+  type LocalSearchResult,
   RECITERS,
   clampPage,
   fetchChapters,
@@ -45,12 +47,9 @@ import {
   isValidVerseKey,
   keysBetween,
   keysToEndOfQuran,
-  normalizeArabicForSearch,
   parseQuranQuery,
   loadQcfFont,
   type QcfVariant,
-  searchQuranArabic,
-  searchQuranFallback,
   TAJWEED_COLORS,
   TAJWEED_LEGEND,
   verseAudioUrl,
@@ -59,7 +58,6 @@ import {
   BASMALA_BRIDGE_KEY,
   type Chapter,
   type PageVerse,
-  type SearchResult,
 } from "@/lib/mushaf";
 import { useLocalState, useFavorites } from "@/lib/storage";
 import { usePreferences } from "@/lib/preferences";
@@ -1986,10 +1984,9 @@ function MushafPage() {
         </nav>
       ) : (
         <nav
-          style={belowVisible ? { bottom: belowH } : undefined}
           className={cn(
-            "fixed inset-x-0 bottom-0 border-t border-border/40 bg-card/90 px-2 pt-1.5 backdrop-blur-xl transition-transform duration-300",
-            belowVisible ? "z-[24] pb-1.5" : "z-20 pb-[calc(0.375rem+env(safe-area-inset-bottom))]",
+            "fixed inset-x-0 bottom-0 border-t border-border/40 bg-card/95 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
+            belowVisible ? "z-[27]" : "z-20",
             controlsHidden && "translate-y-full",
           )}
         >
@@ -2919,6 +2916,42 @@ function GoToPanel({
  * Prévu pour accueillir plus tard traduction/phonétique/thématique sans
  * changer ce contrat : SearchResult reste la seule forme consommée ici.
  */
+const SEARCH_HISTORY_KEY = "nm-quran-search-history";
+const SEARCH_PAGE = 60;
+
+function loadSearchHistory(): string[] {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(SEARCH_HISTORY_KEY) ?? "[]");
+    return Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 15) : [];
+  } catch {
+    return [];
+  }
+}
+function saveSearchHistory(list: string[]) {
+  try {
+    window.localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(list.slice(0, 15)));
+  } catch {
+    /* stockage indisponible */
+  }
+}
+
+/** Texte uthmanien d'origine, mots trouvés surlignés. */
+function Highlighted({ text, ranges }: { text: string; ranges: [number, number][] }) {
+  const parts: ReactNode[] = [];
+  let pos = 0;
+  ranges.forEach(([a, b], i) => {
+    if (a > pos) parts.push(text.slice(pos, a));
+    parts.push(
+      <mark key={i} className="rounded bg-gold/35 px-0.5 text-foreground">
+        {text.slice(a, b)}
+      </mark>,
+    );
+    pos = b;
+  });
+  if (pos < text.length) parts.push(text.slice(pos));
+  return <>{parts}</>;
+}
+
 function SearchPanel({
   chapters,
   navigatingKey,
@@ -2934,67 +2967,67 @@ function SearchPanel({
 }) {
   const [raw, setRaw] = useState("");
   const [query, setQuery] = useState("");
+  const [shownCount, setShownCount] = useState(SEARCH_PAGE);
+  const [history, setHistory] = useState<string[]>([]);
+  useEffect(() => setHistory(loadSearchHistory()), []);
 
-  // Debounce : un seul appel réseau après une pause de saisie.
   useEffect(() => {
-    const t = window.setTimeout(() => setQuery(raw.trim()), 350);
+    const t = window.setTimeout(() => {
+      setQuery(raw.trim());
+      setShownCount(SEARCH_PAGE);
+    }, 250);
     return () => window.clearTimeout(t);
   }, [raw]);
 
-  /**
-   * Détection locale et instantanée (sans réseau) d'une référence d'ayah
-   * (« 2:255 », « 2 255 », « Al-Baqara 255 », « البقرة 255 ») ou de page
-   * (« page 42 », « p 42 », nombre seul). Si rien ne correspond, la
-   * recherche textuelle existante prend le relais sans aucun changement.
-   */
+  const remember = (q: string) => {
+    const t = q.trim();
+    if (!t) return;
+    const next = [t, ...history.filter((h) => h !== t)].slice(0, 15);
+    setHistory(next);
+    saveSearchHistory(next);
+  };
+
+  /** Référence directe (« 2:255 », « page 42 », nom de sourate + numéro). */
   const parsed = useMemo(
     () => parseQuranQuery(raw, chapters.length ? chapters : undefined),
     [raw, chapters],
   );
   const isReference = parsed.kind !== "text";
 
-  const { data, isFetching, isError } = useQuery({
-    queryKey: ["quran-search", query],
-    queryFn: () => searchQuranArabic(query, 20),
-    enabled: query.length >= 2 && !isReference,
-  });
-
-  /**
-   * Fallback fragment : l'API principale matche par mot entier et rate donc
-   * certains fragments (ex. "كرسي" absent tel quel, seulement dans
-   * "كُرْسِيُّهُ"). On ne le déclenche QUE si la recherche principale est
-   * établie et vide — jamais en plus d'un résultat déjà pertinent — et
-   * jamais pour un fragment normalisé de moins de 3 caractères (sinon
-   * inondation de faux résultats). Le texte complet du Coran (un seul appel,
-   * `staleTime: Infinity`) n'est donc téléchargé qu'une fois par session, et
-   * seulement si ce cas se présente réellement.
-   */
-  const canFallback =
-    !isReference && normalizeArabicForSearch(query).length >= MIN_FALLBACK_QUERY_LENGTH;
-  const primaryEmpty = !isFetching && (data?.results.length ?? 0) === 0;
-  const tryFallback = primaryEmpty && canFallback;
-
-  const { data: fullQuranText, isFetching: isFetchingFullText } = useQuery({
+  // Texte complet du Coran : un seul téléchargement (mis en cache).
+  const { data: fullText, isFetching, isError } = useQuery({
     queryKey: ["quran-full-text"],
     queryFn: fetchFullQuranText,
     staleTime: Infinity,
-    enabled: tryFallback,
+    enabled: query.length >= 2 && !isReference,
   });
-
-  const fallback = useMemo(
-    () => (fullQuranText ? searchQuranFallback(query, fullQuranText, 20) : null),
-    [fullQuranText, query],
+  const folded = useMemo(() => (fullText ? foldVerses(fullText) : null), [fullText]);
+  const results = useMemo(
+    () => (folded && !isReference && query.length >= 2 ? searchLocal(query, folded) : []),
+    [folded, query, isReference],
   );
 
-  const usingFallback = tryFallback && !!fallback && fallback.results.length > 0;
-  const results = usingFallback ? fallback!.results : (data?.results ?? []);
-  const totalResults = usingFallback ? fallback!.totalResults : data?.totalResults;
-  const loading = isFetching || (tryFallback && isFetchingFullText);
-  const showNetworkError = isError && !tryFallback;
+  // Groupé par sourate, dans l'ordre du Coran.
+  const groups = useMemo(() => {
+    const list = results.slice(0, shownCount);
+    const out: { surah: number; items: LocalSearchResult[] }[] = [];
+    for (const r of list) {
+      const last = out[out.length - 1];
+      if (last && last.surah === r.surah) last.items.push(r);
+      else out.push({ surah: r.surah, items: [r] });
+    }
+    return out;
+  }, [results, shownCount]);
+  const countBySurah = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const r of results) m.set(r.surah, (m.get(r.surah) ?? 0) + 1);
+    return m;
+  }, [results]);
+  const loading = isFetching && !folded;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm">
-      <div className="flex max-h-[85dvh] w-full flex-col overflow-hidden rounded-t-3xl border-t border-border bg-card">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border-t border-border bg-card">
         <div className="flex shrink-0 items-center justify-between px-4 pt-4">
           <h2 className="font-display text-lg font-semibold">Recherche</h2>
           <button
@@ -3015,6 +3048,9 @@ function SearchPanel({
               lang="ar"
               value={raw}
               onChange={(e) => setRaw(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") remember(raw);
+              }}
               placeholder="Rechercher dans le Coran…"
               aria-label="Rechercher dans le Coran"
               className="h-12 w-full rounded-full border border-border bg-background px-4 text-right font-arabic text-[17px] outline-none transition placeholder:text-right placeholder:font-sans placeholder:text-[14px] placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
@@ -3030,14 +3066,17 @@ function SearchPanel({
             )}
           </div>
           <p className="mt-1.5 px-1 text-[11px] text-muted-foreground/70">
-            Mot, ayah ou page — ex. الله · 2:255 · Page 42
+            Mot, ayah ou page — ex. إيمانكم · 2:255 · Page 42 (avec ou sans voyelles)
           </p>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
           {parsed.kind === "ayah" ? (
             <button
-              onClick={() => onSelectVerse(`${parsed.surah}:${parsed.ayah}`)}
+              onClick={() => {
+                remember(raw);
+                onSelectVerse(`${parsed.surah}:${parsed.ayah}`);
+              }}
               disabled={!!navigatingKey}
               className="flex w-full items-center justify-between gap-2 rounded-2xl border border-primary/40 bg-primary/5 px-4 py-3 text-left transition hover:bg-primary/10 disabled:opacity-60"
             >
@@ -3061,12 +3100,13 @@ function SearchPanel({
             </p>
           ) : parsed.kind === "page" ? (
             <button
-              onClick={() => onGoToPage(parsed.page)}
+              onClick={() => {
+                remember(raw);
+                onGoToPage(parsed.page);
+              }}
               className="flex w-full items-center justify-between gap-2 rounded-2xl border border-primary/40 bg-primary/5 px-4 py-3 text-left transition hover:bg-primary/10"
             >
-              <span className="text-sm font-medium text-foreground">
-                Ouvrir la page {parsed.page}
-              </span>
+              <span className="text-sm font-medium text-foreground">Ouvrir la page {parsed.page}</span>
               <span className="shrink-0 text-xs font-medium tabular-nums text-primary">/ 604</span>
             </button>
           ) : parsed.kind === "page-suggestion" ? (
@@ -3074,86 +3114,135 @@ function SearchPanel({
               onClick={() => onGoToPage(parsed.page)}
               className="flex w-full items-center justify-between gap-2 rounded-2xl border border-border/60 bg-background px-4 py-3 text-left transition hover:border-primary/40 hover:bg-muted"
             >
-              <span className="text-sm font-medium text-foreground">
-                Aller à la page {parsed.page}
-              </span>
+              <span className="text-sm font-medium text-foreground">Aller à la page {parsed.page}</span>
               <span className="shrink-0 text-xs text-muted-foreground">/ 604</span>
             </button>
           ) : parsed.kind === "invalid-page" ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Le Mushaf contient 604 pages.
-            </p>
+            <p className="py-10 text-center text-sm text-muted-foreground">Le Mushaf contient 604 pages.</p>
           ) : query.length < 2 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Tapez au moins deux lettres — un mot ou un fragment d'ayah.
-            </p>
+            history.length > 0 ? (
+              <div>
+                <div className="mb-2 flex items-center justify-between px-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Recherches récentes
+                  </p>
+                  <button
+                    onClick={() => {
+                      setHistory([]);
+                      saveSearchHistory([]);
+                    }}
+                    className="text-xs font-medium text-primary"
+                  >
+                    Tout effacer
+                  </button>
+                </div>
+                <ul className="divide-y divide-border/50 rounded-2xl border border-border/60 bg-background">
+                  {history.map((h) => (
+                    <li key={h} className="flex items-center">
+                      <button
+                        onClick={() => {
+                          setRaw(h);
+                          setQuery(h);
+                        }}
+                        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left"
+                      >
+                        <Search className="size-4 shrink-0 text-muted-foreground" />
+                        <span dir="auto" className="truncate font-arabic text-lg text-foreground">
+                          {h}
+                        </span>
+                      </button>
+                      <button
+                        aria-label="Retirer"
+                        onClick={() => {
+                          const next = history.filter((x) => x !== h);
+                          setHistory(next);
+                          saveSearchHistory(next);
+                        }}
+                        className="grid size-10 shrink-0 place-items-center text-muted-foreground"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                Tapez au moins deux lettres — un mot ou un fragment d'ayah.
+              </p>
+            )
           ) : loading ? (
             <p className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              {tryFallback ? "Recherche élargie…" : "Recherche…"}
+              <Loader2 className="size-4 animate-spin" /> Préparation de la recherche…
             </p>
-          ) : showNetworkError ? (
+          ) : isError && !folded ? (
             <p className="py-10 text-center text-sm text-destructive">
               Recherche indisponible pour le moment. Réessayez.
             </p>
           ) : results.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Aucun résultat pour « {query} ».
-            </p>
+            <p className="py-10 text-center text-sm text-muted-foreground">Aucun résultat pour « {query} ».</p>
           ) : (
             <>
-              {usingFallback && (
-                <p className="mb-1 px-1 text-[11px] text-muted-foreground/80">
-                  Résultats de fragment (recherche élargie)
-                </p>
-              )}
-              {typeof totalResults === "number" && (
-                <p className="mb-2 px-1 text-xs text-muted-foreground">
-                  {totalResults > results.length
-                    ? `${results.length} premiers résultats sur ${totalResults}`
-                    : `${totalResults} résultat${totalResults > 1 ? "s" : ""}`}
-                </p>
-              )}
-              <ul className="space-y-1.5">
-                {results.map((r: SearchResult) => {
-                  const meta = chapters.find((c) => c.id === r.surah);
-                  const isNavigating = navigatingKey === r.key;
-                  return (
-                    <li key={r.key}>
-                      <button
-                        onClick={() => onSelectVerse(r.key)}
-                        disabled={!!navigatingKey}
-                        className="flex w-full flex-col gap-1.5 rounded-2xl border border-border/60 bg-background px-4 py-3 text-left transition hover:border-primary/40 hover:bg-muted disabled:opacity-60"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-sm font-semibold text-foreground">
-                            {meta?.nameFrench ?? `Sourate ${r.surah}`}
-                          </span>
-                          <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
-                            {r.key}
-                          </span>
-                        </div>
-                        <p
-                          lang="ar"
-                          dir="rtl"
-                          className="truncate font-arabic text-[1.1rem] leading-relaxed text-foreground"
-                        >
-                          {r.words.map((w, i) => (
-                            <span key={i} className={w.highlight ? "text-primary" : undefined}>
-                              {w.text}{" "}
+              <p className="mb-2 px-1 text-xs text-muted-foreground">
+                {results.length} résultat{results.length > 1 ? "s" : ""} dans {countBySurah.size} sourate
+                {countBySurah.size > 1 ? "s" : ""}
+              </p>
+              {groups.map((g) => {
+                const meta = chapters.find((c) => c.id === g.surah);
+                return (
+                  <section key={g.surah} className="mb-4">
+                    <div className="sticky top-0 z-10 -mx-1 mb-1.5 flex items-center justify-between gap-2 bg-card/95 px-1 py-1.5 backdrop-blur">
+                      <span lang="ar" className="font-arabic text-lg font-bold text-foreground">
+                        {meta?.nameArabic ?? ""}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {g.surah}. {meta?.nameFrench ?? ""} ·{" "}
+                        <span className="rounded-full bg-muted px-2 py-0.5 font-semibold tabular-nums text-foreground">
+                          {countBySurah.get(g.surah)}
+                        </span>
+                      </span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {g.items.map((r) => (
+                        <li key={r.key}>
+                          <button
+                            onClick={() => {
+                              remember(raw);
+                              onSelectVerse(r.key);
+                            }}
+                            disabled={!!navigatingKey}
+                            className="w-full rounded-2xl border border-border/60 bg-background px-4 py-3 text-left transition hover:border-primary/40 hover:bg-muted disabled:opacity-60"
+                          >
+                            <span className="mb-1 flex items-center justify-between text-xs font-medium tabular-nums text-muted-foreground">
+                              <span>{r.key}</span>
+                              {navigatingKey === r.key && (
+                                <span className="flex items-center gap-1.5 text-primary">
+                                  <Loader2 className="size-3 animate-spin" /> Ouverture…
+                                </span>
+                              )}
                             </span>
-                          ))}
-                        </p>
-                        {isNavigating && (
-                          <span className="flex items-center gap-1.5 text-xs text-primary">
-                            <Loader2 className="size-3 animate-spin" /> Ouverture…
-                          </span>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+                            <p
+                              lang="ar"
+                              dir="rtl"
+                              className="font-arabic text-[1.35rem] leading-[2.3] text-foreground"
+                            >
+                              <Highlighted text={r.text} ranges={r.ranges} />
+                            </p>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
+              {shownCount < results.length && (
+                <button
+                  onClick={() => setShownCount((n) => n + SEARCH_PAGE)}
+                  className="mb-2 w-full rounded-full border border-border py-2.5 text-sm font-medium text-primary"
+                >
+                  Afficher plus ({results.length - shownCount} restants)
+                </button>
+              )}
             </>
           )}
         </div>
