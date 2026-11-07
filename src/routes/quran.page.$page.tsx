@@ -1,6 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   Check,
   ChevronDown,
@@ -30,6 +30,7 @@ import { effectiveSchedule, type WirdState } from "@/lib/khatma";
 import { useInkOffset } from "@/lib/inkCenter";
 import {
   foldVerses,
+  fetchSurahPages,
   searchLocal,
   type LocalSearchResult,
   RECITERS,
@@ -2082,24 +2083,7 @@ function MushafPage() {
           }}
           className="pointer-events-none fixed inset-x-0 z-[26] flex items-center justify-between gap-2 px-3 transition-[bottom] duration-300"
         >
-          {searchNav.origin !== page ? (
-            <button
-              onClick={() =>
-                navigate({
-                  to: "/quran/page/$page",
-                  params: { page: String(searchNav.origin) },
-                  search: { r: reciterId },
-                })
-              }
-              aria-label={`Retour à la page ${searchNav.origin}`}
-              className="pointer-events-auto flex h-10 items-center gap-1.5 rounded-full bg-primary px-3.5 text-sm font-bold tabular-nums text-primary-foreground shadow-[var(--shadow-elevated)] active:scale-95"
-            >
-              <ChevronRight className="size-4" />
-              {searchNav.origin}
-            </button>
-          ) : (
-            <span />
-          )}
+          <span />
           <div className="pointer-events-auto flex h-10 items-center gap-0.5 rounded-full bg-card/95 px-1 shadow-[var(--shadow-soft)] ring-1 ring-border/60">
             <button
               onClick={() => goSearchResult(searchNav.index + 1)}
@@ -3111,6 +3095,34 @@ function SearchPanel({
     }
     return out;
   }, [results, shownCount]);
+  const pageQueries = useQueries({
+    queries: groups.map((g) => ({
+      queryKey: ["surah-pages", g.surah],
+      queryFn: () => fetchSurahPages(g.surah),
+      staleTime: Infinity,
+    })),
+  });
+  const pageOf = (key: string): number | undefined => {
+    const [sr, ay] = key.split(":").map(Number);
+    const gi = groups.findIndex((g) => g.surah === sr);
+    return gi >= 0 ? pageQueries[gi]?.data?.[ay] : undefined;
+  };
+  const surahSummary = useMemo(() => {
+    const m = new Map<number, string[]>();
+    for (const r of results) {
+      const l = m.get(r.surah) ?? [];
+      l.push(r.key);
+      m.set(r.surah, l);
+    }
+    return [...m.entries()];
+  }, [results]);
+  const jumpTo = (key: string) => {
+    const idx = results.findIndex((r) => r.key === key);
+    if (idx >= 0 && idx >= shownCount) setShownCount(idx + 1);
+    window.setTimeout(() => {
+      document.getElementById("res-" + key.replace(":", "-"))?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }, 60);
+  };
   const countBySurah = useMemo(() => {
     const m = new Map<number, number>();
     for (const r of results) m.set(r.surah, (m.get(r.surah) ?? 0) + 1);
@@ -3186,7 +3198,7 @@ function SearchPanel({
             )}
           </div>
           <p className="mt-1.5 px-1 text-[11px] text-muted-foreground/70">
-            Mot, ayah ou page — ex. إيمانكم · 2:255 · Page 42 (avec ou sans voyelles)
+            Mot ou phrase exacte, ayah ou page — ex. كتب عليكم القتال · 2:255 · Page 42
           </p>
         </div>
 
@@ -3308,10 +3320,41 @@ function SearchPanel({
             <p className="py-10 text-center text-sm text-muted-foreground">Aucun résultat pour « {query} ».</p>
           ) : (
             <>
-              <p className="mb-2 px-1 text-xs text-muted-foreground">
-                {results.length} résultat{results.length > 1 ? "s" : ""} dans {countBySurah.size} sourate
-                {countBySurah.size > 1 ? "s" : ""}
-              </p>
+              <div className="mb-3 rounded-2xl border border-border/60 bg-background p-3">
+                <div className="flex justify-around text-center">
+                  <div>
+                    <p className="text-xl font-bold tabular-nums">{results.length}</p>
+                    <p className="text-[11px] text-muted-foreground">āyāt</p>
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold tabular-nums">{countBySurah.size}</p>
+                    <p className="text-[11px] text-muted-foreground">sourate{countBySurah.size > 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+                <div className="mt-2 max-h-36 space-y-1.5 overflow-y-auto border-t border-border/50 pt-2">
+                  {surahSummary.map(([sr, keys]) => {
+                    const m = chapters.find((c) => c.id === sr);
+                    return (
+                      <div key={sr} className="flex items-start gap-2">
+                        <span className="w-28 shrink-0 truncate pt-0.5 text-xs font-semibold">
+                          {sr}. {m?.nameFrench ?? ""}
+                        </span>
+                        <span className="flex flex-wrap gap-1">
+                          {keys.map((k) => (
+                            <button
+                              key={k}
+                              onClick={() => jumpTo(k)}
+                              className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-primary"
+                            >
+                              {k.split(":")[1]}
+                            </button>
+                          ))}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
               {groups.map((g) => {
                 const meta = chapters.find((c) => c.id === g.surah);
                 return (
@@ -3329,11 +3372,12 @@ function SearchPanel({
                     </div>
                     <ul className="space-y-1.5">
                       {g.items.map((r) => (
-                        <li key={r.key}>
+                        <li key={r.key} id={"res-" + r.key.replace(":", "-")}>
                           <div className="rounded-2xl border border-border/60 bg-background transition hover:border-primary/40">
                             <div className="flex items-center justify-between px-3 pt-2 text-xs font-medium tabular-nums text-muted-foreground">
                               <span>
                                 {r.key}
+                                {pageOf(r.key) ? <span className="ml-2 font-normal">· page {pageOf(r.key)}</span> : null}
                                 {navigatingKey === r.key && (
                                   <span className="ml-2 inline-flex items-center gap-1 text-primary">
                                     <Loader2 className="size-3 animate-spin" /> Ouverture…

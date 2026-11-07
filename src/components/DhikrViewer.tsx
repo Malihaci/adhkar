@@ -12,7 +12,7 @@ import {
   Pause,
   Play,
   Share2,
-  X, BookOpen } from "lucide-react";
+  X, BookOpen, ArrowLeft } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { BookText } from "@/components/BookText";
 import { QuranDhikrText } from "@/components/QuranDhikrText";
@@ -27,6 +27,7 @@ import { dhikrFileSrc, useDhikrVerseAudio } from "@/lib/dhikrAudio";
 import { GHAMIDI_UNAVAILABLE_REASON } from "@/lib/adhkarGhamidi";
 import { COUNTER_DHIKR_IDS } from "@/lib/dhikrCounter";
 import { cn } from "@/lib/utils";
+import { useSmartBack } from "@/lib/nav";
 
 const ARABIC_SIZE: Record<ReadingSize, string> = {
   normal: "text-[calc(1.5rem*var(--ar-k))] leading-[2] sm:text-[calc(1.9rem*var(--ar-k))] sm:leading-[2]",
@@ -71,6 +72,7 @@ export function DhikrViewer({
   backTo = "/",
   persist = true,
 }: Props) {
+  const goBack = useSmartBack(backTo === "/favoris" || backTo === "/duas-coran" || backTo === "/adhkar-adab" ? backTo : "/");
   const { progress, increment, reset, setLastRead } = useDailyProgress();
   const { isFavorite, toggle } = useFavorites();
   const category = list[0]?.category ?? "morning";
@@ -273,6 +275,13 @@ export function DhikrViewer({
             ⋯ = actions du dhikr). Affichage/taille/audio vivent désormais
             uniquement dans ⚙️ Paramètres > Adhkār. */}
         <header className="flex items-start justify-between gap-2 border-b border-border px-3 py-2.5 sm:px-4">
+          <button
+            onClick={goBack}
+            aria-label="Retour"
+            className="-ml-1 grid size-10 shrink-0 place-items-center rounded-full text-foreground transition hover:bg-muted"
+          >
+            <ArrowLeft className="size-5" />
+          </button>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {label ??
@@ -298,6 +307,13 @@ export function DhikrViewer({
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <Link
+              to="/"
+              aria-label="Accueil"
+              className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            >
+              <Home className="size-[18px]" />
+            </Link>
             <button
               onClick={() => setLiveOpen(true)}
               aria-label="Vivre ce dhikr"

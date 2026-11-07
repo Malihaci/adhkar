@@ -18,6 +18,8 @@ import { DhikrViewer } from "@/components/DhikrViewer";
 import { LIVRE_SOURCE_NOTE, LIVRE_TITLE } from "@/data/adhkar-livre";
 import { LIVRE_CHAPTERS, LIVRE_THEMES } from "@/data/adhkar-livre-2";
 import { livreAll } from "@/data/livre-book";
+import { BottomNav } from "@/components/BottomNav";
+import { useSmartBack } from "@/lib/nav";
 import { ADHKAR_GROUPS, GROUPED_THEMES, findDhikr, groupById, naturalList, normalizeText, searchAdhkar } from "@/lib/adhkarIndex";
 
 export const Route = createFileRoute("/adhkar-adab")({
@@ -83,6 +85,7 @@ const THEME_ICONS: Record<string, LucideIcon> = {
 
 function AdhkarAdabPage() {
   const { c, t, i, g, d } = Route.useSearch();
+  const goBack = useSmartBack("/");
   const [query, setQuery] = useState("");
   const [showNote, setShowNote] = useState(false);
 
@@ -153,15 +156,16 @@ function AdhkarAdabPage() {
   const found = q ? searchAdhkar(query) : [];
 
   return (
-    <div className="mx-auto min-h-[100dvh] max-w-2xl bg-background px-4 pb-10 pt-4">
+    <div className="mx-auto min-h-[100dvh] max-w-2xl bg-background px-4 pb-28 pt-4">
       <header className="mb-4 flex items-center gap-3">
-        <Link
-          to={t !== undefined ? "/adhkar-adab" : "/"}
-          aria-label={t !== undefined ? "Thèmes" : "Accueil"}
+        <button
+          type="button"
+          onClick={goBack}
+          aria-label="Retour"
           className="grid size-10 shrink-0 place-items-center rounded-full border border-border"
         >
           <ArrowLeft className="size-5" />
-        </Link>
+        </button>
         <div className="min-w-0">
           <h1 className="font-display text-xl font-semibold">
             {LIVRE_TITLE}
@@ -267,6 +271,7 @@ function AdhkarAdabPage() {
           </ul>
         )
       )}
+      <BottomNav />
     </div>
   );
 }

@@ -767,6 +767,8 @@ export function foldWithMap(text: string): { s: string; map: number[] } {
   for (let i = 0; i < text.length; i++) {
     const f = foldChar(text[i]);
     if (!f) continue;
+    // espaces : jamais en tête, jamais doublés (mot réduit à rien)
+    if (f === " " && (s === "" || s.endsWith(" "))) continue;
     s += f;
     for (let k = 0; k < f.length; k++) map.push(i);
   }
@@ -793,37 +795,38 @@ export function foldVerses(verses: FullVerseText[]): FoldedVerse[] {
 }
 
 export function searchLocal(rawQuery: string, folded: FoldedVerse[]): LocalSearchResult[] {
-  const q = rawQuery
-    .split(/\s+/)
-    .map((w) => foldWithMap(w).s)
-    .filter(Boolean);
-  if (q.length === 0 || q.join("").length < 2) return [];
+  // Phrase exacte : les mots doivent se suivre, dans cet ordre.
+  const phrase = foldWithMap(rawQuery.trim()).s.trim();
+  if (phrase.replace(/ /g, "").length < 2) return [];
   const out: LocalSearchResult[] = [];
   for (const f of folded) {
-    if (!q.every((w) => f.s.includes(w))) continue;
-    const raw: [number, number][] = [];
-    for (const w of q) {
-      let from = 0;
-      for (;;) {
-        const at = f.s.indexOf(w, from);
-        if (at < 0) break;
-        const start = f.map[at];
-        let end = f.map[at + w.length - 1] + 1;
-        // inclure les voyelles qui suivent la dernière lettre trouvée
-        while (end < f.v.text.length && MARKS.test(f.v.text[end])) end++;
-        raw.push([start, end]);
-        from = at + w.length;
-      }
-    }
-    raw.sort((a, b) => a[0] - b[0]);
     const ranges: [number, number][] = [];
-    for (const r of raw) {
-      const last = ranges[ranges.length - 1];
-      if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
-      else ranges.push([r[0], r[1]]);
+    let from = 0;
+    for (;;) {
+      const at = f.s.indexOf(phrase, from);
+      if (at < 0) break;
+      const start = f.map[at];
+      let end = f.map[at + phrase.length - 1] + 1;
+      while (end < f.v.text.length && MARKS.test(f.v.text[end])) end++;
+      ranges.push([start, end]);
+      from = at + phrase.length;
     }
+    if (ranges.length === 0) continue;
     const [surah, ayah] = f.v.key.split(":").map(Number);
     out.push({ key: f.v.key, surah, ayah, text: f.v.text, ranges });
+  }
+  return out;
+}
+
+/** Page du Mushaf de chaque āyah d'une sourate (ayah → page). */
+export async function fetchSurahPages(surah: number): Promise<Record<number, number>> {
+  const res = await fetch(`${API}/verses/by_chapter/${surah}?fields=page_number&per_page=300`);
+  if (!res.ok) throw new Error("Pages indisponibles");
+  const json = await res.json();
+  const out: Record<number, number> = {};
+  for (const v of (json.verses as any[]) ?? []) {
+    const ayah = Number(String(v.verse_key).split(":")[1]);
+    out[ayah] = clampPage(Number(v.page_number) || 1);
   }
   return out;
 }

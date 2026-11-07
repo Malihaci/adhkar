@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { fetchBelowText, belowSourceInfo } from "@/lib/belowContent";
 import type { BelowSource, ReadingSize } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
@@ -185,6 +186,15 @@ export function BelowPanel({
         <span className="mt-1 min-w-0 flex-1 truncate text-xs font-semibold text-primary">
           {verseKey} · <span className="font-normal text-muted-foreground">{info?.label}</span>
         </span>
+        <Link
+          to="/etude/$surah/$ayah"
+          params={{ surah: verseKey.split(":")[0], ayah: verseKey.split(":")[1] }}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="Tadabbur de cette āyah"
+          className="mt-1 flex h-8 shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 text-xs font-semibold text-primary"
+        >
+          <Sparkles className="size-3.5" /> Tadabbur
+        </Link>
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
