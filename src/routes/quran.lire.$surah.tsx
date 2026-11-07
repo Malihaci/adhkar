@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Settings2, Sparkles } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Home, Settings2, Sparkles } from "lucide-react";
 import { fetchChapters, fetchVersePage } from "@/lib/mushaf";
 import { fetchHamidullahSura } from "@/lib/hamidullah";
 import { writeJSON } from "@/lib/storage";
@@ -35,6 +35,8 @@ function LirePage() {
   const layers = prefs.quran;
   const source = layers.belowSource ?? "none";
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [barHidden, setBarHidden] = useState(false);
+  const lastY = useRef(0);
 
   const { data: chapters } = useQuery({
     queryKey: ["chapters-fr"],
@@ -78,6 +80,11 @@ function LirePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stay]);
 
+  const openMushaf = () => {
+    // Repasse en mode Mushaf puis ouvre la page de cette sourate.
+    updateQuran({ belowMode: "panel" });
+  };
+
   const goSurah = (delta: number) => {
     const next = surah + delta;
     if (next < 1 || next > 114) return;
@@ -87,41 +94,9 @@ function LirePage() {
   return (
     <div className="flex h-[100dvh] flex-col bg-background">
       <header className="relative z-30 shrink-0 border-b border-border/40 bg-card/80 px-3 py-2.5 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-2xl items-center gap-2">
-          <Link
-            to="/"
-            aria-label="Accueil"
-            className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted"
-          >
-            <ChevronLeft className="size-5" />
-          </Link>
-          <button
-            onClick={() => goSurah(-1)}
-            disabled={surah <= 1}
-            aria-label="Sourate précédente"
-            className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground disabled:opacity-30"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <p className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-foreground">
-            {chapter ? `${chapter.id}. ${chapter.nameFrench} · ${chapter.nameArabic} · ${chapter.versesCount} āyāt` : `Sourate ${surah}`}
-          </p>
-          <button
-            onClick={() => goSurah(1)}
-            disabled={surah >= 114}
-            aria-label="Sourate suivante"
-            className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground disabled:opacity-30"
-          >
-            <ChevronRight className="size-4" />
-          </button>
-          <button
-            onClick={() => setOptionsOpen((v) => !v)}
-            aria-label="Options d'affichage"
-            className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted"
-          >
-            <Settings2 className="size-[18px]" />
-          </button>
-        </div>
+        <p className="mx-auto max-w-2xl truncate text-center text-sm font-semibold text-foreground">
+          {chapter ? `${chapter.id}. ${chapter.nameFrench} · ${chapter.nameArabic} · ${chapter.versesCount} āyāt` : `Sourate ${surah}`}
+        </p>
         {optionsOpen && (
           <div className="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-border bg-card px-4 pb-4 pt-3 shadow-xl">
             <div className="mx-auto max-w-2xl">
@@ -167,8 +142,18 @@ function LirePage() {
         )}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl space-y-3 px-4 py-4">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto"
+        onScroll={(e) => {
+          const y = e.currentTarget.scrollTop;
+          const dy = y - lastY.current;
+          if (Math.abs(dy) > 8) {
+            setBarHidden(dy > 0 && y > 80);
+            lastY.current = y;
+          }
+        }}
+      >
+        <div className="mx-auto max-w-2xl space-y-3 px-4 py-4 pb-28">
           {isPending ? (
             <p className="py-16 text-center text-sm text-muted-foreground">Chargement…</p>
           ) : !verses?.length ? (
@@ -203,7 +188,7 @@ function LirePage() {
                     </p>
                   )}
                   {showFr && (
-                    <p className="select-text text-[0.95rem] leading-[1.85] text-foreground/90">{v.translation}</p>
+                    <p className="select-text text-[0.95rem] leading-[1.85] text-foreground/90">{v.translation.replace(/\s*\[\d+\]/g, "")}</p>
                   )}
                   {showPh && <LazyBelow verseKey={verseKey} source="phonetic" size={layers.textSize} />}
                   {tafsirOn && (
@@ -216,8 +201,89 @@ function LirePage() {
               );
             })
           )}
+          <Link
+            to="/parametres"
+            search={{ section: "coran" }}
+            className="mt-2 flex items-center justify-between rounded-2xl border border-border px-4 py-3 text-sm"
+          >
+            <span className="font-semibold text-foreground">Paramètres du Coran</span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </Link>
         </div>
       </div>
+
+      <nav
+        aria-label="Commandes"
+        style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
+        className={cn(
+          "fixed inset-x-3 z-30 mx-auto max-w-md rounded-[1.35rem] border border-border/60 bg-card/85 px-1.5 py-1 shadow-[0_8px_24px_-8px_rgba(0,0,0,.35)] backdrop-blur-xl transition-all duration-300",
+          barHidden && !optionsOpen && "pointer-events-none translate-y-[160%] opacity-0",
+        )}
+      >
+        <div className="flex items-center justify-around">
+          <LireBtn to="/" label="Accueil" icon={<Home className="size-[19px]" strokeWidth={1.75} />} />
+          <LireBtn
+            label="Précédente"
+            disabled={surah <= 1}
+            onClick={() => goSurah(-1)}
+            icon={<ChevronLeft className="size-[19px]" strokeWidth={1.75} />}
+          />
+          <LireBtn
+            label="Mushaf"
+            onClick={openMushaf}
+            icon={<BookOpen className="size-[19px]" strokeWidth={1.75} />}
+            accent
+          />
+          <LireBtn
+            label="Suivante"
+            disabled={surah >= 114}
+            onClick={() => goSurah(1)}
+            icon={<ChevronRight className="size-[19px]" strokeWidth={1.75} />}
+          />
+          <LireBtn
+            label="Options"
+            onClick={() => setOptionsOpen((v) => !v)}
+            icon={<Settings2 className="size-[19px]" strokeWidth={1.75} />}
+          />
+        </div>
+      </nav>
     </div>
+  );
+}
+
+/** Bouton compact de la barre : icône + légende minuscule. */
+function LireBtn({
+  label,
+  icon,
+  onClick,
+  to,
+  disabled,
+  accent,
+}: {
+  label: string;
+  icon: ReactNode;
+  onClick?: () => void;
+  to?: "/";
+  disabled?: boolean;
+  accent?: boolean;
+}) {
+  const cls = cn(
+    "flex w-14 flex-col items-center gap-0.5 rounded-xl py-1 transition active:scale-95 active:bg-muted disabled:opacity-30",
+    accent ? "text-primary" : "text-muted-foreground",
+  );
+  const inner = (
+    <>
+      <span className={accent ? "text-primary" : "text-foreground/80"}>{icon}</span>
+      <span className="text-[9px] font-medium leading-none">{label}</span>
+    </>
+  );
+  return to ? (
+    <Link to={to} aria-label={label} className={cls}>
+      {inner}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} className={cls}>
+      {inner}
+    </button>
   );
 }

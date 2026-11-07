@@ -2221,6 +2221,20 @@ function MushafPage() {
                 </span>
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
               </Link>
+              <Link
+                to="/parametres"
+                search={{ section: "coran" }}
+                onClick={() => setOptionsOpen(false)}
+                className="mb-3 mt-2 flex items-center justify-between rounded-2xl border border-border px-4 py-3 text-sm"
+              >
+                <span className="min-w-0">
+                  <span className="block font-semibold text-foreground">Paramètres du Coran</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    Affichage, taille, tajwīd, fond…
+                  </span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              </Link>
 
             </div>
 
