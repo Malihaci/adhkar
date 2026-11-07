@@ -6,7 +6,9 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Check,
   Compass,
+  Languages,
   Copy,
   Heart,
   MoreHorizontal,
@@ -78,6 +80,7 @@ function EtudePage() {
   const [main, setMain] = useState<MainTab>("comp");
   const [lang, setLang] = useLocalState<StudyLang>("etude:lang", "fr");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sourceOpen, setSourceOpen] = useState(false);
   const [ayahOpen, setAyahOpen] = useState(false);
   const [trOpen, setTrOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -301,26 +304,10 @@ function EtudePage() {
           >
             <X className="size-5" />
           </button>
-          <button
-            onClick={() => goToAyah(-1)}
-            disabled={ayah <= 1}
-            aria-label="Āyah précédente"
-            className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition disabled:opacity-30"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
           <p className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-foreground">
             {chapterMeta?.nameFrench ?? `Sourate ${surah}`} ·{" "}
             <span className="tabular-nums">{verseKey}</span>
           </p>
-          <button
-            onClick={() => goToAyah(1)}
-            disabled={!!chapterMeta && ayah >= chapterMeta.versesCount}
-            aria-label="Āyah suivante"
-            className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition disabled:opacity-30"
-          >
-            <ChevronRight className="size-5" />
-          </button>
           <button
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="Actions sur cette āyah"
@@ -354,6 +341,15 @@ function EtudePage() {
               >
                 <Heart className={cn("size-4", fav && "fill-gold text-gold")} />
                 {fav ? "Retirer des favoris" : "Ajouter aux favoris"}
+              </button>
+              <button
+                className={menuItem}
+                onClick={() => {
+                  setLang(lang === "ar" ? "fr" : "ar");
+                  setMenuOpen(false);
+                }}
+              >
+                <Languages className="size-4" /> {lang === "ar" ? "Afficher en français" : "Afficher en arabe"}
               </button>
               <button className={menuItem} onClick={copyAyah}>
                 <Copy className="size-4" /> Copier
@@ -412,81 +408,78 @@ function EtudePage() {
               {verse?.arabic}
             </p>
           )}
-          {hamidullahPending ? null : hamidullah ? (
-            <div
-              onClick={() => setTrOpen((v) => !v)}
-              className="mt-1 cursor-pointer text-[0.9rem] leading-[1.6] text-muted-foreground"
-            >
-              <p className={cn(!trOpen && "line-clamp-3")}>{hamidullah.translation}</p>
-              {trOpen && hamidullah.footnotes && <p className="mt-2 text-xs">{hamidullah.footnotes}</p>}
-              {trOpen && (
-                <p className="mt-1.5 flex items-center gap-1 text-[11px] uppercase tracking-wide">
-                  Traduction des sens — Muhammad Hamidullah
-                  <SourceInfo
-                    sourceTitle="Traduction française des sens du Coran"
-                    sourceAuthor="Muhammad Hamidullah"
-                    editorialSource="QuranEnc"
-                    nature="Traduction publiée, réutilisée telle quelle."
-                  />
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Traduction indisponible pour le moment.
-            </p>
-          )}
         </div>
       </section>
 
-      {/* Trois questions, petits onglets à icône ; un seul bouton pour l'arabe. */}
-      <div className="shrink-0 border-b border-border/40 bg-background px-3 py-1.5">
-        <div className="mx-auto flex max-w-2xl items-center gap-2">
-          <div role="tablist" aria-label="Étudier" className="flex min-w-0 flex-1 gap-1">
-            {MAIN_TABS.map(({ key, label, icon: Icon }) => (
-              <button
-                key={key}
-                role="tab"
-                aria-selected={main === key}
-                onClick={() => setMain(key)}
-                className={cn(
-                  "inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-[13px] font-semibold transition",
-                  main === key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
-                )}
-              >
-                <Icon className="size-4 shrink-0" />
-                <span className="truncate">{label}</span>
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            aria-pressed={lang === "ar"}
-            aria-label={lang === "ar" ? "Afficher en français" : "Afficher en arabe"}
-            onClick={() => setLang(lang === "ar" ? "fr" : "ar")}
-            className="h-9 shrink-0 rounded-full border border-border px-3 text-xs font-bold text-foreground transition hover:bg-muted"
-          >
-            {lang === "ar" ? "FR" : "عربي"}
-          </button>
+      {/* Trois onglets sobres (texte + trait), puis UNE liste pour choisir la source. */}
+      <div className="shrink-0 border-b border-border/40 bg-background">
+        <div role="tablist" aria-label="Étudier" className="mx-auto flex max-w-2xl px-2">
+          {MAIN_TABS.map(({ key, label, ar }) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={main === key}
+              onClick={() => setMain(key)}
+              className={cn(
+                "relative flex-1 py-2.5 text-center transition",
+                main === key ? "text-primary" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <span className="block text-[14px] font-semibold leading-tight">{label}</span>
+              <span lang="ar" className="block font-arabic text-[11px] leading-tight opacity-70">
+                {ar}
+              </span>
+              {main === key && (
+                <span className="absolute inset-x-6 bottom-0 h-[3px] rounded-full bg-primary" aria-hidden />
+              )}
+            </button>
+          ))}
         </div>
         {main === "comp" && (
-          <div role="tablist" aria-label="Sources" className="mx-auto mt-1.5 flex max-w-2xl gap-1 overflow-x-auto pb-0.5">
-            {SOURCE_CHIPS.map((c) => (
-              <button
-                key={c.key}
-                role="tab"
-                aria-selected={tab === c.key}
-                onClick={() => setTab(c.key)}
-                className={cn(
-                  "h-8 shrink-0 rounded-full border px-3 text-xs font-semibold transition",
-                  tab === c.key
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {c.label}
-              </button>
-            ))}
+          <div className="relative mx-auto max-w-2xl px-4 pb-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => setSourceOpen((v) => !v)}
+              aria-haspopup="listbox"
+              aria-expanded={sourceOpen}
+              className="flex h-10 w-full items-center justify-between rounded-xl border border-border bg-card px-3 text-sm"
+            >
+              <span className="truncate">
+                <span className="text-muted-foreground">Source : </span>
+                <span className="font-semibold">{SOURCE_CHIPS.find((c) => c.key === tab)?.label}</span>
+              </span>
+              <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition", sourceOpen && "rotate-180")} />
+            </button>
+            {sourceOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setSourceOpen(false)} />
+                <ul
+                  role="listbox"
+                  aria-label="Source"
+                  className="absolute inset-x-4 top-full z-40 mt-1 overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-[var(--shadow-elevated)]"
+                >
+                  {SOURCE_CHIPS.map((c) => (
+                    <li key={c.key}>
+                      <button
+                        role="option"
+                        aria-selected={tab === c.key}
+                        onClick={() => {
+                          setTab(c.key);
+                          setSourceOpen(false);
+                        }}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm",
+                          tab === c.key ? "bg-primary/10 font-semibold text-primary" : "hover:bg-muted",
+                        )}
+                      >
+                        {c.label}
+                        {tab === c.key && <Check className="size-4" />}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -571,6 +564,36 @@ function EtudePage() {
             ))}
         </div>
       </div>
+
+      <nav
+        aria-label="Navigation entre les āyāt"
+        className="shrink-0 border-t border-border/40 bg-card/95 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2"
+      >
+        <div className="mx-auto flex max-w-2xl items-center justify-between">
+          <button
+            onClick={() => goToAyah(-1)}
+            disabled={ayah <= 1}
+            aria-label="Āyah précédente"
+            className="grid size-11 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-soft)] transition active:scale-95 disabled:opacity-30"
+          >
+            <ChevronLeft className="size-5" />
+          </button>
+          <button
+            onClick={backToMushaf}
+            className="inline-flex h-11 items-center gap-2 rounded-full border border-border bg-background px-5 text-sm font-semibold text-foreground transition active:scale-95"
+          >
+            <BookOpen className="size-4 text-primary" /> Mushaf
+          </button>
+          <button
+            onClick={() => goToAyah(1)}
+            disabled={!!chapterMeta && ayah >= chapterMeta.versesCount}
+            aria-label="Āyah suivante"
+            className="grid size-11 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-soft)] transition active:scale-95 disabled:opacity-30"
+          >
+            <ChevronRight className="size-5" />
+          </button>
+        </div>
+      </nav>
 
       {copied && (
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center">
