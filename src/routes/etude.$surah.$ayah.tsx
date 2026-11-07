@@ -76,7 +76,7 @@ function EtudePage() {
   const ayah = Number(ayahParam);
   const verseKey = `${surah}:${ayah}`;
 
-  const [tab, setTab] = useState<StudyTab>("mukhtasar");
+  const [tab, setTab] = useState<StudyTab>("hamidullah");
   const [main, setMain] = useState<MainTab>("comp");
   const [lang, setLang] = useLocalState<StudyLang>("etude:lang", "fr");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -295,7 +295,7 @@ function EtudePage() {
       />
 
       {/* En-tête minimal : 1 ligne. Les actions sont dans « ⋯ » (ou appui long sur l'āyah). */}
-      <header className="relative shrink-0 border-b border-border/40 bg-card/90 px-2 py-1.5 backdrop-blur-xl">
+      <header className="relative z-40 shrink-0 border-b border-border/40 bg-card/90 px-2 py-1.5 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center gap-1">
           <button
             onClick={backToMushaf}
@@ -341,15 +341,6 @@ function EtudePage() {
               >
                 <Heart className={cn("size-4", fav && "fill-gold text-gold")} />
                 {fav ? "Retirer des favoris" : "Ajouter aux favoris"}
-              </button>
-              <button
-                className={menuItem}
-                onClick={() => {
-                  setLang(lang === "ar" ? "fr" : "ar");
-                  setMenuOpen(false);
-                }}
-              >
-                <Languages className="size-4" /> {lang === "ar" ? "Afficher en français" : "Afficher en arabe"}
               </button>
               <button className={menuItem} onClick={copyAyah}>
                 <Copy className="size-4" /> Copier
@@ -437,12 +428,13 @@ function EtudePage() {
         </div>
         {main === "comp" && (
           <div className="relative mx-auto max-w-2xl px-4 pb-2.5 pt-1">
+            <div className="flex gap-2">
             <button
               type="button"
               onClick={() => setSourceOpen((v) => !v)}
               aria-haspopup="listbox"
               aria-expanded={sourceOpen}
-              className="flex h-10 w-full items-center justify-between rounded-xl border border-border bg-card px-3 text-sm"
+              className="flex h-10 min-w-0 flex-1 items-center justify-between rounded-xl border border-border bg-card px-3 text-sm"
             >
               <span className="truncate">
                 <span className="text-muted-foreground">Source : </span>
@@ -450,6 +442,18 @@ function EtudePage() {
               </span>
               <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition", sourceOpen && "rotate-180")} />
             </button>
+            {tab !== "hamidullah" && tab !== "asbab" && (
+              <button
+                type="button"
+                onClick={() => setLang(lang === "ar" ? "fr" : "ar")}
+                aria-label={lang === "ar" ? "Afficher le tafsīr en français" : "Afficher le tafsīr en arabe"}
+                className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-sm font-bold transition active:scale-95"
+              >
+                <Languages className="size-4 text-primary" />
+                {lang === "ar" ? "FR" : "عربي"}
+              </button>
+            )}
+            </div>
             {sourceOpen && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setSourceOpen(false)} />
@@ -487,7 +491,35 @@ function EtudePage() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl px-4 py-4">
           {main === "comp" &&
-            (tab === "asbab" ? (
+            (tab === "hamidullah" ? (
+              <div className="space-y-3">
+                {hamidullahPending ? (
+                  <Loading />
+                ) : hamidullah ? (
+                  <>
+                    <p className="select-text text-[1.05rem] leading-[1.95] text-foreground">
+                      {hamidullah.translation}
+                    </p>
+                    {hamidullah.footnotes && (
+                      <p className="select-text rounded-xl bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
+                        {hamidullah.footnotes}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <Empty text="Traduction indisponible pour le moment." />
+                )}
+                <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                  Traduction des sens — Muhammad Hamidullah
+                  <SourceInfo
+                    sourceTitle="Traduction française des sens du Coran"
+                    sourceAuthor="Muhammad Hamidullah"
+                    editorialSource="QuranEnc"
+                    nature="Traduction publiée, réutilisée telle quelle."
+                  />
+                </p>
+              </div>
+            ) : tab === "asbab" ? (
               <AsbabPanel key={verseKey} surah={surah} ayah={ayah} items={contexteItems} />
             ) : (
               <TafsirReader
@@ -753,8 +785,8 @@ function MokhtasarLessons({ surah, ayah }: { surah: number; ayah: number }) {
   );
 }
 
-type StudyTab = "mukhtasar" | "muyassar" | "saadi" | "ibnkathir" | "qurtubi" | "asbab";
-type TafsirTab = Exclude<StudyTab, "asbab">;
+type StudyTab = "hamidullah" | "mukhtasar" | "muyassar" | "saadi" | "ibnkathir" | "qurtubi" | "asbab";
+type TafsirTab = Exclude<StudyTab, "asbab" | "hamidullah">;
 type StudyLang = "fr" | "ar";
 type MainTab = "comp" | "med" | "act";
 
@@ -765,11 +797,12 @@ const MAIN_TABS: { key: MainTab; label: string; ar: string; icon: typeof BookOpe
 ];
 
 const SOURCE_CHIPS: { key: StudyTab; label: string }[] = [
-  { key: "mukhtasar", label: "Mukhtasar" },
-  { key: "muyassar", label: "Muyassar" },
-  { key: "saadi", label: "As-Saʿdī" },
-  { key: "ibnkathir", label: "Ibn Kathīr" },
-  { key: "qurtubi", label: "Al-Qurṭubī" },
+  { key: "hamidullah", label: "Traduction — Muhammad Hamidullah" },
+  { key: "muyassar", label: "Tafsīr al-Muyassar" },
+  { key: "mukhtasar", label: "Tafsīr al-Mukhtasar" },
+  { key: "saadi", label: "Tafsīr as-Saʿdī" },
+  { key: "ibnkathir", label: "Tafsīr Ibn Kathīr" },
+  { key: "qurtubi", label: "Tafsīr al-Qurṭubī" },
   { key: "asbab", label: "Asbāb an-nuzūl" },
 ];
 
