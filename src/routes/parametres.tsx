@@ -1,7 +1,27 @@
-import { useEffect, useRef, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2, Check, ChevronDown, Laptop, MapPin, Moon, Navigation, Sun, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Bell,
+  Building2,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Cloud,
+  Headphones,
+  Laptop,
+  MapPin,
+  Moon,
+  Navigation,
+  Palette,
+  Search,
+  Sparkles,
+  Sun,
+  Trash2,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { OfflineSettings } from "@/components/OfflineSettings";
@@ -20,7 +40,8 @@ import {
   type PrayerSettings,
 } from "@/lib/prayerTimes";
 import { MOSQUE_PRESETS } from "@/data/mosque-calendars-preset";
-import { RECITERS } from "@/lib/mushaf";
+import { RECITERS, TAJWEED_COLORS, TAJWEED_LEGEND } from "@/lib/mushaf";
+import { belowSourceInfo } from "@/lib/belowContent";
 import { cn } from "@/lib/utils";
 
 /**
@@ -91,43 +112,69 @@ function ToggleRow({
   );
 }
 
-function SizeRow({ value, onChange }: { value: ReadingSize; onChange: (v: ReadingSize) => void }) {
+const selectCls = "h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium";
+
+/** Liste déroulante étiquetée — remplace les rangées de boutons. */
+function SelectField({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="mt-2 flex gap-1 rounded-full border border-border p-1">
-      {SIZE_OPTIONS.map((o) => (
-        <button
-          key={o.key}
-          onClick={() => onChange(o.key)}
-          aria-pressed={value === o.key}
-          className={cn(
-            "flex-1 rounded-full py-2 text-sm font-semibold transition",
-            value === o.key ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <label className="mt-3 block">
+      <span className="mb-1 block text-xs text-muted-foreground">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className={selectCls}>
+        {children}
+      </select>
+    </label>
   );
 }
 
-function SpeedRow({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function SizeRow({
+  value,
+  onChange,
+  label = "Taille du texte",
+}: {
+  value: ReadingSize;
+  onChange: (v: ReadingSize) => void;
+  label?: string;
+}) {
   return (
-    <div className="mt-2 flex gap-1 rounded-full border border-border p-1">
-      {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
-        <button
-          key={s}
-          onClick={() => onChange(s)}
-          aria-pressed={value === s}
-          className={cn(
-            "flex-1 rounded-full py-2 text-sm font-semibold transition",
-            value === s ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-          )}
-        >
-          {s}×
-        </button>
+    <SelectField label={label} value={value} onChange={(v) => onChange(v as ReadingSize)}>
+      {SIZE_OPTIONS.map((o) => (
+        <option key={o.key} value={o.key}>
+          {o.label}
+        </option>
       ))}
-    </div>
+    </SelectField>
+  );
+}
+
+function SpeedRow({
+  value,
+  onChange,
+  options = [0.5, 0.75, 1, 1.25, 1.5, 2],
+  label = "Vitesse",
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  options?: number[];
+  label?: string;
+}) {
+  return (
+    <SelectField label={label} value={value} onChange={(v) => onChange(Number(v))}>
+      {options.map((sp) => (
+        <option key={sp} value={sp}>
+          {sp}×
+        </option>
+      ))}
+    </SelectField>
   );
 }
 
@@ -167,6 +214,8 @@ function DisclosureRow({
   );
 }
 
+const SectionCtx = createContext<string | undefined>(undefined);
+
 function Section({
   id,
   title,
@@ -178,6 +227,8 @@ function Section({
   subtitle?: string;
   children: React.ReactNode;
 }) {
+  const active = useContext(SectionCtx);
+  if (active !== id) return null;
   return (
     <section id={id} className="surface-card scroll-mt-20 space-y-1 p-5">
       <h2 className="font-display text-base font-semibold text-foreground">{title}</h2>
@@ -193,7 +244,6 @@ function ParametresPage() {
   const { mode, setMode } = useTheme();
   const [smart, setSmart] = useSmartReminderPrefs();
   const updateSmart = (patch: Partial<typeof smart>) => setSmart((prev) => ({ ...prev, ...patch }));
-  const scrolled = useRef(false);
 
   // --- Horaires (déplacé depuis la page Horaires — chantier "Simplifier
   // Horaires + Accueil" : la page principale ne garde que l'essentiel, tout
@@ -308,29 +358,125 @@ function ParametresPage() {
   const mosqueSelected = settings.source === "mosque" && !!settings.mosqueName;
   const calendarStatus = getMosqueCalendarStatus(calendar, settings.mosqueId);
 
-  useEffect(() => {
-    if (scrolled.current || !search.section) return;
-    // `scrollRestoration: true` (router.tsx) remet le scroll à sa position
-    // restaurée juste après le montage de la page — un `requestAnimationFrame`
-    // suffit à laisser cette restauration passer avant notre ancre contextuelle,
-    // sinon elle écrase systématiquement ce `scrollIntoView` (§"section=...").
-    const id = requestAnimationFrame(() => {
-      const el = document.getElementById(search.section!);
-      if (el) {
-        el.scrollIntoView({ block: "start" });
-        scrolled.current = true;
-      }
-    });
-    return () => cancelAnimationFrame(id);
-  }, [search.section]);
+  const sec = ["coran", "adhkar", "audio", "notifications", "horaires", "hors-ligne", "general"].includes(
+    search.section ?? "",
+  )
+    ? search.section
+    : undefined;
+  const [query, setQuery] = useState("");
+
+  const sizeLabel = (k: ReadingSize) => SIZE_OPTIONS.find((o) => o.key === k)?.label ?? "";
+  const reciterName = RECITERS.find((r) => r.id === prefs.quran.reciterId)?.name ?? "";
+  const rows = useMemo(
+    () =>
+      [
+        {
+          id: "coran",
+          title: "Coran",
+          icon: BookOpen,
+          value: `${belowSourceInfo(prefs.quran.belowSource)?.label ?? "Arabe seul"} · texte ${sizeLabel(prefs.quran.textSize).toLowerCase()}`,
+          keys: "mushaf traduction tafsir phonétique tajwid taille fond écran allumé",
+        },
+        {
+          id: "adhkar",
+          title: "Adhkār",
+          icon: Sparkles,
+          value: [prefs.adhkar.francais && "Français", prefs.adhkar.phonetique && "phonétique"]
+            .filter(Boolean)
+            .join(" + ") || "Arabe seul",
+          keys: "français phonétique taille matin soir",
+        },
+        {
+          id: "audio",
+          title: "Audio",
+          icon: Headphones,
+          value: `${reciterName} · ${prefs.quran.speed}×`,
+          keys: "récitant récitateur vitesse voix lecture continue",
+        },
+        {
+          id: "notifications",
+          title: "Rappels",
+          icon: Bell,
+          value: smart.enabled ? "Mode intelligent" : "Désactivés",
+          keys: "notifications prières adhkār lecture du jour défis ne pas déranger",
+        },
+        {
+          id: "horaires",
+          title: "Horaires de prière",
+          icon: Clock,
+          value: settings.source === "mosque" && settings.mosqueName ? settings.mosqueName : (settings.city ?? "Ville non définie"),
+          keys: "mosquée localisation méthode calcul asr",
+        },
+        {
+          id: "general",
+          title: "Apparence",
+          icon: Palette,
+          value: THEME_OPTIONS.find((t) => t.mode === mode)?.label ?? "",
+          keys: "thème clair sombre animations accessibilité",
+        },
+        {
+          id: "hors-ligne",
+          title: "Hors ligne et données",
+          icon: Cloud,
+          value: "Télécharger, supprimer",
+          keys: "téléchargement audio données stockage",
+        },
+      ] as const,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [prefs, smart.enabled, settings, mode],
+  );
+  const q = query.trim().toLowerCase();
+  const shownRows = q ? rows.filter((r) => (r.title + " " + r.keys).toLowerCase().includes(q)) : rows;
 
   return (
     <AppShell title="Paramètres" subtitle="الإعدادات">
+      <SectionCtx.Provider value={sec}>
       <div className="space-y-4">
+        {sec ? (
+          <Link
+            to="/parametres"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary"
+          >
+            <ArrowLeft className="size-4" /> Paramètres
+          </Link>
+        ) : (
+          <>
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Rechercher un réglage (taille, récitant, mosquée…)"
+                className="h-12 w-full rounded-2xl border border-border bg-card pl-11 pr-4 text-sm outline-none focus:border-primary"
+              />
+            </label>
+            <ul className="surface-card divide-y divide-border/60 overflow-hidden">
+              {shownRows.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    to="/parametres"
+                    search={{ section: r.id }}
+                    className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-muted/50"
+                  >
+                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                      <r.icon className="size-[18px]" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-foreground">{r.title}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{r.value}</span>
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                </li>
+              ))}
+              {shownRows.length === 0 && (
+                <li className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun réglage trouvé.</li>
+              )}
+            </ul>
+          </>
+        )}
+
         <Section id="coran" title="Coran" subtitle="S'applique au Mushaf et au mode ayah par ayah">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Affichage
-          </p>
           <QuranDisplayModes quran={prefs.quran} onChange={(layers) => updateQuran(layers)} />
           <div className="h-2" />
           <ToggleRow
@@ -338,43 +484,41 @@ function ParametresPage() {
             checked={prefs.quran.tajweed}
             onChange={(v) => updateQuran({ tajweed: v })}
           />
-          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Taille de lecture
-          </p>
+          {prefs.quran.tajweed && (
+            <div className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-2xl border border-border bg-background p-3">
+              {TAJWEED_LEGEND.map((item) => (
+                <div key={item.rule} className="flex items-center gap-1.5 text-[11px] text-foreground">
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: TAJWEED_COLORS[item.rule] }}
+                  />
+                  {item.label}
+                </div>
+              ))}
+            </div>
+          )}
           <SizeRow value={prefs.quran.textSize} onChange={(v) => updateQuran({ textSize: v })} />
-          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Fond de la page
-          </p>
-          <div className="mt-2 flex gap-1 rounded-full border border-border p-1">
-            {(
-              [
-                { key: "cream", label: "Crème" },
-                { key: "white", label: "Blanc" },
-              ] as const
-            ).map((o) => {
-              const active = (prefs.quran.pageBackground ?? "cream") === o.key;
-              return (
-                <button
-                  key={o.key}
-                  onClick={() => updateQuran({ pageBackground: o.key })}
-                  aria-pressed={active}
-                  className={cn(
-                    "flex-1 rounded-full py-2 text-sm font-semibold transition",
-                    active ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {o.label}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-            « Mushaf (arabe) » =Mushaf de Médine fidèle (arabe seul, ± Tajwīd). Tous les autres
-            modes utilisent le lecteur ayah par ayah — jamais inséré dans les lignes du Mushaf.
-          </p>
+          <SelectField
+            label="Fond de la page"
+            value={prefs.quran.pageBackground ?? "cream"}
+            onChange={(v) => updateQuran({ pageBackground: v as "cream" | "white" })}
+          >
+            <option value="cream">Crème</option>
+            <option value="white">Blanc</option>
+          </SelectField>
+          <ToggleRow
+            label="Écran toujours allumé pendant la lecture"
+            checked={prefs.quran.keepAwake}
+            onChange={(v) => updateQuran({ keepAwake: v })}
+          />
         </Section>
 
         <Section id="adhkar" title="Adhkār" subtitle="S'applique à toutes les catégories (matin, soir, coucher…)">
+          <ToggleRow
+            label="Arabe"
+            checked={prefs.adhkar.arabic}
+            onChange={(v) => updateAdhkar({ arabic: v })}
+          />
           <ToggleRow
             label="Français"
             checked={prefs.adhkar.francais}
@@ -385,63 +529,38 @@ function ParametresPage() {
             checked={prefs.adhkar.phonetique}
             onChange={(v) => updateAdhkar({ phonetique: v })}
           />
-          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Taille de lecture
-          </p>
           <SizeRow value={prefs.adhkar.textSize} onChange={(v) => updateAdhkar({ textSize: v })} />
         </Section>
 
         <Section id="audio" title="Audio">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Audio Coran
+            Récitation du Coran
           </p>
-          <label className="mt-1.5 block">
-            <span className="mb-1 block text-xs text-muted-foreground">Récitateur</span>
-            <select
-              value={prefs.quran.reciterId}
-              onChange={(e) => updateQuran({ reciterId: e.target.value })}
-              className="h-11 w-full rounded-full border border-border bg-background px-4 text-sm font-medium"
-            >
-              {RECITERS.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="mb-1 mt-3 text-xs text-muted-foreground">Vitesse</p>
+          <SelectField
+            label="Récitant"
+            value={prefs.quran.reciterId}
+            onChange={(v) => updateQuran({ reciterId: v })}
+          >
+            {RECITERS.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </SelectField>
           <SpeedRow value={prefs.quran.speed} onChange={(v) => updateQuran({ speed: v })} />
-          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-            Lecture continue déjà disponible dans le Mushaf (Options → "Jusqu'à la fin"/répétition).
-          </p>
 
           <div className="mt-5 border-t border-border pt-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Audio Adhkār
             </p>
-            <p className="mb-1 mt-3 text-xs text-muted-foreground">Version audio</p>
-            <div className="flex gap-1 rounded-full border border-border p-1">
-              {(
-                [
-                  ["afasy", "Version actuelle"],
-                  ["ghamdi", "Sa‘d al-Ghâmidî"],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => updateAdhkar({ audioProfile: key })}
-                  aria-pressed={prefs.adhkar.audioProfile === key}
-                  className={cn(
-                    "flex-1 rounded-full py-2 text-xs font-semibold transition",
-                    prefs.adhkar.audioProfile === key
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <SelectField
+              label="Voix"
+              value={prefs.adhkar.audioProfile}
+              onChange={(v) => updateAdhkar({ audioProfile: v as "afasy" | "ghamdi" })}
+            >
+              <option value="afasy">Version actuelle</option>
+              <option value="ghamdi">Sa‘d al-Ghâmidî</option>
+            </SelectField>
             {prefs.adhkar.audioProfile === "ghamdi" && (
               <p className="mt-2 rounded-xl border border-gold/30 bg-gold/5 px-3 py-2 text-[11px] leading-relaxed text-foreground">
                 En préparation — aucun fichier audio de Sa‘d al-Ghâmidî dont l'utilisation dans
@@ -451,22 +570,11 @@ function ParametresPage() {
                 pas fournie.
               </p>
             )}
-            <p className="mb-1 mt-3 text-xs text-muted-foreground">Vitesse</p>
-            <div className="mt-2 flex gap-1 rounded-full border border-border p-1">
-              {[0.75, 1, 1.25, 1.5].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => updateAdhkar({ speed: s })}
-                  aria-pressed={prefs.adhkar.speed === s}
-                  className={cn(
-                    "flex-1 rounded-full py-2 text-sm font-semibold transition",
-                    prefs.adhkar.speed === s ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {s}×
-                </button>
-              ))}
-            </div>
+            <SpeedRow
+              value={prefs.adhkar.speed}
+              onChange={(v) => updateAdhkar({ speed: v })}
+              options={[0.75, 1, 1.25, 1.5]}
+            />
             <div className="mt-3">
               <ToggleRow
                 label="Lecture continue"
@@ -916,24 +1024,13 @@ function ParametresPage() {
         </Section>
 
         <Section id="general" title="Général / accessibilité">
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Apparence
-          </p>
-          <div className="flex gap-1 rounded-full border border-border p-1">
-            {THEME_OPTIONS.map(({ mode: m, label, icon: Icon }) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                aria-pressed={mode === m}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs font-semibold transition",
-                  mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-                )}
-              >
-                <Icon className="size-3.5" /> {label}
-              </button>
+          <SelectField label="Thème" value={mode} onChange={(v) => setMode(v as ThemeMode)}>
+            {THEME_OPTIONS.map(({ mode: m, label }) => (
+              <option key={m} value={m}>
+                {label}
+              </option>
             ))}
-          </div>
+          </SelectField>
           <div className="mt-4 border-t border-border pt-3">
             <ToggleRow
               label="Réduire les animations"
@@ -946,10 +1043,13 @@ function ParametresPage() {
           </div>
         </Section>
 
-        <p className="text-center text-xs leading-relaxed text-muted-foreground">
-          Les changements s'appliquent immédiatement, partout où ils sont utilisés.
-        </p>
+        {sec && (
+          <p className="text-center text-xs leading-relaxed text-muted-foreground">
+            Les changements s'appliquent immédiatement, partout où ils sont utilisés.
+          </p>
+        )}
       </div>
+      </SectionCtx.Provider>
     </AppShell>
   );
 }

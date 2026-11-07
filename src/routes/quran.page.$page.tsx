@@ -2126,7 +2126,7 @@ function MushafPage() {
         <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm lg:items-stretch lg:justify-end">
           <div className="flex max-h-[85dvh] w-full flex-col rounded-t-3xl border-t border-border bg-card lg:max-h-none lg:w-[420px] lg:rounded-none lg:rounded-l-3xl lg:border-l lg:border-t-0">
             <div className="flex items-center justify-between px-4 pb-3 pt-4">
-              <h2 className="font-display text-lg font-semibold">Options de récitation</h2>
+              <h2 className="font-display text-lg font-semibold">Récitation</h2>
               <button
                 onClick={() => setOptionsOpen(false)}
                 aria-label="Fermer"
@@ -2138,77 +2138,60 @@ function MushafPage() {
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Sélection rapide
+                Lire
               </p>
-              <div className="grid grid-cols-2 gap-1.5 pb-1">
-                {(
+              {(() => {
+                const opts = (
                   [
-                    { id: "ayah", label: "Cette ayah", detail: anchor.key || undefined },
-                    { id: "page", label: "Cette page", detail: `Page ${page}` },
+                    { id: "ayah", label: `Cette āyah${anchor.key ? " · " + anchor.key : ""}` },
+                    { id: "page", label: `Cette page · ${page}` },
                     ...(pageSurahs.length > 1 && !selected.length
-                      ? pageSurahs.map((s) => ({
+                      ? pageSurahs.map((sr) => ({
                           id: "surah" as ReadMode,
-                          surah: s,
-                          label: "Cette sourate",
-                          detail: chapters?.find((c) => c.id === s)?.nameFrench,
+                          surah: sr,
+                          label: `Cette sourate · ${chapters?.find((c) => c.id === sr)?.nameFrench ?? sr}`,
                         }))
                       : [
                           {
                             id: "surah" as ReadMode,
                             surah: scopeSurah,
-                            label: "Cette sourate",
-                            detail: chapters?.find((c) => c.id === scopeSurah)?.nameFrench,
+                            label: `Cette sourate · ${chapters?.find((c) => c.id === scopeSurah)?.nameFrench ?? scopeSurah}`,
                           },
                         ]),
-                    { id: "juz", label: "Ce juz'", detail: `Juz ${anchor.juz}` },
-                    { id: "hizb", label: "Ce hizb", detail: `Hizb ${anchor.hizb}` },
-                    { id: "toEnd", label: "À partir de cette āyah", detail: anchor.key ? `${anchor.key} → fin du Coran` : "→ fin du Coran" },
-                    { id: "pageToEnd", label: "À partir de cette page", detail: `Page ${page} → fin du Coran` },
-                  ] as { id: ReadMode; label: string; detail?: string; surah?: number }[]
-                ).map((m) => {
-                  const active =
-                    readMode === m.id && (m.id !== "surah" || m.surah === scopeSurah);
-                  return (
-                  <button
-                    key={m.id + (m.surah ?? "")}
-                    onClick={() => {
-                      setReadMode(m.id);
-                      if (m.id === "surah" && m.surah != null) setSurahPick(m.surah);
+                    { id: "juz", label: `Ce juz' · ${anchor.juz}` },
+                    { id: "hizb", label: `Ce hizb · ${anchor.hizb}` },
+                    { id: "toEnd", label: `À partir de cette āyah → fin du Coran` },
+                    { id: "pageToEnd", label: `À partir de cette page → fin du Coran` },
+                    { id: "range", label: "Intervalle personnalisé…" },
+                  ] as { id: ReadMode; label: string; surah?: number }[]
+                ).map((o) => ({ ...o, value: o.id + "|" + (o.surah ?? "") }));
+                const cur =
+                  opts.find((o) => o.id === readMode && (o.id !== "surah" || o.surah === scopeSurah))?.value ??
+                  opts[0].value;
+                return (
+                  <select
+                    aria-label="Que lire"
+                    value={cur}
+                    onChange={(e) => {
+                      const o = opts.find((x) => x.value === e.target.value);
+                      if (!o) return;
+                      setReadMode(o.id);
+                      if (o.id === "surah" && o.surah != null) setSurahPick(o.surah);
+                      if (o.id === "range") {
+                        if (!rangeStart && anchor.key) setRangeStart(anchor.key);
+                        if (!rangeEnd && anchor.key) setRangeEnd(anchor.key);
+                      }
                     }}
-                    aria-pressed={active}
-                    className={cn(
-                      "rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold transition",
-                      active
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-background hover:border-primary/40",
-                    )}
+                    className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium"
                   >
-                    <span className="block">{m.label}</span>
-                    {m.detail && (
-                      <span className="block truncate text-[11px] font-normal text-muted-foreground">
-                        {m.detail}
-                      </span>
-                    )}
-                  </button>
-                  );
-                })}
-                <button
-                  onClick={() => {
-                    setReadMode("range");
-                    if (!rangeStart && anchor.key) setRangeStart(anchor.key);
-                    if (!rangeEnd && anchor.key) setRangeEnd(anchor.key);
-                  }}
-                  aria-pressed={readMode === "range"}
-                  className={cn(
-                    "col-span-2 rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold transition",
-                    readMode === "range"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-background hover:border-primary/40",
-                  )}
-                >
-                  Intervalle personnalisé
-                </button>
-              </div>
+                    {opts.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                );
+              })()}
 
               {readMode === "range" && (
                 <div className="mb-2 space-y-2">
@@ -2230,156 +2213,24 @@ function MushafPage() {
                 </div>
               )}
 
-              <p className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Récitateur
-              </p>
-              <select
-                aria-label="Récitateur"
-                value={reciterId}
-                onChange={(e) => {
-                  setSearchParam({ r: e.target.value });
-                  updateQuran({ reciterId: e.target.value });
-                }}
-                className="h-11 w-full rounded-full border border-border bg-background px-4 text-sm font-medium"
-              >
-                {RECITERS.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-
-              <PillRow label="Répéter chaque ayah" value={ayahRepeat} onChange={setAyahRepeat} />
-              <PillRow label="Répéter la sélection" value={selRepeat} onChange={setSelRepeat} />
-
-              <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Vitesse
-              </p>
-              <div className="mb-4 flex gap-1 rounded-full border border-border p-1">
-                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setSpeed(s)}
-                    className={cn(
-                      "flex-1 rounded-full py-2 text-[13px] font-semibold transition",
-                      speed === s ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-                    )}
-                  >
-                    {s}×
-                  </button>
-                ))}
-              </div>
-
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Taille du Mushaf
-              </p>
-              <div className="mb-4 flex gap-1 rounded-full border border-border p-1">
-                {TEXT_SIZE_LEVELS.map((lvl) => (
-                  <button
-                    key={lvl.key}
-                    onClick={() => setTextSize(lvl.key)}
-                    aria-pressed={prefs.quran.textSize === lvl.key}
-                    className={cn(
-                      "flex-1 rounded-full py-2 text-sm font-semibold transition",
-                      prefs.quran.textSize === lvl.key
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {lvl.label}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                role="switch"
-                aria-checked={prefs.quran.keepAwake}
-                onClick={() => updateQuran({ keepAwake: !prefs.quran.keepAwake })}
-                className="mb-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-border px-4 py-3 text-left"
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold">Écran toujours allumé</span>
-                  <span className="block text-xs text-muted-foreground">
-                    Pas de mise en veille pendant la lecture du Mushaf
-                  </span>
-                </span>
-                <span
-                  className={cn(
-                    "relative h-6 w-11 shrink-0 rounded-full transition",
-                    prefs.quran.keepAwake ? "bg-primary" : "bg-border",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "absolute top-0.5 size-5 rounded-full bg-white shadow transition-all",
-                      prefs.quran.keepAwake ? "left-[1.375rem]" : "left-0.5",
-                    )}
-                  />
-                </span>
-              </button>
-
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Affichage
-              </p>
-              <div className="mb-1 flex gap-1 rounded-full border border-border p-1">
-                {(
-                  [
-                    { v: false, l: "Normal" },
-                    { v: true, l: "Tajwīd" },
-                  ] as const
-                ).map((o) => (
-                  <button
-                    key={String(o.v)}
-                    onClick={() => setTajweedMode(o.v)}
-                    aria-pressed={tajweedMode === o.v}
-                    className={cn(
-                      "flex-1 rounded-full py-2 text-sm font-semibold transition",
-                      tajweedMode === o.v
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {o.l}
-                  </button>
-                ))}
-              </div>
-              {tajweedMode && (
-                <div className="mb-4 grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-2xl border border-border bg-background p-3">
-                  {TAJWEED_LEGEND.map((item) => (
-                    <div
-                      key={item.rule}
-                      className="flex items-center gap-1.5 text-[11px] text-foreground"
-                    >
-                      <span
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: TAJWEED_COLORS[item.rule] }}
-                      />
-                      {item.label}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Affichage
-              </p>
-              <div className="mb-2">
-                <QuranDisplayModes
-                  quran={prefs.quran}
-                  onChange={(layers) => updateQuran(layers)}
-                  compact
-                />
-              </div>
+              <PillRow label="Répéter chaque āyah" value={ayahRepeat} onChange={setAyahRepeat} />
+              <PillRow label="Répéter l'intervalle" value={selRepeat} onChange={setSelRepeat} />
 
               <Link
                 to="/parametres"
-                search={{ section: "coran" }}
+                search={{ section: "audio" }}
                 onClick={() => setOptionsOpen(false)}
-                className="mb-1 inline-block text-xs font-medium text-primary underline-offset-2 hover:underline"
+                className="mt-5 flex items-center justify-between rounded-2xl border border-border px-4 py-3 text-sm"
               >
-                Tous les paramètres
+                <span className="min-w-0">
+                  <span className="block font-semibold text-foreground">Récitant et vitesse</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {getReciter(reciterId).name} · {speed}×
+                  </span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
               </Link>
+
             </div>
 
             {/* Footer sticky : une seule action pour appliquer la config et lancer. */}
@@ -2432,30 +2283,21 @@ function PillRow({
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="mt-3">
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <label className="mt-3 block">
+      <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
-      </p>
-      <div className="flex gap-1 rounded-full border border-border p-1">
-        {[
-          { v: 1, l: "1 fois" },
-          { v: 3, l: "3 fois" },
-          { v: 5, l: "5 fois" },
-          { v: 0, l: "∞" },
-        ].map((o) => (
-          <button
-            key={o.v}
-            onClick={() => onChange(o.v)}
-            className={cn(
-              "flex-1 rounded-full py-2 text-sm font-semibold transition",
-              value === o.v ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-            )}
-          >
-            {o.l}
-          </button>
-        ))}
-      </div>
-    </div>
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium"
+      >
+        <option value={1}>1 fois</option>
+        <option value={3}>3 fois</option>
+        <option value={5}>5 fois</option>
+        <option value={0}>À l'infini</option>
+      </select>
+    </label>
   );
 }
 

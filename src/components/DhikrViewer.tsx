@@ -555,84 +555,6 @@ export function DhikrViewer({
               className="max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl border-t border-border bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Réglages GLOBAUX des Adhkār (mêmes préférences que ⚙️ Paramètres >
-                  Adhkār — jamais propres à un dhikr). */}
-              <div className="mb-2 space-y-2 rounded-2xl border border-border/60 p-2.5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Affichage</p>
-                <div className="flex gap-1">
-                  {([
-                    ["arabic", "Arabe"],
-                    ["francais", "Français"],
-                    ["phonetique", "Phonétique"],
-                  ] as const).map(([key, label]) => (
-                    <button
-                      key={key}
-                      onClick={() => updateAdhkar({ [key]: !prefs.adhkar[key] })}
-                      aria-pressed={prefs.adhkar[key]}
-                      className={cn(
-                        "min-h-11 flex-1 rounded-full border px-1 text-xs font-semibold transition",
-                        prefs.adhkar[key] ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Taille</p>
-                <div className="flex gap-1">
-                  {([
-                    ["normal", "Normal"],
-                    ["large", "Grand"],
-                    ["xlarge", "Très grand"],
-                  ] as const).map(([key, label]) => (
-                    <button
-                      key={key}
-                      onClick={() => updateAdhkar({ textSize: key })}
-                      aria-pressed={prefs.adhkar.textSize === key}
-                      className={cn(
-                        "min-h-11 flex-1 rounded-full border px-1 text-xs font-semibold transition",
-                        prefs.adhkar.textSize === key ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Audio</p>
-                <div className="flex gap-1">
-                  {([
-                    ["afasy", "Version actuelle"],
-                    ["ghamdi", "Al-Ghâmidî"],
-                  ] as const).map(([key, label]) => (
-                    <button
-                      key={key}
-                      onClick={() => updateAdhkar({ audioProfile: key })}
-                      aria-pressed={prefs.adhkar.audioProfile === key}
-                      className={cn(
-                        "min-h-11 flex-1 rounded-full border px-1 text-xs font-semibold transition",
-                        prefs.adhkar.audioProfile === key ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-1">
-                  {[0.75, 1, 1.25, 1.5].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => updateAdhkar({ speed: s })}
-                      aria-pressed={prefs.adhkar.speed === s}
-                      className={cn(
-                        "min-h-11 flex-1 rounded-full border px-1 text-xs font-semibold transition",
-                        prefs.adhkar.speed === s ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
-                      )}
-                    >
-                      {s}×
-                    </button>
-                  ))}
-                </div>
-              </div>
               {(COUNTER_DHIKR_IDS as readonly string[]).includes(dhikr.id) && (
                 <Link
                   to="/compteur/$dhikrId"
@@ -693,6 +615,15 @@ export function DhikrViewer({
               ) : (
                 <p className="px-3 py-3 text-xs text-muted-foreground">{dhikr.reference}</p>
               )}
+              <Link
+                to="/parametres"
+                search={{ section: "adhkar" }}
+                onClick={() => setMenuOpen(false)}
+                className="mt-1 flex w-full items-center justify-between rounded-xl border-t border-border px-3 py-3 text-sm text-foreground transition hover:bg-muted"
+              >
+                <span>Affichage et audio…</span>
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </Link>
             </div>
           </div>
         )}
