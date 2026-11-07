@@ -128,21 +128,21 @@ function MomentCard({
           </span>
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-2 gap-1">
         <Link
           to={to}
           onClick={onClose}
-          className="flex h-10 items-center justify-center gap-1.5 rounded-full bg-primary text-[13px] font-semibold text-primary-foreground transition active:scale-95"
+          className="flex h-8 items-center justify-center gap-1 rounded-full bg-primary text-xs font-semibold text-primary-foreground transition active:scale-95"
         >
-          <BookOpen className="size-3.5" /> Lire
+          <BookOpen className="size-3" /> Lire
         </Link>
         <Link
           to="/ecoute"
           search={{ m: listen }}
           onClick={onClose}
-          className="flex h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-background text-[13px] font-semibold text-foreground transition active:scale-95"
+          className="flex h-8 items-center justify-center gap-1 rounded-full border border-border bg-background text-xs font-semibold text-foreground transition active:scale-95"
         >
-          <Headphones className="size-3.5" /> Écouter
+          <Headphones className="size-3" /> Écouter
         </Link>
       </div>
     </div>

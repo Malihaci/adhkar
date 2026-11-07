@@ -22,6 +22,8 @@ import {
   buildTimeMap,
   calibrateTimeMap,
 } from "@/lib/afasyAudio";
+import { AFASY_CUES } from "@/data/afasy-cues";
+import { ALL_ADHKAR } from "@/data/adhkar-occasions";
 import { readJSON, writeJSON } from "@/lib/storage";
 import { usePreferences } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
@@ -57,8 +59,18 @@ const calibKey = (mode: Mode) => `adhkar.audio.calib.${mode}`;
 function EcoutePage() {
   const search = Route.useSearch();
   const [mode, setMode] = useState<Mode>(search.m ?? "morning");
-  const list: Dhikr[] = mode === "morning" ? morningAdhkar : eveningAdhkar;
+  const fullList: Dhikr[] = mode === "morning" ? morningAdhkar : eveningAdhkar;
   const audio = AFASY_AUDIO[mode];
+  /** Repères MESURÉS dans l'enregistrement (début de chaque dhikr, occurrences). */
+  const cues = AFASY_CUES[mode];
+  /** Chaque entrée = ce qui est récité à un moment (un dhikr, ou deux récités d'un seul tenant). */
+  const entries: Dhikr[][] = useMemo(() => {
+    if (!cues.length) return fullList.map((d) => [d]);
+    return cues.map((c) => c.ids.map((id) => ALL_ADHKAR.find((d) => d.id === id)).filter((d): d is Dhikr => !!d));
+  }, [cues, fullList]);
+  const list: Dhikr[] = useMemo(() => entries.map((e) => e[0]), [entries]);
+  const usedIds = new Set(entries.flat().map((d) => d.id));
+  const absent = fullList.filter((d) => !usedIds.has(d.id)).length;
 
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -76,8 +88,8 @@ function EcoutePage() {
   const userNavRef = useRef(false);
 
   const baseMap = useMemo(
-    () => buildTimeMap(list, audio.duration, audio.startOffset),
-    [list, audio.duration, audio.startOffset],
+    () => (cues.length ? cues.map((c) => c.start) : buildTimeMap(list, audio.duration, audio.startOffset)),
+    [cues, list, audio.duration, audio.startOffset],
   );
 
   // Décalage manuel mémorisé par mode
@@ -229,6 +241,8 @@ function EcoutePage() {
     seekSeconds(Number(e.target.value));
 
   const dhikr = list[idx];
+  const occ = cues[idx]?.occ ?? [];
+  const occNow = occ.length > 1 ? Math.max(1, occ.filter((t) => t <= currentTime + 0.3).length) : 0;
   const accent = mode === "morning" ? "gold" : "primary";
   const accentBg = accent === "gold" ? "bg-gold" : "bg-primary";
   const accentText = accent === "gold" ? "text-gold" : "text-primary";
@@ -250,6 +264,19 @@ function EcoutePage() {
         >
           <ArrowLeft className="size-5" />
         </Link>
+        {search.m ? (
+          <div className="surface-card flex flex-1 items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-semibold">
+            {mode === "morning" ? (
+              <>
+                <Sunrise className="size-4 text-gold" /> Adhkār du matin
+              </>
+            ) : (
+              <>
+                <Moon className="size-4 text-primary" /> Adhkār du soir
+              </>
+            )}
+          </div>
+        ) : (
         <div className="surface-card flex flex-1 items-center gap-1 p-1">
           <button
             onClick={() => setMode("morning")}
@@ -274,6 +301,7 @@ function EcoutePage() {
             <Moon className="size-4" /> Soir
           </button>
         </div>
+        )}
       </div>
 
       {/* Now-reciting card */}
@@ -285,6 +313,11 @@ function EcoutePage() {
             </p>
             <h3 className="truncate font-display text-base font-semibold text-foreground">
               {dhikr.title}
+              {occNow > 0 && (
+                <span className="ml-2 text-xs font-semibold text-muted-foreground">
+                  récitation {occNow}/{occ.length}
+                </span>
+              )}
             </h3>
           </div>
           <span
@@ -301,10 +334,22 @@ function EcoutePage() {
         </header>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
+          {absent > 0 && idx === 0 && (
+            <p className="rounded-xl bg-muted/60 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+              {absent} dhikr de la liste « Lire » ne sont pas récités dans cet enregistrement.
+            </p>
+          )}
           <AyahText
             text={dhikr.arabic}
             className="text-[1.6rem] leading-[2] sm:text-[2.1rem] sm:leading-[2]"
           />
+          {entries[idx]?.slice(1).map((x) => (
+            <AyahText
+              key={x.id}
+              text={x.arabic}
+              className="border-t border-border pt-3 text-[1.6rem] leading-[2] sm:text-[2.1rem] sm:leading-[2]"
+            />
+          ))}
 
           <p className="border-t border-border pt-3 text-[14px] italic leading-relaxed text-foreground">
             {dhikr.phonetic}
@@ -406,6 +451,9 @@ function EcoutePage() {
               </button>
             </div>
 
+            {cues.length ? (
+              <span className="size-11" aria-hidden />
+            ) : (
             <button
               onClick={syncHere}
               aria-label="Le dhikr affiché commence maintenant"
@@ -414,6 +462,7 @@ function EcoutePage() {
             >
               <Crosshair className="size-4" />
             </button>
+            )}
           </div>
         </div>
       </article>
