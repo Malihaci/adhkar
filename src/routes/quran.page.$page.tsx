@@ -311,8 +311,12 @@ function MushafPage() {
    * alors toujours ses commandes sous les yeux. */
   const [controlsHidden, setControlsHidden] = useState(true);
   const hideTimerRef = useRef<number | null>(null);
+  /** Fin de page atteinte (mode volet) : la barre du bas apparaît puis se replie. */
+  const atEndRef = useRef(false);
+  const panelModeEarly =
+    (prefs.quran.belowSource ?? "none") !== "none" && (prefs.quran.belowMode ?? "panel") === "panel";
   const immersiveBlocked =
-    selected.length > 0 || optionsOpen || searchOpen || showNav || meditateOpen;
+    (selected.length > 0 && !panelModeEarly) || optionsOpen || searchOpen || showNav || meditateOpen;
   const immersiveBlockedRef = useRef(immersiveBlocked);
   immersiveBlockedRef.current = immersiveBlocked;
 
@@ -1598,6 +1602,7 @@ function MushafPage() {
         className={cn(
           "fixed inset-x-0 top-0 z-20 border-b border-border/40 bg-card/80 px-2 py-0.5 backdrop-blur-xl transition-transform duration-300 [@media(orientation:landscape)_and_(max-height:500px)]:py-0",
           (controlsHidden || selected.length > 0) && "-translate-y-full",
+          belowVisible && "hidden",
         )}
       >
         <div className="mx-auto flex max-w-2xl items-center gap-1.5">
@@ -1677,6 +1682,13 @@ function MushafPage() {
         onTouchEnd={onSheetTouchEnd}
         onTouchCancel={onSheetTouchCancel}
         onClick={onSheetClick}
+        onScroll={(e) => {
+          if (!belowVisible) return;
+          const el = e.currentTarget;
+          const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
+          if (atEnd && !atEndRef.current) revealControls();
+          atEndRef.current = atEnd;
+        }}
       >
         {isPending && (
           <p className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
@@ -1895,7 +1907,7 @@ function MushafPage() {
       {/* Une seule barre basse à la fois (§13 mission menu ayah) : les
           actions de l'ayah sélectionnée REMPLACENT les contrôles Mushaf,
           jamais les deux empilés. */}
-      {belowVisible ? null : selected.length > 0 && selKey && !belowPanelOn ? (
+      {selected.length > 0 && selKey && !belowPanelOn ? (
         <nav
           aria-label="Actions de l'āyah"
           className={cn(
@@ -1974,8 +1986,10 @@ function MushafPage() {
         </nav>
       ) : (
         <nav
+          style={belowVisible ? { bottom: belowH } : undefined}
           className={cn(
-            "fixed inset-x-0 bottom-0 z-20 border-t border-border/40 bg-card/90 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
+            "fixed inset-x-0 bottom-0 border-t border-border/40 bg-card/90 px-2 pt-1.5 backdrop-blur-xl transition-transform duration-300",
+            belowVisible ? "z-[24] pb-1.5" : "z-20 pb-[calc(0.375rem+env(safe-area-inset-bottom))]",
             controlsHidden && "translate-y-full",
           )}
         >
@@ -2007,6 +2021,15 @@ function MushafPage() {
                 <Play className="size-6" strokeWidth={1.75} />
               )}
             </button>
+            {belowVisible && (
+              <button
+                onClick={() => setSearchOpen(true)}
+                aria-label="Recherche"
+                className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
+              >
+                <Search className="size-[18px]" strokeWidth={1.75} />
+              </button>
+            )}
             <button
               onClick={() => setOptionsOpen(true)}
               aria-label="Options de récitation"
@@ -2069,35 +2092,6 @@ function MushafPage() {
             onSelect={(k) => setSelected([k])}
             onHeight={setBelowH}
           />
-          {/* Boutons flottants au-dessus du volet : accueil, lecture, options. */}
-          <div
-            style={{ bottom: `calc(${belowH}px + env(safe-area-inset-bottom) + 8px)` }}
-            className="pointer-events-none fixed inset-x-0 z-[26] flex items-center justify-between px-3 transition-[bottom] duration-300"
-          >
-            <Link
-              to="/"
-              aria-label="Accueil"
-              className="pointer-events-auto grid size-10 place-items-center rounded-full bg-card/95 text-foreground shadow-[var(--shadow-soft)] ring-1 ring-border/60 active:scale-95"
-            >
-              <Home className="size-[18px]" strokeWidth={1.75} />
-            </Link>
-            <button
-              onClick={() =>
-                isCurrentSession ? toggle() : resumeVerse ? void playSurahEndFromAnchor() : playFromAnchor()
-              }
-              aria-label={playing ? "Pause" : "Lecture"}
-              className="pointer-events-auto grid size-11 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elevated)] active:scale-95"
-            >
-              {playing ? <Pause className="size-5" strokeWidth={1.75} /> : <Play className="size-5" strokeWidth={1.75} />}
-            </button>
-            <button
-              onClick={() => setOptionsOpen(true)}
-              aria-label="Options de récitation"
-              className="pointer-events-auto grid size-10 place-items-center rounded-full bg-card/95 text-foreground shadow-[var(--shadow-soft)] ring-1 ring-border/60 active:scale-95"
-            >
-              <Settings2 className="size-[18px]" strokeWidth={1.75} />
-            </button>
-          </div>
         </>
       )}
 
