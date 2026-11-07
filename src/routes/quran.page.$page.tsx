@@ -921,8 +921,6 @@ function MushafPage() {
   const surahMeta = chapters?.find((c) => c.id === surahOnPage);
   // Texte des capsules du haut centré sur l'encre (pas sur la boîte de ligne).
   const surahChipInk = useInkOffset(surahMeta?.nameArabic ?? "", '"Amiri Quran"');
-  const juzChipText = `الجزء ${verses?.[0]?.juz ?? ""}`;
-  const juzChipInk = useInkOffset(juzChipText, '"Amiri Quran"');
 
   /** Bascule automatique vers le mode ayah-par-ayah (§3/§4 mission "Coran
    * direct") : dès que Français ou Phonétique est activé, plus de message
@@ -1732,32 +1730,39 @@ function MushafPage() {
           {/* Métadonnées DANS la page (comme le Mushaf papier) : sourate à gauche,
               juz' à droite — jamais une barre d'application permanente. */}
           {verses?.[0] && (
-            <div className="flex min-h-8 shrink-0 items-center justify-between gap-2 px-2 pb-1 pt-0.5">
-              {/* Sourate à gauche, juz à droite : un tap ouvre la liste et
-                  l'on arrive au début de l'élément choisi. */}
+            <div className="grid min-h-8 shrink-0 grid-cols-3 items-center gap-2 px-2 pb-1 pt-0.5">
+              {/* Sourate à gauche, « Méditer » au centre, recherche à droite. */}
               <button
                 type="button"
                 lang="ar"
                 onClick={() => openNav("surah")}
                 aria-label="Changer de sourate"
-                className="inline-flex min-w-[4.25rem] items-center justify-center gap-1 rounded-md border border-gold/60 px-2.5 py-0 font-arabic text-[12.5px] font-bold leading-[1.7] text-[#140d05] dark:text-[#fbf5e6]"
+                className="inline-flex min-w-[4.25rem] items-center justify-center gap-1 justify-self-start rounded-md border border-gold/60 px-2.5 py-0 font-arabic text-[12.5px] font-bold leading-[1.7] text-[#140d05] dark:text-[#fbf5e6]"
               >
                 <span style={{ transform: `translateY(${surahChipInk}em)` }}>
                   {surahMeta?.nameArabic ?? ""}
                 </span>
                 <ChevronDown className="size-3 text-gold" />
               </button>
+              {pagePassages.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setMeditateOpen(true)}
+                  aria-label="Méditer cette page"
+                  className="grid size-9 place-items-center justify-self-center rounded-full text-gold transition active:scale-95 hover:bg-gold/10"
+                >
+                  <Leaf className="size-5" strokeWidth={1.75} />
+                </button>
+              ) : (
+                <span />
+              )}
               <button
                 type="button"
-                lang="ar"
-                onClick={() => openNav("juz")}
-                aria-label="Changer de juz"
-                className="inline-flex min-w-[4.25rem] items-center justify-center gap-1 rounded-md border border-gold/60 px-2.5 py-0 font-arabic text-[12.5px] font-bold leading-[1.7] text-[#140d05] dark:text-[#fbf5e6]"
+                onClick={() => setSearchOpen(true)}
+                aria-label="Recherche"
+                className="grid size-9 place-items-center justify-self-end rounded-full text-gold transition active:scale-95 hover:bg-gold/10"
               >
-                <span dir="rtl" style={{ transform: `translateY(${juzChipInk}em)` }}>
-                  {juzChipText}
-                </span>
-                <ChevronDown className="size-3 text-gold" />
+                <Search className="size-[18px]" strokeWidth={1.75} />
               </button>
             </div>
           )}
@@ -1896,25 +1901,17 @@ function MushafPage() {
               dir="ltr"
               className="relative flex min-h-10 shrink-0 items-center justify-center px-2 pt-1.5 font-sans leading-none tabular-nums"
             >
-              {/* Numéro de page seul, cliquable : saisie ou curseur 1–604. */}
+              {/* Pied de page comme un Mushaf imprimé : juz à gauche, page au
+                  centre (saisie directe + Entrée), hizb à droite. */}
               <button
                 type="button"
-                onClick={() => openNav("page")}
-                aria-label={`Page ${page} — aller à une autre page`}
-                className="min-w-[2.6rem] rounded-md border-2 border-gold/70 bg-gold/10 px-3 py-1 text-[15px] font-bold text-[#140d05] dark:text-[#fbf5e6]"
+                onClick={() => openNav("juz")}
+                aria-label={`Juz ${verses[0].juz} — aller à un autre juz`}
+                className="absolute left-2 rounded-md px-1.5 py-1 text-[11px] text-foreground/60 transition hover:bg-muted hover:text-foreground"
               >
-                {page}
+                Juz {verses[0].juz}
               </button>
-              {pagePassages.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setMeditateOpen(true)}
-                  aria-label="Méditer cette page"
-                  className="absolute left-2 grid size-9 place-items-center rounded-full text-gold transition active:scale-95 hover:bg-gold/10"
-                >
-                  <Leaf className="size-5" strokeWidth={1.75} />
-                </button>
-              )}
+              <PageNumberInput page={page} onGo={goToPageDirect} />
               {verses[0].hizb ? (
                 <button
                   type="button"
@@ -3438,6 +3435,40 @@ function SearchPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Numéro de page : on tape directement, Entrée ouvre la page (1–604). */
+function PageNumberInput({ page, onGo }: { page: number; onGo: (p: number) => void }) {
+  const [val, setVal] = useState(String(page));
+  useEffect(() => setVal(String(page)), [page]);
+  const commit = (el: HTMLInputElement) => {
+    const n = Number(val);
+    if (Number.isInteger(n) && n >= 1 && n <= 604 && n !== page) {
+      el.blur();
+      onGo(n);
+    } else {
+      setVal(String(page));
+      el.blur();
+    }
+  };
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      enterKeyHint="go"
+      maxLength={3}
+      value={val}
+      aria-label={`Page ${page} sur 604 — saisir un numéro puis Entrée`}
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => setVal(e.target.value.replace(/\D/g, "").slice(0, 3))}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") commit(e.currentTarget);
+      }}
+      onBlur={() => setVal(String(page))}
+      className="w-14 rounded-md border-2 border-gold/70 bg-gold/10 px-1 py-1 text-center text-[15px] font-bold tabular-nums text-[#140d05] outline-none focus:border-gold focus:ring-2 focus:ring-gold/30 dark:text-[#fbf5e6]"
+    />
   );
 }
 
