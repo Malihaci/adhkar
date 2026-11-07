@@ -29,6 +29,7 @@ import { readJSON, writeJSON } from "@/lib/storage";
 import { effectiveSchedule, type WirdState } from "@/lib/khatma";
 import { useInkOffset } from "@/lib/inkCenter";
 import { ChoiceSelect } from "@/components/ChoiceSelect";
+import { TajweedLegend } from "@/components/TajweedLegend";
 import {
   foldVerses,
   fetchSurahPages,
@@ -1308,7 +1309,7 @@ function MushafPage() {
       const boxPaddingY = parseFloat(boxStyle.paddingTop) + parseFloat(boxStyle.paddingBottom);
       // Avec le volet de traduction (style Ayat) : toute la largeur est utilisée,
       // la page défile verticalement et le volet la recouvre par le bas.
-      const fitHeight = !belowPanelOn && !(isLandscape && window.innerHeight < 600);
+      const fitHeight = !belowPanelOn && !tajweedMode && !(isLandscape && window.innerHeight < 600);
       if (fitHeight) fitBox.style.height = `${box.clientHeight - boxPaddingY}px`;
       else fitBox.style.height = "";
       const fitsHeight = () => !fitHeight || fitBox.scrollHeight <= fitBox.clientHeight + 1;
@@ -1410,7 +1411,7 @@ function MushafPage() {
     // dépend que de l'écran/police) — voir l'effet séparé ci-dessous qui se
     // contente de réappliquer `ceilingFontPx * textSize`, instantané.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, qcfName, belowPanelOn]);
+  }, [lines, qcfName, belowPanelOn, tajweedMode]);
 
   // Changement de "Standard/Grand/Très grand" : pas besoin de refaire la
   // recherche en largeur, seulement réappliquer la fraction du plafond déjà
@@ -1896,24 +1897,8 @@ function MushafPage() {
               ) : null}
             </div>
           )}
-          {tajweedMode && (
-            <div className="mx-auto mt-2 max-w-2xl px-3 pb-24">
-              <p className="mb-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-foreground/60">
-                Légende du tajwīd
-              </p>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-2xl border border-border/60 bg-card/60 p-3">
-                {TAJWEED_LEGEND.map((item) => (
-                  <div key={item.rule} className="flex items-center gap-1.5 text-[11px] text-foreground">
-                    <span
-                      className="size-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: TAJWEED_COLORS[item.rule] }}
-                    />
-                    {item.label}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {tajweedMode && <TajweedLegend className="mt-1" />}
+          {tajweedMode && <div className="h-20" aria-hidden />}
         </div>
       </div>
 

@@ -26,6 +26,7 @@ import { AppShell } from "@/components/AppShell";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { OfflineSettings } from "@/components/OfflineSettings";
 import { ChoiceSelect } from "@/components/ChoiceSelect";
+import { TajweedLegend } from "@/components/TajweedLegend";
 import { useTheme, type ThemeMode } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { useSmartReminderPrefs, wirdModeOf, type WirdReminderMode } from "@/lib/smartReminders";
@@ -483,19 +484,7 @@ function ParametresPage() {
             checked={prefs.quran.tajweed}
             onChange={(v) => updateQuran({ tajweed: v })}
           />
-          {prefs.quran.tajweed && (
-            <div className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-2xl border border-border bg-background p-3">
-              {TAJWEED_LEGEND.map((item) => (
-                <div key={item.rule} className="flex items-center gap-1.5 text-[11px] text-foreground">
-                  <span
-                    className="size-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: TAJWEED_COLORS[item.rule] }}
-                  />
-                  {item.label}
-                </div>
-              ))}
-            </div>
-          )}
+          {prefs.quran.tajweed && <TajweedLegend className="mb-2 rounded-xl border-y-0 border" />}
           <SizeRow value={prefs.quran.textSize} onChange={(v) => updateQuran({ textSize: v })} />
           <SelectField
             label="Fond de la page"
