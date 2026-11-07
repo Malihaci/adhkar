@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, CSSProperties, ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, DoorOpen, Hash, Headphones, Swords, Luggage, Moon, Settings2, Sparkles, Sunrise, X } from "lucide-react";
 import { HUB_COLORS, HubCardBody, HubGrid, hubCardClass } from "@/components/HubCard";
@@ -49,10 +49,29 @@ export function AdhkarSheet({
             </button>
           </div>
         </div>
+        <div className="mb-2 grid grid-cols-2 gap-2">
+          <MomentCard
+            to="/matin"
+            listen="morning"
+            onClose={onClose}
+            label="Matin"
+            arabic="أذكار الصباح"
+            color={HUB_COLORS[0]}
+            icon={<Sunrise />}
+            pct={morningPct}
+          />
+          <MomentCard
+            to="/soir"
+            listen="evening"
+            onClose={onClose}
+            label="Soir"
+            arabic="أذكار المساء"
+            color={HUB_COLORS[7]}
+            icon={<Moon />}
+            pct={eveningPct}
+          />
+        </div>
         <HubGrid>
-          <HubLink to="/matin" onClose={onClose} label="Matin" arabic="أذكار الصباح" color={HUB_COLORS[0]} icon={<Sunrise />} note={`${morningPct}%`} />
-          <HubLink to="/soir" onClose={onClose} label="Soir" arabic="أذكار المساء" color={HUB_COLORS[7]} icon={<Moon />} note={`${eveningPct}%`} />
-          <HubLink to="/ecoute" onClose={onClose} label="Tout écouter" arabic="استماع" color={HUB_COLORS[1]} icon={<Headphones />} />
           <HubLink to="/compteur" onClose={onClose} label="Compteur" arabic="العداد" color={HUB_COLORS[3]} icon={<Hash />} />
           <HubLink to="/defis" onClose={onClose} label="Mes défis" arabic="التحديات" color={HUB_COLORS[4]} icon={<Swords />} />
           <HubLink to="/duas-coran" onClose={onClose} label="Duʿāʾ du Coran" arabic="أدعية القرآن" color={HUB_COLORS[2]} icon={<BookOpen />} />
@@ -75,8 +94,63 @@ export function AdhkarSheet({
   );
 }
 
+/** Matin / Soir : on choisit directement Lire (dhikr par dhikr) ou Écouter (récitation continue). */
+function MomentCard({
+  to,
+  listen,
+  onClose,
+  label,
+  arabic,
+  color,
+  icon,
+  pct,
+}: {
+  to: "/matin" | "/soir";
+  listen: "morning" | "evening";
+  onClose: () => void;
+  label: string;
+  arabic: string;
+  color: string;
+  icon: ReactNode;
+  pct: number;
+}) {
+  return (
+    <div className="surface-card relative flex flex-col gap-2.5 rounded-2xl p-3" style={{ "--c": color } as CSSProperties}>
+      <span className="absolute right-3 top-2.5 text-[10px] font-medium text-muted-foreground">{pct}%</span>
+      <div className="flex items-center gap-2.5">
+        <span className="grid size-9 place-items-center rounded-[11px] bg-[color-mix(in_srgb,var(--c)_16%,transparent)] text-[var(--c)] [&_svg]:size-[18px]">
+          {icon}
+        </span>
+        <span className="min-w-0">
+          <span className="block font-display text-[0.95rem] font-bold leading-tight text-foreground">{label}</span>
+          <span lang="ar" dir="rtl" className="block font-arabic text-[0.85rem] leading-tight text-[var(--c)]">
+            {arabic}
+          </span>
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        <Link
+          to={to}
+          onClick={onClose}
+          className="flex h-10 items-center justify-center gap-1.5 rounded-full bg-primary text-[13px] font-semibold text-primary-foreground transition active:scale-95"
+        >
+          <BookOpen className="size-3.5" /> Lire
+        </Link>
+        <Link
+          to="/ecoute"
+          search={{ m: listen }}
+          onClick={onClose}
+          className="flex h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-background text-[13px] font-semibold text-foreground transition active:scale-95"
+        >
+          <Headphones className="size-3.5" /> Écouter
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 type HubTo =
-  | "/matin" | "/soir" | "/ecoute" | "/compteur" | "/defis" | "/duas-coran" | "/adhkar-adab"
+  | "/matin" | "/soir" | "/compteur" | "/defis" | "/duas-coran" | "/adhkar-adab"
   | "/reveil" | "/coucher" | "/voyage";
 
 function HubLink({

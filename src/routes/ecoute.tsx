@@ -44,6 +44,9 @@ export const Route = createFileRoute("/ecoute")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>): { m?: "morning" | "evening" } => ({
+    m: s["m"] === "morning" || s["m"] === "evening" ? (s["m"] as "morning" | "evening") : undefined,
+  }),
   component: EcoutePage,
 });
 
@@ -52,7 +55,8 @@ type Mode = "morning" | "evening";
 const calibKey = (mode: Mode) => `adhkar.audio.calib.${mode}`;
 
 function EcoutePage() {
-  const [mode, setMode] = useState<Mode>("morning");
+  const search = Route.useSearch();
+  const [mode, setMode] = useState<Mode>(search.m ?? "morning");
   const list: Dhikr[] = mode === "morning" ? morningAdhkar : eveningAdhkar;
   const audio = AFASY_AUDIO[mode];
 
