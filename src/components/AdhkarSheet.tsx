@@ -62,6 +62,9 @@ export function AdhkarSheet({
           <Link to="/adhkar-adab" search={{ g: "priere" }} onClick={onClose} className={hubCardClass}>
             <HubCardBody label="Prière" arabic="أذكار الصلاة" color={HUB_COLORS[5]} icon={<Sparkles />} />
           </Link>
+          <Link to="/adhkar-adab" search={{ g: "ruqya" }} onClick={onClose} className={hubCardClass}>
+            <HubCardBody label="Ruqya" arabic="الرقية الشرعية" color={HUB_COLORS[2]} icon={<Sparkles />} />
+          </Link>
           <Link to="/adhkar-adab" search={{ g: "maison" }} onClick={onClose} className={hubCardClass}>
             <HubCardBody label="Maison" arabic="أذكار البيت" color={HUB_COLORS[3]} icon={<DoorOpen />} />
           </Link>

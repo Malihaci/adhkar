@@ -33,6 +33,7 @@ const CATEGORY_LABEL: Record<DhikrCategory, string> = {
   voyage: "Voyage",
   dua_coran: "Duʿāʾ du Coran",
   livre: "Adhkār et ādāb",
+  ruqya: "Ruqya",
 };
 
 type Tab = "tous" | "adhkar" | "coran";

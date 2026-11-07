@@ -18,6 +18,7 @@
 import type { Dhikr } from "@/data/adhkar";
 import { adhkar } from "./adhkar.ts";
 import { duasCoran } from "./duas-coran.ts";
+import { ruqyaAdhkar } from "./adhkar-ruqya.ts";
 
 export const coucherAdhkar: Dhikr[] = [
   {
@@ -619,4 +620,5 @@ export const ALL_ADHKAR: Dhikr[] = [
   ...reveilAdhkar,
   ...apresPriereAdhkar,
   ...duasCoran,
+  ...ruqyaAdhkar,
 ];

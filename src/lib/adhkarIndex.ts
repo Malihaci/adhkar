@@ -8,6 +8,7 @@ import type { Dhikr } from "@/data/adhkar";
 import { ALL_ADHKAR, apresPriereAdhkar, sortieAdhkar } from "@/data/adhkar-occasions";
 import { LIVRE_THEMES } from "@/data/adhkar-livre-2";
 import { livreAll } from "@/data/livre-book";
+import { ruqyaAdhkar } from "@/data/adhkar-ruqya";
 
 /** Minuscules, sans accents latins ; arabe sans voyelles/tatwīl, alif et yā' unifiés. */
 export function normalizeText(s: string): string {
@@ -44,6 +45,12 @@ function dedupe(list: Dhikr[]): Dhikr[] {
 const livreTheme = (t: string) => livreAll.filter((d) => d.theme === t);
 
 export const ADHKAR_GROUPS: AdhkarGroup[] = [
+  {
+    id: "ruqya",
+    label: "Ruqya šarʿiyya",
+    ar: "الرقية الشرعية",
+    list: ruqyaAdhkar,
+  },
   {
     id: "maison",
     label: "Maison",
