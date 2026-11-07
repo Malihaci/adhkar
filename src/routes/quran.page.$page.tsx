@@ -1,6 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   ChevronDown,
@@ -923,6 +923,8 @@ function MushafPage() {
   const surahMeta = chapters?.find((c) => c.id === surahOnPage);
   // Texte des capsules du haut centré sur l'encre (pas sur la boîte de ligne).
   const surahChipInk = useInkOffset(surahMeta?.nameArabic ?? "", '"Amiri Quran"');
+  const juzChipText = `الجزء ${verses?.[0]?.juz ?? ""}`;
+  const juzChipInk = useInkOffset(juzChipText, '"Amiri Quran"');
 
   /** Bascule automatique vers le mode ayah-par-ayah (§3/§4 mission "Coran
    * direct") : dès que Français ou Phonétique est activé, plus de message
@@ -1226,6 +1228,22 @@ function MushafPage() {
     };
   }, [page, qcfVariant]);
   const qcfName = qcfLoadedName && qcfLoadedName.endsWith(`_p${page}`) ? qcfLoadedName : null;
+  // Pages voisines préchargées (texte + police) : le tap sur un bord tourne la
+  // page sans attente. Léger : 3 pages, seulement quand la page courante est prête.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!layout) return;
+    for (const p of [page + 1, page - 1, page + 2]) {
+      if (p < 1 || p > 604) continue;
+      void queryClient.prefetchQuery({
+        queryKey: ["mushaf-layout", p],
+        queryFn: () => fetchPageLayout(p),
+        staleTime: Infinity,
+      });
+      loadQcfFont(p, qcfVariant).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, !!layout, qcfVariant]);
   const centeredPage = page <= 2;
 
   useLayoutEffect(() => {
@@ -1585,13 +1603,19 @@ function MushafPage() {
 
   /** Tap/clic simple : ferme la sélection s'il y en a une, sinon bascule les
    * commandes générales. Ne sélectionne JAMAIS une āyah, même sur un mot. */
-  const onSheetClick = () => {
+  const onSheetClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (Date.now() < suppressClickUntil.current) return;
     if (selected.length) {
       setSelected([]);
       setControlsHidden(true);
       return;
     }
+    // Bords de l'écran : tap à gauche = page suivante, à droite = précédente
+    // (sens de lecture de droite à gauche) ; le centre affiche/masque la barre.
+    const w = e.currentTarget.clientWidth;
+    const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
+    if (x < w * 0.2) return void goPage(1);
+    if (x > w * 0.8) return void goPage(-1);
     toggleControls();
   };
 
@@ -1685,39 +1709,36 @@ function MushafPage() {
           {/* Métadonnées DANS la page (comme le Mushaf papier) : sourate à gauche,
               juz' à droite — jamais une barre d'application permanente. */}
           {verses?.[0] && (
-            <div className="grid min-h-8 shrink-0 grid-cols-3 items-center gap-2 px-2 pb-1 pt-0.5">
-              {/* Sourate à gauche, « Méditer » au centre, recherche à droite. */}
+            <div className="flex min-h-8 shrink-0 items-center justify-between gap-2 px-2 pb-1 pt-0.5">
               <button
                 type="button"
                 lang="ar"
-                onClick={() => openNav("surah")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openNav("surah");
+                }}
                 aria-label="Changer de sourate"
-                className="inline-flex min-w-[4.25rem] items-center justify-center gap-1 justify-self-start rounded-md border border-gold/60 px-2.5 py-0 font-arabic text-[12.5px] font-bold leading-[1.7] text-[#140d05] dark:text-[#fbf5e6]"
+                className="inline-flex min-w-[4.25rem] items-center justify-center gap-1 rounded-md border border-gold/60 px-2.5 py-0 font-arabic text-[12.5px] font-bold leading-[1.7] text-[#140d05] dark:text-[#fbf5e6]"
               >
                 <span style={{ transform: `translateY(${surahChipInk}em)` }}>
                   {surahMeta?.nameArabic ?? ""}
                 </span>
                 <ChevronDown className="size-3 text-gold" />
               </button>
-              {pagePassages.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setMeditateOpen(true)}
-                  aria-label="Méditer cette page"
-                  className="grid size-9 place-items-center justify-self-center rounded-full text-gold transition active:scale-95 hover:bg-gold/10"
-                >
-                  <Leaf className="size-5" strokeWidth={1.75} />
-                </button>
-              ) : (
-                <span />
-              )}
               <button
                 type="button"
-                onClick={() => setSearchOpen(true)}
-                aria-label="Recherche"
-                className="grid size-9 place-items-center justify-self-end rounded-full text-gold transition active:scale-95 hover:bg-gold/10"
+                lang="ar"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openNav("juz");
+                }}
+                aria-label="Changer de juz"
+                className="inline-flex min-w-[4.25rem] items-center justify-center gap-1 rounded-md border border-gold/60 px-2.5 py-0 font-arabic text-[12.5px] font-bold leading-[1.7] text-[#140d05] dark:text-[#fbf5e6]"
               >
-                <Search className="size-[18px]" strokeWidth={1.75} />
+                <span dir="rtl" style={{ transform: `translateY(${juzChipInk}em)` }}>
+                  {juzChipText}
+                </span>
+                <ChevronDown className="size-3 text-gold" />
               </button>
             </div>
           )}
@@ -1858,19 +1879,14 @@ function MushafPage() {
             >
               {/* Pied de page comme un Mushaf imprimé : juz à gauche, page au
                   centre (saisie directe + Entrée), hizb à droite. */}
-              <button
-                type="button"
-                onClick={() => openNav("juz")}
-                aria-label={`Juz ${verses[0].juz} — aller à un autre juz`}
-                className="absolute left-2 rounded-md px-1.5 py-1 text-[11px] text-foreground/60 transition hover:bg-muted hover:text-foreground"
-              >
-                Juz {verses[0].juz}
-              </button>
               <PageNumberInput page={page} onGo={goToPageDirect} onEditing={setPageEditing} />
               {verses[0].hizb ? (
                 <button
                   type="button"
-                  onClick={() => openNav("hizb")}
+                  onClick={(e) => {
+                  e.stopPropagation();
+                  openNav("hizb");
+                }}
                   aria-label={`Hizb ${verses[0].hizb} — aller à un autre hizb`}
                   className="absolute right-2 rounded-md px-1.5 py-1 text-[11px] text-foreground/60 transition hover:bg-muted hover:text-foreground"
                 >
@@ -1878,6 +1894,24 @@ function MushafPage() {
                   {verses[0].rub ? ` · ${((verses[0].rub - 1) % 4) + 1}/4` : ""}
                 </button>
               ) : null}
+            </div>
+          )}
+          {tajweedMode && (
+            <div className="mx-auto mt-2 max-w-2xl px-3 pb-24">
+              <p className="mb-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-foreground/60">
+                Légende du tajwīd
+              </p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-2xl border border-border/60 bg-card/60 p-3">
+                {TAJWEED_LEGEND.map((item) => (
+                  <div key={item.rule} className="flex items-center gap-1.5 text-[11px] text-foreground">
+                    <span
+                      className="size-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: TAJWEED_COLORS[item.rule] }}
+                    />
+                    {item.label}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1965,63 +1999,34 @@ function MushafPage() {
         </nav>
       ) : (
         <nav
+          aria-label="Commandes du Mushaf"
           className={cn(
-            "fixed inset-x-0 bottom-0 border-t border-border/40 bg-card/95 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
-            belowVisible ? "z-[27]" : "z-20",
-            (controlsHidden || pageEditing) && "translate-y-full",
+            "fixed inset-x-3 z-[27] mx-auto max-w-md rounded-[1.35rem] border border-border/60 bg-card/85 px-1.5 pb-1 pt-1 shadow-[0_8px_24px_-8px_rgba(0,0,0,.35)] backdrop-blur-xl transition-all duration-300",
+            (controlsHidden || pageEditing) && "pointer-events-none translate-y-[160%] opacity-0",
           )}
+          style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
         >
-          <div className="mx-auto flex max-w-2xl items-center justify-between gap-1">
-            <Link
-              to="/"
-              aria-label="Accueil"
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
-            >
-              <Home className="size-[18px]" strokeWidth={1.75} />
-            </Link>
-            <button
-              onClick={() => goPage(1)}
-              aria-label="Page suivante"
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
-            >
-              <ChevronLeft className="size-[18px]" strokeWidth={1.75} />
-            </button>
+          <div className="flex items-end justify-around">
+            <BarBtn to="/" label="Accueil" icon={<Home className="size-[19px]" strokeWidth={1.75} />} />
+            <BarBtn label="Chercher" icon={<Search className="size-[19px]" strokeWidth={1.75} />} onClick={() => setSearchOpen(true)} />
             <button
               onClick={() =>
                 isCurrentSession ? toggle() : resumeVerse ? void playSurahEndFromAnchor() : playFromAnchor()
               }
               aria-label={playing ? "Pause" : "Lecture"}
-              className="grid size-14 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elevated)] transition active:scale-95"
+              className="-mt-5 flex flex-col items-center gap-0.5 px-2 active:scale-95"
             >
-              {playing ? (
-                <Pause className="size-6" strokeWidth={1.75} />
-              ) : (
-                <Play className="size-6" strokeWidth={1.75} />
-              )}
+              <span className="grid size-11 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_14px_-4px_rgba(31,122,87,.6)] ring-4 ring-card/85">
+                {playing ? <Pause className="size-5" strokeWidth={1.75} /> : <Play className="size-5" strokeWidth={1.75} />}
+              </span>
+              <span className="text-[9px] font-medium leading-none text-muted-foreground">{playing ? "Pause" : "Lire"}</span>
             </button>
-            {belowVisible && (
-              <button
-                onClick={() => setSearchOpen(true)}
-                aria-label="Recherche"
-                className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
-              >
-                <Search className="size-[18px]" strokeWidth={1.75} />
-              </button>
+            {pagePassages.length > 0 ? (
+              <BarBtn label="Méditer" icon={<Leaf className="size-[19px]" strokeWidth={1.75} />} onClick={() => setMeditateOpen(true)} />
+            ) : (
+              <BarBtn label="Étudier" icon={<Sparkles className="size-[19px]" strokeWidth={1.75} />} onClick={() => setSearchOpen(true)} hidden />
             )}
-            <button
-              onClick={() => setOptionsOpen(true)}
-              aria-label="Options de récitation"
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted hover:text-foreground"
-            >
-              <Settings2 className="size-[18px]" strokeWidth={1.75} />
-            </button>
-            <button
-              onClick={() => goPage(-1)}
-              aria-label="Page précédente"
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-border/60 bg-card text-foreground shadow-[var(--shadow-soft)] transition active:scale-95 hover:bg-muted"
-            >
-              <ChevronRight className="size-[18px]" strokeWidth={1.75} />
-            </button>
+            <BarBtn label="Options" icon={<Settings2 className="size-[19px]" strokeWidth={1.75} />} onClick={() => setOptionsOpen(true)} />
           </div>
         </nav>
       )}
@@ -3228,6 +3233,40 @@ function SearchPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Bouton compact de la barre du Mushaf : icône + légende minuscule. */
+function BarBtn({
+  label,
+  icon,
+  onClick,
+  to,
+  hidden,
+}: {
+  label: string;
+  icon: ReactNode;
+  onClick?: () => void;
+  to?: "/";
+  hidden?: boolean;
+}) {
+  const cls =
+    "flex w-14 flex-col items-center gap-0.5 rounded-xl py-1 text-muted-foreground transition active:scale-95 active:bg-muted";
+  if (hidden) return <span className="w-14" aria-hidden />;
+  const inner = (
+    <>
+      <span className="text-foreground/80">{icon}</span>
+      <span className="text-[9px] font-medium leading-none">{label}</span>
+    </>
+  );
+  return to ? (
+    <Link to={to} aria-label={label} className={cls}>
+      {inner}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} aria-label={label} className={cls}>
+      {inner}
+    </button>
   );
 }
 
