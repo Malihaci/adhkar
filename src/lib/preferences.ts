@@ -278,5 +278,5 @@ export function usePreferences() {
  */
 export function resolveCoranMode(prefs: AppPreferences): "mushaf" | "lire" {
   const q = prefs.quran;
-  return q.belowMode === "ayah" && q.belowSource && q.belowSource !== "none" ? "lire" : "mushaf";
+  return q.belowMode === "ayah" ? "lire" : "mushaf";
 }

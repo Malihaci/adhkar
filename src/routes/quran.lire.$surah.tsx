@@ -56,7 +56,12 @@ function LirePage() {
 
   // Retour automatique au Mushaf dès que ce mode n'est plus choisi (arabe
   // seul, ou mode « volet ») — sur la page de cette sourate.
-  const stay = layers.belowMode === "ayah" && source !== "none";
+  const stay = layers.belowMode === "ayah";
+  const showAr = layers.arabic !== false;
+  const showFr = !!layers.francais || source === "fr";
+  const showPh = !!layers.phonetique || source === "phonetic";
+  const tafsirInfo = belowSourceInfo(source);
+  const tafsirOn = !!tafsirInfo && tafsirInfo.group === "Tafsir";
   useEffect(() => {
     if (stay) return;
     let cancelled = false;
@@ -176,10 +181,9 @@ function LirePage() {
               return (
                 <div key={verseKey} className="surface-card space-y-2.5 rounded-2xl px-4 py-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-muted-foreground">
-                      {verseKey}
-                      <span className="font-normal"> · {belowSourceInfo(source)?.label}</span>
-                    </p>
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        {verseKey}
+                      </p>
                     <Link
                       to="/etude/$surah/$ayah"
                       params={{ surah: String(surah), ayah: String(v.ayah) }}
@@ -189,18 +193,25 @@ function LirePage() {
                       <Sparkles className="size-3.5" />
                     </Link>
                   </div>
-                  <p
-                    lang="ar"
-                    dir="rtl"
-                    className={cn("select-text font-arabic font-bold text-foreground", ARABIC_SIZE[layers.textSize])}
-                  >
-                    {v.arabic}
-                  </p>
-                  {source === "fr" ? (
+                  {showAr && (
+                    <p
+                      lang="ar"
+                      dir="rtl"
+                      className={cn("select-text font-arabic font-bold text-foreground", ARABIC_SIZE[layers.textSize])}
+                    >
+                      {v.arabic}
+                    </p>
+                  )}
+                  {showFr && (
                     <p className="select-text text-[0.95rem] leading-[1.85] text-foreground/90">{v.translation}</p>
-                  ) : source !== "none" ? (
-                    <LazyBelow verseKey={verseKey} source={source} size={layers.textSize} />
-                  ) : null}
+                  )}
+                  {showPh && <LazyBelow verseKey={verseKey} source="phonetic" size={layers.textSize} />}
+                  {tafsirOn && (
+                    <div className="border-t border-border/50 pt-2">
+                      <p className="mb-1 text-[11px] font-semibold text-muted-foreground">{tafsirInfo?.label}</p>
+                      <LazyBelow verseKey={verseKey} source={source} size={layers.textSize} />
+                    </div>
+                  )}
                 </div>
               );
             })

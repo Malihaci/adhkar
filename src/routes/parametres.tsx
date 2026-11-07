@@ -373,7 +373,7 @@ function ParametresPage() {
           id: "coran",
           title: "Coran",
           icon: BookOpen,
-          value: `${belowSourceInfo(prefs.quran.belowSource)?.label ?? "Arabe seul"} · texte ${sizeLabel(prefs.quran.textSize).toLowerCase()}`,
+          value: `${prefs.quran.belowMode === "ayah" ? "Une āyah par bloc" : (belowSourceInfo(prefs.quran.belowSource)?.label ?? "Mushaf, arabe seul")} · texte ${sizeLabel(prefs.quran.textSize).toLowerCase()}`,
           keys: "mushaf traduction tafsir phonétique tajwid taille fond écran allumé",
         },
         {

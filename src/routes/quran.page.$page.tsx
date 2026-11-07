@@ -932,7 +932,7 @@ function MushafPage() {
    * affichée (position préservée au mieux, voir §15). */
   useEffect(() => {
     if (!verses?.length) return; // sourate pas encore connue, jamais naviguer à l'aveugle
-    if (prefs.quran.belowMode === "ayah" && (prefs.quran.belowSource ?? "none") !== "none") {
+    if (prefs.quran.belowMode === "ayah") {
       navigate({ to: "/quran/lire/$surah", params: { surah: String(surahOnPage) } });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
