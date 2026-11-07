@@ -82,6 +82,15 @@ interface Search {
   shared?: string;
 }
 
+/** Recherche en cours : liste ordonnée des résultats, position, page d'origine. */
+interface SearchSession {
+  query: string;
+  keys: string[];
+  index: number;
+  origin: number;
+}
+let lastSearchSession: SearchSession | null = null;
+
 export const Route = createFileRoute("/quran/page/$page")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     r: typeof s.r === "string" ? s.r : undefined,
@@ -174,6 +183,11 @@ function MushafPage() {
     setShowNav(true);
   };
   const [copied, setCopied] = useState(false);
+  const [searchNav, setSearchNav] = useState<SearchSession | null>(() => lastSearchSession);
+  const updateSearchNav = (v: SearchSession | null) => {
+    lastSearchSession = v;
+    setSearchNav(v);
+  };
   // Changement de page = fermeture de la sélection en cours — cette route
   // reste montée d'une page à l'autre (seul `page` change).
   useEffect(() => {
@@ -775,10 +789,18 @@ function MushafPage() {
    * mécanisme `sel` déjà utilisé pour les liens partagés (aucune nouvelle
    * logique de sélection).
    */
-  const goToSearchResult = async (key: string) => {
+  const goToSearchResult = async (key: string, ctx?: { query: string; keys: string[] }) => {
     setSearchNavigating(key);
     try {
       const targetPage = await fetchVersePage(key);
+      if (ctx) {
+        updateSearchNav({
+          query: ctx.query,
+          keys: ctx.keys,
+          index: Math.max(0, ctx.keys.indexOf(key)),
+          origin: page,
+        });
+      }
       setSearchOpen(false);
       navigate({
         to: "/quran/page/$page",
@@ -796,6 +818,12 @@ function MushafPage() {
    * Référence de page directe (recherche "page 42" ou nombre seul) : ouvre
    * la page sans sélectionner arbitrairement une ayah.
    */
+  const goSearchResult = (i: number) => {
+    if (!searchNav || i < 0 || i >= searchNav.keys.length) return;
+    updateSearchNav({ ...searchNav, index: i });
+    void goToSearchResult(searchNav.keys[i]);
+  };
+
   const goToPageDirect = (targetPage: number) => {
     setSearchOpen(false);
     navigate({
@@ -2045,6 +2073,71 @@ function MushafPage() {
         </nav>
       )}
 
+      {searchNav && !searchOpen && (
+        <div
+          style={{
+            bottom: belowVisible
+              ? `calc(${belowH}px + 3.75rem)`
+              : "calc(0.75rem + env(safe-area-inset-bottom))",
+          }}
+          className="pointer-events-none fixed inset-x-0 z-[26] flex items-center justify-between gap-2 px-3 transition-[bottom] duration-300"
+        >
+          {searchNav.origin !== page ? (
+            <button
+              onClick={() =>
+                navigate({
+                  to: "/quran/page/$page",
+                  params: { page: String(searchNav.origin) },
+                  search: { r: reciterId },
+                })
+              }
+              aria-label={`Retour à la page ${searchNav.origin}`}
+              className="pointer-events-auto flex h-10 items-center gap-1.5 rounded-full bg-primary px-3.5 text-sm font-bold tabular-nums text-primary-foreground shadow-[var(--shadow-elevated)] active:scale-95"
+            >
+              <ChevronRight className="size-4" />
+              {searchNav.origin}
+            </button>
+          ) : (
+            <span />
+          )}
+          <div className="pointer-events-auto flex h-10 items-center gap-0.5 rounded-full bg-card/95 px-1 shadow-[var(--shadow-soft)] ring-1 ring-border/60">
+            <button
+              onClick={() => goSearchResult(searchNav.index + 1)}
+              disabled={searchNav.index >= searchNav.keys.length - 1}
+              aria-label="Résultat suivant"
+              className="grid size-8 place-items-center rounded-full disabled:opacity-30"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <span className="min-w-[3.5rem] text-center text-xs font-semibold tabular-nums">
+              {searchNav.index + 1} / {searchNav.keys.length}
+            </span>
+            <button
+              onClick={() => goSearchResult(searchNav.index - 1)}
+              disabled={searchNav.index <= 0}
+              aria-label="Résultat précédent"
+              className="grid size-8 place-items-center rounded-full disabled:opacity-30"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+            <button
+              onClick={() => setSearchOpen(true)}
+              aria-label="Liste des résultats"
+              className="grid size-8 place-items-center rounded-full text-primary"
+            >
+              <Search className="size-4" />
+            </button>
+            <button
+              onClick={() => updateSearchNav(null)}
+              aria-label="Fermer la recherche"
+              className="grid size-8 place-items-center rounded-full text-muted-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {copied && (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center">
           <span className="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground">
@@ -2073,7 +2166,7 @@ function MushafPage() {
         <SearchPanel
           chapters={chapters ?? []}
           navigatingKey={searchNavigating}
-          onSelectVerse={goToSearchResult}
+          onSelectVerse={(k, ctx) => void goToSearchResult(k, ctx)}
           onGoToPage={goToPageDirect}
           onClose={() => setSearchOpen(false)}
         />
@@ -2961,7 +3054,7 @@ function SearchPanel({
 }: {
   chapters: Chapter[];
   navigatingKey: string | null;
-  onSelectVerse: (key: string) => void;
+  onSelectVerse: (key: string, ctx?: { query: string; keys: string[] }) => void;
   onGoToPage: (page: number) => void;
   onClose: () => void;
 }) {
@@ -3024,10 +3117,37 @@ function SearchPanel({
     return m;
   }, [results]);
   const loading = isFetching && !folded;
+  const [toast, setToast] = useState("");
+  const flash = (m: string) => {
+    setToast(m);
+    window.setTimeout(() => setToast(""), 1600);
+  };
+  const resultText = (key: string, text: string, name?: string) =>
+    `${text}\n\n${name ? name + " — " : ""}${key}`;
+  const copyResult = async (key: string, text: string, name?: string) => {
+    try {
+      await navigator.clipboard.writeText(resultText(key, text, name));
+      flash("Copié");
+    } catch {
+      /* refusé */
+    }
+  };
+  const shareResult = async (key: string, text: string, name?: string) => {
+    const t = resultText(key, text, name);
+    try {
+      if (navigator.share) await navigator.share({ text: t });
+      else {
+        await navigator.clipboard.writeText(t);
+        flash("Copié");
+      }
+    } catch {
+      /* annulé */
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm">
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border-t border-border bg-card">
+      <div className="relative flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border-t border-border bg-card">
         <div className="flex shrink-0 items-center justify-between px-4 pt-4">
           <h2 className="font-display text-lg font-semibold">Recherche</h2>
           <button
@@ -3041,7 +3161,7 @@ function SearchPanel({
 
         <div className="shrink-0 px-4 pb-3 pt-3">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
               autoFocus
               dir="rtl"
@@ -3053,7 +3173,7 @@ function SearchPanel({
               }}
               placeholder="Rechercher dans le Coran…"
               aria-label="Rechercher dans le Coran"
-              className="h-12 w-full rounded-full border border-border bg-background px-4 text-right font-arabic text-[17px] outline-none transition placeholder:text-right placeholder:font-sans placeholder:text-[14px] placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="h-12 w-full rounded-full border border-border bg-background pl-12 pr-11 text-right font-arabic text-[17px] outline-none transition placeholder:text-right placeholder:font-sans placeholder:text-[14px] placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
             {raw && (
               <button
@@ -3070,6 +3190,11 @@ function SearchPanel({
           </p>
         </div>
 
+        {toast && (
+          <p className="pointer-events-none absolute inset-x-0 bottom-6 z-20 mx-auto w-fit rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground">
+            {toast}
+          </p>
+        )}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
           {parsed.kind === "ayah" ? (
             <button
@@ -3205,30 +3330,51 @@ function SearchPanel({
                     <ul className="space-y-1.5">
                       {g.items.map((r) => (
                         <li key={r.key}>
-                          <button
-                            onClick={() => {
-                              remember(raw);
-                              onSelectVerse(r.key);
-                            }}
-                            disabled={!!navigatingKey}
-                            className="w-full rounded-2xl border border-border/60 bg-background px-4 py-3 text-left transition hover:border-primary/40 hover:bg-muted disabled:opacity-60"
-                          >
-                            <span className="mb-1 flex items-center justify-between text-xs font-medium tabular-nums text-muted-foreground">
-                              <span>{r.key}</span>
-                              {navigatingKey === r.key && (
-                                <span className="flex items-center gap-1.5 text-primary">
-                                  <Loader2 className="size-3 animate-spin" /> Ouverture…
-                                </span>
-                              )}
-                            </span>
-                            <p
-                              lang="ar"
-                              dir="rtl"
-                              className="font-arabic text-[1.35rem] leading-[2.3] text-foreground"
+                          <div className="rounded-2xl border border-border/60 bg-background transition hover:border-primary/40">
+                            <div className="flex items-center justify-between px-3 pt-2 text-xs font-medium tabular-nums text-muted-foreground">
+                              <span>
+                                {r.key}
+                                {navigatingKey === r.key && (
+                                  <span className="ml-2 inline-flex items-center gap-1 text-primary">
+                                    <Loader2 className="size-3 animate-spin" /> Ouverture…
+                                  </span>
+                                )}
+                              </span>
+                              <span className="flex items-center">
+                                <button
+                                  onClick={() => copyResult(r.key, r.text, meta?.nameFrench)}
+                                  aria-label="Copier l'āyah"
+                                  className="grid size-8 place-items-center rounded-full hover:bg-muted"
+                                >
+                                  <Copy className="size-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => shareResult(r.key, r.text, meta?.nameFrench)}
+                                  aria-label="Partager l'āyah"
+                                  className="grid size-8 place-items-center rounded-full hover:bg-muted"
+                                >
+                                  <Share2 className="size-3.5" />
+                                </button>
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                remember(raw);
+                                onSelectVerse(r.key, { query, keys: results.map((x) => x.key) });
+                              }}
+                              disabled={!!navigatingKey}
+                              className="w-full px-4 pb-3 pt-0.5 text-left disabled:opacity-60"
                             >
-                              <Highlighted text={r.text} ranges={r.ranges} />
-                            </p>
-                          </button>
+                              <p
+                                lang="ar"
+                                dir="rtl"
+                                style={{ fontFamily: '"Noto Naskh Arabic", "Amiri", serif' }}
+                                className="text-[1.08rem] leading-[1.85] text-foreground"
+                              >
+                                <Highlighted text={r.text} ranges={r.ranges} />
+                              </p>
+                            </button>
+                          </div>
                         </li>
                       ))}
                     </ul>
