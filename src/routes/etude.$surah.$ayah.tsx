@@ -286,6 +286,7 @@ function EtudePage() {
 
   return (
     <div className="flex h-[100dvh] flex-col bg-background">
+      {menuOpen && <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />}
       <audio
         ref={audioRef}
         preload="none"
@@ -320,7 +321,6 @@ function EtudePage() {
 
         {menuOpen && (
           <>
-            <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
             <div className="absolute right-2 top-full z-40 mt-1 w-56 rounded-2xl border border-border bg-card p-1.5 shadow-[var(--shadow-elevated)]">
               <button
                 className={menuItem}
@@ -426,6 +426,19 @@ function EtudePage() {
             </button>
           ))}
         </div>
+        {main !== "comp" && (
+          <div className="mx-auto flex max-w-2xl justify-end px-4 pb-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setLang(lang === "ar" ? "fr" : "ar")}
+              aria-label={lang === "ar" ? "Afficher en français" : "Afficher en arabe"}
+              className="flex h-9 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-sm font-bold transition active:scale-95"
+            >
+              <Languages className="size-4 text-primary" />
+              {lang === "ar" ? "FR" : "عربي"}
+            </button>
+          </div>
+        )}
         {main === "comp" && (
           <div className="relative mx-auto max-w-2xl px-4 pb-2.5 pt-1">
             <div className="flex gap-2">

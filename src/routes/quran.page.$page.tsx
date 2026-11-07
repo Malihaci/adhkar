@@ -28,6 +28,7 @@ import { useWakeLock } from "@/lib/wakeLock";
 import { readJSON, writeJSON } from "@/lib/storage";
 import { effectiveSchedule, type WirdState } from "@/lib/khatma";
 import { useInkOffset } from "@/lib/inkCenter";
+import { ChoiceSelect } from "@/components/ChoiceSelect";
 import {
   foldVerses,
   fetchSurahPages,
@@ -2169,11 +2170,12 @@ function MushafPage() {
                   opts.find((o) => o.id === readMode && (o.id !== "surah" || o.surah === scopeSurah))?.value ??
                   opts[0].value;
                 return (
-                  <select
-                    aria-label="Que lire"
+                  <ChoiceSelect
+                    title="Que lire"
+                    ariaLabel="Que lire"
                     value={cur}
-                    onChange={(e) => {
-                      const o = opts.find((x) => x.value === e.target.value);
+                    onChange={(val) => {
+                      const o = opts.find((x) => x.value === val);
                       if (!o) return;
                       setReadMode(o.id);
                       if (o.id === "surah" && o.surah != null) setSurahPick(o.surah);
@@ -2182,14 +2184,13 @@ function MushafPage() {
                         if (!rangeEnd && anchor.key) setRangeEnd(anchor.key);
                       }
                     }}
-                    className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium"
                   >
                     {opts.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
                       </option>
                     ))}
-                  </select>
+                  </ChoiceSelect>
                 );
               })()}
 
@@ -2283,21 +2284,17 @@ function PillRow({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="mt-3 block">
+    <div className="mt-3 block">
       <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
-      <select
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium"
-      >
+      <ChoiceSelect title={label} value={value} onChange={(v) => onChange(Number(v))}>
         <option value={1}>1 fois</option>
         <option value={3}>3 fois</option>
         <option value={5}>5 fois</option>
         <option value={0}>À l'infini</option>
-      </select>
-    </label>
+      </ChoiceSelect>
+    </div>
   );
 }
 

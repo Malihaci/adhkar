@@ -307,13 +307,6 @@ export function DhikrViewer({
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <Link
-              to="/"
-              aria-label="Accueil"
-              className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-            >
-              <Home className="size-[18px]" />
-            </Link>
             <button
               onClick={() => setLiveOpen(true)}
               aria-label="Vivre ce dhikr"

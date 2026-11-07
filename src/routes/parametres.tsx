@@ -25,6 +25,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { OfflineSettings } from "@/components/OfflineSettings";
+import { ChoiceSelect } from "@/components/ChoiceSelect";
 import { useTheme, type ThemeMode } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
 import { useSmartReminderPrefs, wirdModeOf, type WirdReminderMode } from "@/lib/smartReminders";
@@ -112,8 +113,6 @@ function ToggleRow({
   );
 }
 
-const selectCls = "h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium";
-
 /** Liste déroulante étiquetée — remplace les rangées de boutons. */
 function SelectField({
   label,
@@ -127,12 +126,12 @@ function SelectField({
   children: React.ReactNode;
 }) {
   return (
-    <label className="mt-3 block">
+    <div className="mt-3 block">
       <span className="mb-1 block text-xs text-muted-foreground">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className={selectCls}>
+      <ChoiceSelect title={label} value={value} onChange={onChange}>
         {children}
-      </select>
-    </label>
+      </ChoiceSelect>
+    </div>
   );
 }
 

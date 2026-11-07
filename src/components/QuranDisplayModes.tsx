@@ -1,5 +1,6 @@
 import type { BelowMode, BelowSource, QuranPreferences } from "@/lib/preferences";
 import { BELOW_SOURCES } from "@/lib/belowContent";
+import { ChoiceSelect } from "@/components/ChoiceSelect";
 
 /**
  * « Sous le Mushaf » — l'utilisateur choisit UNE source (Français,
@@ -8,8 +9,6 @@ import { BELOW_SOURCES } from "@/lib/belowContent";
  *  - āyah par āyah : l'arabe puis la source choisie, une āyah par bloc.
  */
 type Patch = Pick<QuranPreferences, "belowSource" | "belowMode">;
-
-const selectCls = "h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium";
 
 export function QuranDisplayModes({
   quran,
@@ -25,12 +24,12 @@ export function QuranDisplayModes({
   const groups = ["Traduction", "Phonétique", "Tafsir"] as const;
   return (
     <div className="space-y-3">
-      <label className="block">
+      <div className="block">
         <span className="mb-1 block text-xs text-muted-foreground">Contenu sous le Mushaf</span>
-        <select
+        <ChoiceSelect
+          title="Contenu sous le Mushaf"
           value={source}
-          onChange={(e) => onChange({ belowSource: e.target.value as BelowSource, belowMode: mode })}
-          className={selectCls}
+          onChange={(v) => onChange({ belowSource: v as BelowSource, belowMode: mode })}
         >
           <option value="none">Aucun (arabe seul)</option>
           {groups.map((g) => (
@@ -42,21 +41,21 @@ export function QuranDisplayModes({
               ))}
             </optgroup>
           ))}
-        </select>
-      </label>
+        </ChoiceSelect>
+      </div>
 
       {source !== "none" && (
-        <label className="block">
+        <div className="block">
           <span className="mb-1 block text-xs text-muted-foreground">Affichage</span>
-          <select
+          <ChoiceSelect
+            title="Affichage"
             value={mode}
-            onChange={(e) => onChange({ belowSource: source, belowMode: e.target.value as BelowMode })}
-            className={selectCls}
+            onChange={(v) => onChange({ belowSource: source, belowMode: v as BelowMode })}
           >
             <option value="panel">Page du Mushaf + volet d'une āyah</option>
             <option value="ayah">Une āyah par bloc</option>
-          </select>
-        </label>
+          </ChoiceSelect>
+        </div>
       )}
     </div>
   );
