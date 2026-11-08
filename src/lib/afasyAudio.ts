@@ -1,4 +1,6 @@
 import type { Dhikr } from "@/data/adhkar";
+import { AFASY_CUES, type AfasyCue } from "@/data/afasy-cues";
+import { MATIN_2_CUES, SOIR_2_CUES, SOIR_3_CUES } from "@/data/recitation-cues";
 
 // Récitations authentiques de Cheikh Mishary Rashid Al-Afasy
 // Sources publiques hébergées sur archive.org (CORS activé, Range supporté)
@@ -69,3 +71,25 @@ export function calibrateTimeMap(
   const delta = time - anchor;
   return map.map((t, i) => Math.min(duration - 1, Math.max(i === 0 ? startOffset : 0, t + delta)));
 }
+
+export interface Voice {
+  id: string;
+  label: string;
+  src: string;
+  duration: number;
+  startOffset: number;
+  cues: AfasyCue[];
+}
+
+/** Voix disponibles pour « Écouter » (la première est la voix par défaut). */
+export const VOICES: Record<"morning" | "evening", Voice[]> = {
+  morning: [
+    { id: "afasy", label: "Cheikh Al-ʿAfâsy", ...AFASY_AUDIO.morning, cues: AFASY_CUES.morning },
+    { id: "matin-2", label: "Récitation 2", src: "/audio/recitations/matin-2.mp3", duration: 937.6, startOffset: 0, cues: MATIN_2_CUES },
+  ],
+  evening: [
+    { id: "afasy", label: "Cheikh Al-ʿAfâsy", ...AFASY_AUDIO.evening, cues: AFASY_CUES.evening },
+    { id: "soir-2", label: "Récitation 2", src: "/audio/recitations/soir-2.m4a", duration: 1163.7, startOffset: 0, cues: SOIR_2_CUES },
+    { id: "soir-3", label: "Récitation 3", src: "/audio/recitations/soir-3.mp3", duration: 1322.7, startOffset: 0, cues: SOIR_3_CUES },
+  ],
+};

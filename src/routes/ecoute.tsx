@@ -17,12 +17,12 @@ import { AyahText } from "@/components/AyahText";
 
 import { morningAdhkar, eveningAdhkar, type Dhikr } from "@/data/adhkar";
 import {
-  AFASY_AUDIO,
+  VOICES,
   PLAYBACK_RATES,
   buildTimeMap,
   calibrateTimeMap,
 } from "@/lib/afasyAudio";
-import { AFASY_CUES } from "@/data/afasy-cues";
+import { ChoiceSelect } from "@/components/ChoiceSelect";
 import { ALL_ADHKAR } from "@/data/adhkar-occasions";
 import { readJSON, writeJSON } from "@/lib/storage";
 import { usePreferences } from "@/lib/preferences";
@@ -54,15 +54,23 @@ export const Route = createFileRoute("/ecoute")({
 
 type Mode = "morning" | "evening";
 
-const calibKey = (mode: Mode) => `adhkar.audio.calib.${mode}`;
+const calibKey = (mode: Mode, voice = "afasy") =>
+  voice === "afasy" ? `adhkar.audio.calib.${mode}` : `adhkar.audio.calib.${mode}.${voice}`;
+const voiceKey = (mode: Mode) => `adhkar.audio.voice.${mode}`;
 
 function EcoutePage() {
   const search = Route.useSearch();
   const [mode, setMode] = useState<Mode>(search.m ?? "morning");
   const fullList: Dhikr[] = mode === "morning" ? morningAdhkar : eveningAdhkar;
-  const audio = AFASY_AUDIO[mode];
+  const voices = VOICES[mode];
+  const [voiceId, setVoiceId] = useState<string>("afasy");
+  useEffect(() => {
+    const saved = readJSON<string>(voiceKey(mode), "afasy");
+    setVoiceId(VOICES[mode].some((v) => v.id === saved) ? saved : "afasy");
+  }, [mode]);
+  const audio = voices.find((v) => v.id === voiceId) ?? voices[0];
   /** Repères MESURÉS dans l'enregistrement (début de chaque dhikr, occurrences). */
-  const cues = AFASY_CUES[mode];
+  const cues = audio.cues;
   /** Chaque entrée = ce qui est récité à un moment (un dhikr, ou deux récités d'un seul tenant). */
   const entries: Dhikr[][] = useMemo(() => {
     if (!cues.length) return fullList.map((d) => [d]);
@@ -94,8 +102,8 @@ function EcoutePage() {
 
   // Décalage manuel mémorisé par mode
   useEffect(() => {
-    setShift(readJSON<number>(calibKey(mode), 0));
-  }, [mode]);
+    setShift(readJSON<number>(calibKey(mode, audio.id), 0));
+  }, [mode, audio.id]);
 
   const timeMap = useMemo(
     () =>
@@ -172,7 +180,7 @@ function EcoutePage() {
       audioRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+  }, [mode, audio.id]);
 
   // Vitesse de lecture
   useEffect(() => {
@@ -234,7 +242,7 @@ function EcoutePage() {
     );
     const delta = (next[idx] ?? 0) - (baseMap[idx] ?? 0);
     setShift(delta);
-    writeJSON(calibKey(mode), delta);
+    writeJSON(calibKey(mode, audio.id), delta);
   };
 
   const onScrub = (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -308,9 +316,28 @@ function EcoutePage() {
       <article className="surface-card relative flex flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              En cours · Cheikh Al-‘Afâsy
-            </p>
+            {voices.length > 1 ? (
+              <ChoiceSelect
+                title="Voix"
+                ariaLabel="Changer de voix"
+                value={audio.id}
+                onChange={(v) => {
+                  setVoiceId(v);
+                  writeJSON(voiceKey(mode), v);
+                }}
+                className="h-6 w-auto max-w-full gap-1 rounded-full border-0 bg-muted/60 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                {voices.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.label}
+                  </option>
+                ))}
+              </ChoiceSelect>
+            ) : (
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                En cours · {audio.label}
+              </p>
+            )}
             <h3 className="truncate font-display text-base font-semibold text-foreground">
               {dhikr.title}
               {occNow > 0 && (
