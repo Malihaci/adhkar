@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
-import { fetchBelowText, belowSourceInfo } from "@/lib/belowContent";
+import { ChoiceSelect } from "@/components/ChoiceSelect";
+import { BELOW_SOURCES, fetchBelowText, belowSourceInfo } from "@/lib/belowContent";
 import type { BelowSource, ReadingSize } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
@@ -111,6 +112,7 @@ export function BelowPanel({
   size,
   onSelect,
   onHeight,
+  onSourceChange,
 }: {
   /** Toutes les āyāt de la page (dans l'ordre). */
   verseKeys: string[];
@@ -121,6 +123,8 @@ export function BelowPanel({
   size: ReadingSize;
   /** Hauteur occupée par le volet (px), pour réserver la place sous la page. */
   onHeight: (px: number) => void;
+  /** Change la source (tafsir, traduction…) directement depuis le volet. */
+  onSourceChange?: (s: BelowSource) => void;
 }) {
   const info = belowSourceInfo(source);
   const [height, setHeight] = useState(180);
@@ -183,9 +187,34 @@ export function BelowPanel({
         className="flex h-10 shrink-0 touch-none items-center gap-2 px-3"
       >
         <span className="mx-auto absolute left-1/2 top-1.5 h-1 w-10 -translate-x-1/2 rounded-full bg-border" aria-hidden />
-        <span className="mt-1 min-w-0 flex-1 truncate text-xs font-semibold text-primary">
-          {verseKey} · <span className="font-normal text-muted-foreground">{info?.label}</span>
-        </span>
+        <div
+          className="mt-1 flex min-w-0 flex-1 items-center gap-1.5"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="shrink-0 text-xs font-semibold text-primary">{verseKey}</span>
+          {onSourceChange ? (
+            <ChoiceSelect
+              title="Contenu sous le Mushaf"
+              ariaLabel="Changer la source affichée"
+              value={source}
+              onChange={(v) => onSourceChange(v as BelowSource)}
+              className="h-8 w-auto min-w-0 max-w-full rounded-full border-0 bg-muted/60 px-3 text-xs font-normal text-muted-foreground"
+            >
+              {[...new Set(BELOW_SOURCES.map((x) => x.group))].map((g) => (
+                <optgroup key={g} label={g}>
+                  {BELOW_SOURCES.filter((x) => x.group === g).map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </ChoiceSelect>
+          ) : (
+            <span className="truncate text-xs text-muted-foreground">{info?.label}</span>
+          )}
+        </div>
         <Link
           to="/etude/$surah/$ayah"
           params={{ surah: verseKey.split(":")[0], ayah: verseKey.split(":")[1] }}

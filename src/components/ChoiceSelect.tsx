@@ -1,4 +1,5 @@
 import { Children, Fragment, isValidElement, useEffect, useMemo, useState, type ReactElement, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -80,7 +81,7 @@ export function ChoiceSelect({
         <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
       </button>
 
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-[60] flex items-end bg-black/45 backdrop-blur-[2px]"
           onClick={() => setOpen(false)}
@@ -139,7 +140,8 @@ export function ChoiceSelect({
               })}
             </ul>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

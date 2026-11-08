@@ -2107,6 +2107,7 @@ function MushafPage() {
             size={prefs.quran.textSize}
             onSelect={(k) => setSelected([k])}
             onHeight={setBelowH}
+            onSourceChange={(src) => updateQuran({ belowSource: src })}
           />
         </>
       )}
