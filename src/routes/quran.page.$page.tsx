@@ -68,6 +68,7 @@ import { usePreferences } from "@/lib/preferences";
 import { fetchMokhtasarLessons, type MokhtasarPassage } from "@/lib/quran";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { BelowPanel } from "@/components/BelowPanel";
+import { AyahCards } from "@/components/AyahCards";
 import { cachedAudioBlobUrl } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 
@@ -930,17 +931,10 @@ function MushafPage() {
    * direct") : dès que Français ou Phonétique est activé, plus de message
    * demandant d'ouvrir ce mode — on y navigue directement, sur la sourate
    * affichée (position préservée au mieux, voir §15). */
+  const ayahMode = prefs.quran.belowMode === "ayah";
   useEffect(() => {
-    if (!verses?.length) return; // sourate pas encore connue, jamais naviguer à l'aveugle
-    if (prefs.quran.belowMode === "ayah") {
-      navigate({
-        to: "/quran/lire/$surah",
-        params: { surah: String(surahOnPage) },
-        search: { p: page },
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefs.quran.belowMode, prefs.quran.belowSource, verses?.length]);
+    if (ayahMode) boxRef.current?.scrollTo({ top: 0 });
+  }, [ayahMode, page]);
 
   /* ------------------------------------------- volet « sous le Mushaf »
    * L'āyah traduite en bas est TOUJOURS celle qui est surlignée dans la page :
@@ -1709,6 +1703,19 @@ function MushafPage() {
             rétrécir/agrandir s'annulait exactement, voir le commentaire sur
             `ceilingFontPx`). La composition (line_number, retours à la
             ligne) ne dépend que des données du Mushaf, jamais de la taille. */}
+        {ayahMode ? (
+          <AyahCards
+            verses={verses ?? []}
+            chapters={chapters ?? []}
+            page={page}
+            quran={prefs.quran}
+            selected={selected}
+            playingKey={playing ? playingKey : undefined}
+            onSelect={(k) => setSelected((s) => (s[0] === k ? [] : [k]))}
+            onOpenNav={openNav}
+            onGoPage={goToPageDirect}
+          />
+        ) : (
         <div ref={fitBoxRef} className="mx-auto flex flex-col">
           {/* Métadonnées DANS la page (comme le Mushaf papier) : sourate à gauche,
               juz' à droite — jamais une barre d'application permanente. */}
@@ -1903,6 +1910,7 @@ function MushafPage() {
           {tajweedMode && <TajweedLegend className="mt-1" />}
           {tajweedMode && <div className="h-20" aria-hidden />}
         </div>
+        )}
       </div>
 
       {/* Une seule barre basse à la fois (§13 mission menu ayah) : les
