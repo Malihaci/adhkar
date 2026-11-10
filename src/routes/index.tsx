@@ -69,7 +69,11 @@ function Index() {
     if (resolveCoranMode(prefs) === "mushaf") {
       navigate({ to: "/quran/page/$page", params: { page: String(lastPage) } });
     } else {
-      navigate({ to: "/quran/lire/$surah", params: { surah: String(lastSurah) } });
+      navigate({
+        to: "/quran/lire/$surah",
+        params: { surah: String(lastSurah) },
+        search: { p: lastPage || undefined },
+      });
     }
   };
 

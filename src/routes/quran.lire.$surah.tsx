@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { BookOpen, ChevronLeft, ChevronRight, Home, Settings2, Sparkles } from "lucide-react";
-import { fetchChapters, fetchVersePage } from "@/lib/mushaf";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, Home, Settings2, Sparkles } from "lucide-react";
+import { clampPage, fetchChapters, fetchPageLayout, TOTAL_PAGES } from "@/lib/mushaf";
+import { GoToPanel, type NavTab } from "@/components/GoToPanel";
 import { fetchHamidullahSura } from "@/lib/hamidullah";
 import { writeJSON } from "@/lib/storage";
 import { usePreferences, type ReadingSize } from "@/lib/preferences";
@@ -12,6 +13,10 @@ import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/quran/lire/$surah")({
+  validateSearch: (s: Record<string, unknown>): { p?: number } => {
+    const n = Number(s.p);
+    return { p: Number.isFinite(n) && n >= 1 ? clampPage(n) : undefined };
+  },
   head: ({ params }) => ({
     meta: [{ title: `Lire — Sourate ${params.surah}` }],
   }),
@@ -29,35 +34,75 @@ const ARABIC_SIZE: Record<ReadingSize, string> = {
 
 function LirePage() {
   const { surah: surahParam } = Route.useParams();
+  const search = Route.useSearch();
   const navigate = useNavigate();
-  const surah = Number(surahParam);
+  const surahFromUrl = Number(surahParam);
   const { prefs, updateQuran } = usePreferences();
   const layers = prefs.quran;
   const source = layers.belowSource ?? "none";
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [barHidden, setBarHidden] = useState(false);
+  const [navTab, setNavTab] = useState<NavTab | null>(null);
   const lastY = useRef(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: chapters } = useQuery({
     queryKey: ["chapters-fr"],
     queryFn: fetchChapters,
     staleTime: Infinity,
   });
-  // Sourate entière en un appel : donne l'arabe (et le français Hamidullah).
-  const { data: verses, isPending } = useQuery({
-    queryKey: ["hamidullah-sura", surah],
-    queryFn: () => fetchHamidullahSura(surah),
+
+  /** Page du Mushaf affichée : celle demandée, sinon la 1re page de la sourate. */
+  const page = search.p ?? chapters?.find((c) => c.id === surahFromUrl)?.pages[0];
+
+  // Les āyāt de CETTE page du Mushaf (les 15 lignes imprimées), pas la sourate entière.
+  const { data: layout, isPending } = useQuery({
+    queryKey: ["mushaf-layout", page],
+    queryFn: () => fetchPageLayout(page as number),
+    enabled: page != null,
     staleTime: Infinity,
   });
+  const verses = useMemo(() => {
+    const seen = new Set<string>();
+    return (layout?.verses ?? [])
+      .filter((v) => (seen.has(v.key) ? false : (seen.add(v.key), true)))
+      .sort((x, y) => x.surah - y.surah || x.ayah - y.ayah);
+  }, [layout]);
+  const surahsOnPage = useMemo(() => Array.from(new Set(verses.map((v) => v.surah))), [verses]);
 
-  const chapter = chapters?.find((c) => c.id === surah);
+  // Traduction française : une requête par sourate présente sur la page.
+  const trQueries = useQueries({
+    queries: surahsOnPage.map((n) => ({
+      queryKey: ["hamidullah-sura", n],
+      queryFn: () => fetchHamidullahSura(n),
+      staleTime: Infinity,
+    })),
+  });
+  const translationOf = (surah: number, ayah: number) =>
+    trQueries[surahsOnPage.indexOf(surah)]?.data?.find((a) => a.ayah === ayah)?.translation ?? "";
+
+  const firstSurah = verses[0]?.surah ?? surahFromUrl;
+  const chapter = chapters?.find((c) => c.id === firstSurah);
+  const pageChapters = surahsOnPage.map((n) => chapters?.find((c) => c.id === n)).filter(Boolean);
 
   useEffect(() => {
-    writeJSON("quran-last-surah", surah);
-  }, [surah]);
+    if (verses[0]) writeJSON("quran-last-surah", verses[0].surah);
+  }, [verses]);
+  useEffect(() => {
+    if (page == null) return;
+    try {
+      window.localStorage.setItem("quran-last-page", String(page));
+      window.localStorage.setItem("quran-last-read-at", String(Date.now()));
+    } catch {
+      /* stockage indisponible */
+    }
+    scrollRef.current?.scrollTo({ top: 0 });
+    setBarHidden(false);
+    lastY.current = 0;
+  }, [page]);
 
   // Retour automatique au Mushaf dès que ce mode n'est plus choisi (arabe
-  // seul, ou mode « volet ») — sur la page de cette sourate.
+  // seul, ou mode « volet ») — sur la même page.
   const stay = layers.belowMode === "ayah";
   const showAr = layers.arabic !== false;
   const showFr = !!layers.francais || source === "fr";
@@ -65,38 +110,52 @@ function LirePage() {
   const tafsirInfo = belowSourceInfo(source);
   const tafsirOn = !!tafsirInfo && tafsirInfo.group === "Tafsir";
   useEffect(() => {
-    if (stay) return;
-    let cancelled = false;
-    fetchVersePage(`${surah}:1`)
-      .then((page) => {
-        if (!cancelled) navigate({ to: "/quran/page/$page", params: { page: String(page) } });
-      })
-      .catch(() => {
-        /* échec réseau ponctuel — l'utilisateur reste ici */
-      });
-    return () => {
-      cancelled = true;
-    };
+    if (stay || page == null) return;
+    navigate({ to: "/quran/page/$page", params: { page: String(page) } });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stay]);
 
   const openMushaf = () => {
-    // Repasse en mode Mushaf puis ouvre la page de cette sourate.
+    // Repasse en mode Mushaf : l'effet ci-dessus ouvre la même page.
     updateQuran({ belowMode: "panel" });
   };
 
-  const goSurah = (delta: number) => {
-    const next = surah + delta;
-    if (next < 1 || next > 114) return;
-    navigate({ to: "/quran/lire/$surah", params: { surah: String(next) } });
+  const goPage = (p: number) => {
+    const target = clampPage(p);
+    navigate({
+      to: "/quran/lire/$surah",
+      params: { surah: String(firstSurah) },
+      search: { p: target },
+    });
   };
 
   return (
     <div className="flex h-[100dvh] flex-col bg-background">
       <header className="relative z-30 shrink-0 border-b border-border/40 bg-card/80 px-3 py-2.5 backdrop-blur-xl">
-        <p className="mx-auto max-w-2xl truncate text-center text-sm font-semibold text-foreground">
-          {chapter ? `${chapter.id}. ${chapter.nameFrench} · ${chapter.nameArabic} · ${chapter.versesCount} āyāt` : `Sourate ${surah}`}
-        </p>
+        <div className="mx-auto flex max-w-2xl items-center justify-center gap-2">
+          <HeaderChip
+            label={
+              pageChapters.length
+                ? pageChapters.map((c) => c!.nameFrench).join(" · ")
+                : chapter
+                  ? chapter.nameFrench
+                  : `Sourate ${firstSurah}`
+            }
+            ariaLabel="Changer de sourate"
+            onClick={() => setNavTab("surah")}
+            grow
+          />
+          <HeaderChip
+            label={`Juz ${verses[0]?.juz ?? ""}`}
+            ariaLabel="Changer de juz"
+            onClick={() => setNavTab("juz")}
+          />
+          <HeaderChip
+            label={`Page ${page ?? ""}`}
+            ariaLabel="Changer de page"
+            onClick={() => setNavTab("page")}
+          />
+        </div>
         {optionsOpen && (
           <div className="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-border bg-card px-4 pb-4 pt-3 shadow-xl">
             <div className="mx-auto max-w-2xl">
@@ -143,6 +202,7 @@ function LirePage() {
       </header>
 
       <div
+        ref={scrollRef}
         className="min-h-0 flex-1 overflow-y-auto"
         onScroll={(e) => {
           const y = e.currentTarget.scrollTop;
@@ -154,17 +214,25 @@ function LirePage() {
         }}
       >
         <div className="mx-auto max-w-2xl space-y-3 px-4 py-4 pb-28">
-          {isPending ? (
+          {isPending || page == null ? (
             <p className="py-16 text-center text-sm text-muted-foreground">Chargement…</p>
-          ) : !verses?.length ? (
+          ) : !verses.length ? (
             <p className="py-16 text-center text-sm text-muted-foreground">
               Lecture indisponible pour le moment.
             </p>
           ) : (
             verses.map((v) => {
-              const verseKey = `${surah}:${v.ayah}`;
+              const verseKey = v.key;
+              const surah = v.surah;
+              const sName = v.ayah === 1 ? chapters?.find((c) => c.id === surah) : undefined;
               return (
-                <div key={verseKey} className="surface-card space-y-2.5 rounded-2xl px-4 py-4">
+                <div key={verseKey} className="space-y-3">
+                  {sName && (
+                    <p className="pt-2 text-center text-xs font-semibold tracking-wide text-muted-foreground">
+                      {sName.id}. {sName.nameFrench} · <span lang="ar" className="font-arabic text-sm">{sName.nameArabic}</span>
+                    </p>
+                  )}
+                <div className="surface-card space-y-2.5 rounded-2xl px-4 py-4">
                   <div className="flex items-center justify-between">
                       <p className="text-xs font-semibold text-muted-foreground">
                         {verseKey}
@@ -188,7 +256,7 @@ function LirePage() {
                     </p>
                   )}
                   {showFr && (
-                    <p className="select-text text-[0.95rem] leading-[1.85] text-foreground/90">{v.translation.replace(/\s*\[\d+\]/g, "")}</p>
+                    <p className="select-text text-[0.95rem] leading-[1.85] text-foreground/90">{translationOf(v.surah, v.ayah).replace(/\s*\[\d+\]/g, "")}</p>
                   )}
                   {showPh && <LazyBelow verseKey={verseKey} source="phonetic" size={layers.textSize} />}
                   {tafsirOn && (
@@ -198,8 +266,20 @@ function LirePage() {
                     </div>
                   )}
                 </div>
+                </div>
               );
             })
+          )}
+          {verses.length > 0 && (
+            <button
+              type="button"
+              disabled={(page ?? 1) >= TOTAL_PAGES}
+              onClick={() => goPage((page ?? 1) + 1)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary/10 py-3 text-sm font-semibold text-primary disabled:opacity-30"
+            >
+              Page suivante
+              <ChevronRight className="size-4" />
+            </button>
           )}
           <Link
             to="/parametres"
@@ -211,6 +291,21 @@ function LirePage() {
           </Link>
         </div>
       </div>
+
+      {navTab && page != null && (
+        <GoToPanel
+          initialTab={navTab}
+          juz={verses[0]?.juz}
+          hizb={verses[0]?.hizb}
+          rub={verses[0]?.rub}
+          surahId={chapter?.id}
+          page={page}
+          chapters={chapters ?? []}
+          reciterId={layers.reciterId}
+          onClose={() => setNavTab(null)}
+          onGo={(p) => goPage(p)}
+        />
+      )}
 
       <nav
         aria-label="Commandes"
@@ -224,8 +319,8 @@ function LirePage() {
           <LireBtn to="/" label="Accueil" icon={<Home className="size-[19px]" strokeWidth={1.75} />} />
           <LireBtn
             label="Précédente"
-            disabled={surah <= 1}
-            onClick={() => goSurah(-1)}
+            disabled={(page ?? 1) <= 1}
+            onClick={() => goPage((page ?? 1) - 1)}
             icon={<ChevronLeft className="size-[19px]" strokeWidth={1.75} />}
           />
           <LireBtn
@@ -236,8 +331,8 @@ function LirePage() {
           />
           <LireBtn
             label="Suivante"
-            disabled={surah >= 114}
-            onClick={() => goSurah(1)}
+            disabled={(page ?? 1) >= TOTAL_PAGES}
+            onClick={() => goPage((page ?? 1) + 1)}
             icon={<ChevronRight className="size-[19px]" strokeWidth={1.75} />}
           />
           <LireBtn
@@ -284,6 +379,34 @@ function LireBtn({
   ) : (
     <button type="button" onClick={onClick} disabled={disabled} aria-label={label} className={cls}>
       {inner}
+    </button>
+  );
+}
+
+/** Capsule de l'en-tête : sourate, juz ou page — ouvre « Aller à… ». */
+function HeaderChip({
+  label,
+  ariaLabel,
+  onClick,
+  grow,
+}: {
+  label: string;
+  ariaLabel: string;
+  onClick: () => void;
+  grow?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className={cn(
+        "inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-full border border-border bg-background/70 px-3 text-sm font-semibold text-foreground active:scale-95",
+        grow && "flex-1",
+      )}
+    >
+      <span className="truncate">{label}</span>
+      <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
     </button>
   );
 }

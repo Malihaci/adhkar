@@ -51,7 +51,11 @@ export function BottomNav() {
       navigate({ to: "/quran/page/$page", params: { page: String(lastPage) } });
     } else {
       const lastSurah = readJSON<number>("quran-last-surah", 1);
-      navigate({ to: "/quran/lire/$surah", params: { surah: String(lastSurah) } });
+      navigate({
+        to: "/quran/lire/$surah",
+        params: { surah: String(lastSurah) },
+        search: { p: readJSON<number>("quran-last-page", 0) || undefined },
+      });
     }
   };
 
