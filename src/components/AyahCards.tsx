@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQueries } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { LazyBelow } from "@/components/BelowPanel";
 import type { NavTab } from "@/components/GoToPanel";
 import { fetchHamidullahSura } from "@/lib/hamidullah";
@@ -78,12 +78,45 @@ export function AyahCards({
   const names = surahs.map((n) => chapters.find((c) => c.id === n)?.nameFrench).filter(Boolean);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 pb-32 pt-[max(0.75rem,env(safe-area-inset-top))]">
-      <div className="mb-3 flex items-center gap-2">
-        <Chip label={names.join(" · ") || `Sourate ${surahs[0] ?? ""}`} aria="Changer de sourate" onClick={() => onOpenNav("surah")} grow />
-        <Chip label={`Juz ${list[0]?.juz ?? ""}`} aria="Changer de juz" onClick={() => onOpenNav("juz")} />
-        <Chip label={`Page ${page}`} aria="Changer de page" onClick={() => onOpenNav("page")} />
-      </div>
+    <div
+      className="mx-auto max-w-2xl px-4 pb-32"
+      style={{ paddingTop: "calc(3.5rem + env(safe-area-inset-top))" }}
+    >
+      {/* Barre haute FIXE, comme l'en-tête d'un Mushaf : sourate à gauche,
+          page au centre, juz à droite. */}
+      <header
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+        className="fixed inset-x-0 top-0 z-30 border-b border-border/40 bg-card/90 backdrop-blur-xl"
+      >
+        <div className="mx-auto grid h-11 max-w-2xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-3">
+          <button
+            type="button"
+            onClick={() => onOpenNav("surah")}
+            aria-label="Changer de sourate"
+            className="flex min-w-0 items-center gap-1 justify-self-start text-sm font-semibold text-foreground active:opacity-60"
+          >
+            <span className="truncate">{names[0] ?? `Sourate ${surahs[0] ?? ""}`}</span>
+            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenNav("page")}
+            aria-label="Changer de page"
+            className="rounded-full px-3 py-1 text-sm font-bold tabular-nums text-foreground active:opacity-60"
+          >
+            {page}
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenNav("juz")}
+            aria-label="Changer de juz"
+            className="flex items-center gap-1 justify-self-end text-sm font-semibold text-foreground active:opacity-60"
+          >
+            Juz {list[0]?.juz ?? ""}
+            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+          </button>
+        </div>
+      </header>
 
       <div className="space-y-3">
         {list.map((v) => {
@@ -101,7 +134,10 @@ export function AyahCards({
                 </p>
               )}
               <div
-                onClick={() => onSelect(v.key)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(v.key);
+                }}
                 className={cn(
                   "surface-card space-y-2.5 rounded-2xl px-4 py-4 transition",
                   isSel && "ring-2 ring-primary/50",
@@ -148,33 +184,27 @@ export function AyahCards({
       </div>
 
       {list.length > 0 && (
-        <button
-          type="button"
-          disabled={page >= TOTAL_PAGES}
-          onClick={() => onGoPage(page + 1)}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary/10 py-3 text-sm font-semibold text-primary disabled:opacity-30"
-        >
-          Page suivante
-          <ChevronRight className="size-4" />
-        </button>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={page >= TOTAL_PAGES}
+            onClick={() => onGoPage(page + 1)}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-primary/10 py-3 text-sm font-semibold text-primary disabled:opacity-30"
+          >
+            <ChevronLeft className="size-4" />
+            Page suivante
+          </button>
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => onGoPage(page - 1)}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-muted py-3 text-sm font-semibold text-foreground disabled:opacity-30"
+          >
+            Page précédente
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
       )}
     </div>
-  );
-}
-
-function Chip({ label, aria, onClick, grow }: { label: string; aria: string; onClick: () => void; grow?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={aria}
-      className={cn(
-        "inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-full border border-border bg-background/70 px-3 text-sm font-semibold text-foreground active:scale-95",
-        grow && "flex-1",
-      )}
-    >
-      <span className="truncate">{label}</span>
-      <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-    </button>
   );
 }
