@@ -47,6 +47,33 @@ export function HomeDua({ now, isDay }: { now: Date; isDay: boolean }) {
       <p className="mt-2 border-t border-border/60 pt-1.5 text-[11px] text-muted-foreground">
         {item.source}
       </p>
+      {item.dua && (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="mt-3 block w-full rounded-xl bg-background/70 px-3 py-2.5 text-left"
+        >
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gold">
+            Doua associée
+          </span>
+          <span
+            lang="ar"
+            dir="rtl"
+            className={cn(
+              "mt-1 block text-center font-arabic text-[1.15rem] leading-[1.9] text-foreground",
+              !open && "line-clamp-2",
+            )}
+          >
+            {item.dua.arabic}
+          </span>
+          {open && (
+            <>
+              <span className="mt-1 block text-[13px] leading-snug text-foreground">{item.dua.french}</span>
+              <span className="mt-1.5 block text-[11px] text-muted-foreground">{item.dua.source}</span>
+            </>
+          )}
+        </button>
+      )}
     </section>
   );
 }

@@ -16,6 +16,8 @@ export interface DuaMoment {
   source: string;
   /** Quand la dire, ou ce que cela signifie. */
   note: string;
+  /** Pour un hadith : une invocation authentique en lien avec son thème. */
+  dua?: { arabic: string; french: string; source: string };
 }
 
 export const DUAS_DU_MOMENT: DuaMoment[] = [
@@ -79,6 +81,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
       "Les actes ne valent que par les intentions, et chacun n'obtient que ce qu'il a eu l'intention de faire.",
     source: "Al-Bukhārī 1 · Muslim 1907",
     note: "Hadith fondamental. Bon réflexe au début de la journée : renouveler son intention pour Allah avant ses actes, y compris ses lectures et ses adhkār.",
+    dua: {
+      arabic: "رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنتَ السَّمِيعُ الْعَلِيمُ",
+      french: "Notre Seigneur, accepte ceci de notre part ! Car c'est Toi l'Audient, l'Omniscient.",
+      source: "Coran 2:127",
+    },
   },
   {
     id: "kalimatan",
@@ -89,6 +96,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
       "Deux paroles légères sur la langue, lourdes dans la balance, aimées du Miséricordieux : « Gloire et louange à Allah, gloire à Allah le Magnifique ».",
     source: "Al-Bukhārī 6406 · Muslim 2694",
     note: "Un dhikr très simple à répéter dans la journée, en marchant ou en attendant : très léger à dire, très lourd en récompense.",
+    dua: {
+      arabic: "اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ",
+      french: "Ô Allah, aide-moi à T'évoquer, à Te remercier et à bien T'adorer.",
+      source: "Abū Dāwūd 1522 · An-Nasāʾī 1303 (sahīh)",
+    },
   },
   {
     id: "adwamuha",
@@ -97,6 +109,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french: "Les actes les plus aimés d'Allah sont les plus réguliers, même s'ils sont peu nombreux.",
     source: "Al-Bukhārī 6464 · Muslim 783",
     note: "Encouragement à la régularité : mieux vaut peu, chaque jour, que beaucoup rarement (Wird, adhkār, prières).",
+    dua: {
+      arabic: "رَبَّنَا لَا تُزِغْ قُلُوبَنَا بَعْدَ إِذْ هَدَيْتَنَا وَهَبْ لَنَا مِن لَّدُنكَ رَحْمَةً إِنَّكَ أَنتَ الْوَهَّابُ",
+      french: "Notre Seigneur, ne laisse pas dévier nos cœurs après que Tu nous as guidés, et accorde-nous Ta miséricorde : c'est Toi le Grand Donateur.",
+      source: "Coran 3:8",
+    },
   },
   {
     id: "khayrukum",
@@ -105,6 +122,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french: "Les meilleurs d'entre vous sont ceux qui apprennent le Coran et l'enseignent.",
     source: "Al-Bukhārī 5027",
     note: "Un rappel du mérite d'apprendre le Coran et de le transmettre, même un seul verset.",
+    dua: {
+      arabic: "رَبِّ زِدْنِي عِلْمًا",
+      french: "Seigneur, augmente mon savoir.",
+      source: "Coran 20:114",
+    },
   },
   {
     id: "yuhibbu-li-akhihi",
@@ -114,6 +136,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
       "Aucun de vous ne croit vraiment tant qu'il n'aime pas pour son frère ce qu'il aime pour lui-même.",
     source: "Al-Bukhārī 13 · Muslim 45",
     note: "La foi complète passe par le bon comportement envers les autres : vouloir pour eux le bien qu'on veut pour soi.",
+    dua: {
+      arabic: "رَبَّنَا اغْفِرْ لَنَا وَلِإِخْوَانِنَا الَّذِينَ سَبَقُونَا بِالْإِيمَانِ وَلَا تَجْعَلْ فِي قُلُوبِنَا غِلًّا لِلَّذِينَ آمَنُوا رَبَّنَا إِنَّكَ رَءُوفٌ رَّحِيمٌ",
+      french: "Notre Seigneur, pardonne-nous ainsi qu'à nos frères qui nous ont précédés dans la foi, et ne mets dans nos cœurs aucune rancœur envers ceux qui ont cru. Notre Seigneur, Tu es Compatissant et Miséricordieux.",
+      source: "Coran 59:10",
+    },
   },
   {
     id: "talab-ilm",
@@ -124,6 +151,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
       "Quiconque emprunte un chemin pour y chercher une science, Allah lui facilite grâce à cela un chemin vers le Paradis.",
     source: "Muslim 2699",
     note: "Mérite de la quête du savoir : y compris le tadabbur (méditation du Coran) et l'étude de sa religion.",
+    dua: {
+      arabic: "رَبِّ اشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي",
+      french: "Seigneur, ouvre-moi la poitrine et facilite-moi ma tâche.",
+      source: "Coran 20:25-26",
+    },
   },
   {
     id: "salat-ashr",
@@ -132,6 +164,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french: "Quiconque prie une fois sur moi, Allah priera dix fois sur lui.",
     source: "Muslim 408",
     note: "Mérite de la prière sur le Prophète ﷺ, que l'on multiplie surtout le vendredi.",
+    dua: {
+      arabic: "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ كَمَا صَلَّيْتَ عَلَى آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ",
+      french: "Ô Allah, prie sur Muhammad et sur la famille de Muhammad comme Tu as prié sur la famille d'Ibrāhīm. Tu es Digne de louange et de gloire.",
+      source: "Al-Bukhārī 6357",
+    },
   },
   {
     id: "hawqala",
@@ -176,6 +213,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french: "Que celui qui croit en Allah et au Jour dernier dise du bien ou qu'il se taise.",
     source: "Al-Bukhārī 6018 · Muslim 47",
     note: "Règle d'or de la parole : avant de parler, se demander si cela est un bien, sinon garder le silence.",
+    dua: {
+      arabic: "رَبِّ اشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي وَاحْلُلْ عُقْدَةً مِّن لِّسَانِي يَفْقَهُوا قَوْلِي",
+      french: "Seigneur, ouvre-moi la poitrine, facilite-moi ma tâche, et dénoue le nœud de ma langue afin qu'ils comprennent ma parole.",
+      source: "Coran 20:25-28",
+    },
   },
   {
     id: "shadid-ghadab",
@@ -184,6 +226,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french: "Le fort n'est pas celui qui terrasse les autres, le fort est celui qui se maîtrise lorsqu'il est en colère.",
     source: "Al-Bukhārī 6114 · Muslim 2609",
     note: "La vraie force est la maîtrise de soi. À se rappeler au moment où la colère monte.",
+    dua: {
+      arabic: "أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ",
+      french: "Je cherche refuge auprès d'Allah contre Satan le banni.",
+      source: "Al-Bukhārī 6115 · Muslim 2610",
+    },
   },
   {
     id: "nasiha",
@@ -192,6 +239,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french: "La religion, c'est la sincérité (le bon conseil).",
     source: "Muslim 55",
     note: "Être sincère envers Allah, Son Livre, Son Messager ﷺ, les dirigeants des musulmans et les gens en général.",
+    dua: {
+      arabic: "رَبَّنَا آتِنَا مِن لَّدُنكَ رَحْمَةً وَهَيِّئْ لَنَا مِنْ أَمْرِنَا رَشَدًا",
+      french: "Notre Seigneur, accorde-nous une miséricorde de Ta part et assure-nous la droiture dans notre affaire.",
+      source: "Coran 18:10",
+    },
   },
   {
     id: "qulub",
@@ -200,6 +252,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french: "Allah ne regarde ni vos apparences ni vos biens, mais Il regarde vos cœurs et vos actes.",
     source: "Muslim 2564",
     note: "Ce qui compte devant Allah, c'est la sincérité du cœur et la qualité des actes, pas l'apparence ni la richesse.",
+    dua: {
+      arabic: "اللَّهُمَّ مُصَرِّفَ الْقُلُوبِ صَرِّفْ قُلُوبَنَا عَلَى طَاعَتِكَ",
+      french: "Ô Allah, Toi qui diriges les cœurs, oriente nos cœurs vers Ton obéissance.",
+      source: "Muslim 2654",
+    },
   },
   {
     id: "amr-mu-min",
@@ -210,6 +267,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
       "Comme l'affaire du croyant est étonnante : tout est un bien pour lui, et cela n'appartient qu'au croyant. S'il lui arrive une joie, il remercie, et c'est un bien pour lui ; s'il lui arrive un malheur, il patiente, et c'est un bien pour lui.",
     source: "Muslim 2999",
     note: "Dans la joie comme dans l'épreuve, le croyant gagne : par la gratitude ou par la patience.",
+    dua: {
+      arabic: "رَبِّ أَوْزِعْنِي أَنْ أَشْكُرَ نِعْمَتَكَ الَّتِي أَنْعَمْتَ عَلَيَّ وَعَلَىٰ وَالِدَيَّ وَأَنْ أَعْمَلَ صَالِحًا تَرْضَاهُ",
+      french: "Seigneur, inspire-moi de remercier Ton bienfait dont Tu m'as comblé ainsi que mes parents, et d'accomplir une bonne œuvre que Tu agrées.",
+      source: "Coran 27:19",
+    },
   },
   {
     id: "afuww",
@@ -242,6 +304,11 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french: "L'invocation, c'est l'adoration.",
     source: "Abū Dāwūd 1479 · At-Tirmidhī 2969 (sahīh)",
     note: "Invoquer Allah est en soi un acte d'adoration : ne pas hésiter à Lui demander, grand ou petit.",
+    dua: {
+      arabic: "رَبِّ اجْعَلْنِي مُقِيمَ الصَّلَاةِ وَمِن ذُرِّيَّتِي رَبَّنَا وَتَقَبَّلْ دُعَاءِ",
+      french: "Seigneur, fais de moi quelqu'un qui accomplit assidûment la prière, ainsi que de ma descendance. Notre Seigneur, accepte mon invocation.",
+      source: "Coran 14:40",
+    },
   },
 ];
 
