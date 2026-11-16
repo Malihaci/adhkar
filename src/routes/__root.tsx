@@ -4,10 +4,12 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { BottomNav } from "@/components/BottomNav";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -181,8 +183,17 @@ function RootComponent() {
       <ReduceMotionEffect />
       <ServiceWorkerRegistration />
       <Outlet />
+      <GlobalNav />
     </QueryClientProvider>
   );
+}
+
+/** Barre du bas commune à toutes les pages (retour direct à l’accueil). Seul le
+ * lecteur du Coran garde la sienne (même style, avec les commandes de lecture). */
+function GlobalNav() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (pathname.startsWith("/quran")) return null;
+  return <BottomNav />;
 }
 
 /** ⚙️ Paramètres > Général > "Réduire les animations" (§17 mission) — un

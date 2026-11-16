@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
-import { BottomNav } from "./BottomNav";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -70,7 +69,6 @@ export function AppShell({
       <main className={cn("mx-auto max-w-3xl px-4 sm:px-5", homeHeader ? "pb-36 pt-3" : "py-6")}>
         {children}
       </main>
-      <BottomNav />
     </div>
   );
 }

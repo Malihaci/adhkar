@@ -261,7 +261,7 @@ export function DhikrViewer({
   };
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-background p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3">
+    <div className="fixed inset-x-0 top-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 flex flex-col bg-background p-2 sm:p-3">
       {/* Plein écran fixe (et non h-[100dvh]) : la barre du haut et celle du bas restent
           en place quelle que soit la hauteur réelle de l'écran ; seul le texte défile. */}
       <article

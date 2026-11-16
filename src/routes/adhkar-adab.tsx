@@ -18,7 +18,6 @@ import { DhikrViewer } from "@/components/DhikrViewer";
 import { LIVRE_SOURCE_NOTE, LIVRE_TITLE } from "@/data/adhkar-livre";
 import { LIVRE_CHAPTERS, LIVRE_THEMES } from "@/data/adhkar-livre-2";
 import { livreAll } from "@/data/livre-book";
-import { BottomNav } from "@/components/BottomNav";
 import { useSmartBack } from "@/lib/nav";
 import { ADHKAR_GROUPS, GROUPED_THEMES, findDhikr, groupById, naturalList, normalizeText, searchAdhkar } from "@/lib/adhkarIndex";
 
@@ -271,7 +270,6 @@ function AdhkarAdabPage() {
           </ul>
         )
       )}
-      <BottomNav />
     </div>
   );
 }

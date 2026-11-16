@@ -37,7 +37,7 @@ function SouratePage() {
     chapterMeta && lastPage > chapterMeta.pages[0] && lastPage <= chapterMeta.pages[1] ? lastPage : null;
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-background">
+    <div className="flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom))] flex-col bg-background">
       <header className="shrink-0 border-b border-border/40 bg-card/80 px-3 py-2.5 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center gap-2">
           <Link

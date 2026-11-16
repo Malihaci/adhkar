@@ -4,7 +4,6 @@ import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { useDailyProgress } from "@/lib/storage";
 import { HomeHero } from "@/components/HomeHero";
 import { HomeDua } from "@/components/HomeDua";
-import { HomeStreak } from "@/components/HomeStreak";
 import { HomeToday } from "@/components/HomeToday";
 import { HomeCalm } from "@/components/HomeCalm";
 import { ResumeReadingCard } from "@/components/ResumeReadingCard";
@@ -56,7 +55,6 @@ function Index() {
       {hydrated && !prefs.onboarded && <OnboardingModal />}
       <div className="space-y-3">
         <HomeHero />
-        <HomeStreak bothDone={morning.pct === 100 && evening.pct === 100} />
         <NextPrayerWidget />
         {/* À faire aujourd'hui : défis, dhikr du moment, Lecture du jour, reprise
             du Coran. La section disparaît s'il n'y a rien à faire ; l'état calme

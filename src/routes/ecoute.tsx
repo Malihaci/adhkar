@@ -262,7 +262,7 @@ function EcoutePage() {
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-background p-2 sm:p-3">
+    <div className="flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom))] flex-col bg-background p-2 sm:p-3">
       {/* Top bar */}
       <div className="mb-2 flex items-center gap-2">
         <Link

@@ -285,7 +285,7 @@ function EtudePage() {
     "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-foreground transition hover:bg-muted";
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-background">
+    <div className="flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom))] flex-col bg-background">
       {menuOpen && <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />}
       <audio
         ref={audioRef}

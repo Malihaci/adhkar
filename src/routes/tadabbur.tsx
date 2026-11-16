@@ -179,7 +179,7 @@ function AyahStudyPage() {
   });
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-background">
+    <div className="flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom))] flex-col bg-background">
       {/* Barre unique */}
       <header className="shrink-0 border-b border-border/40 bg-card/80 backdrop-blur-xl">
         <div className="mx-auto grid max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 px-3 pt-2.5">
