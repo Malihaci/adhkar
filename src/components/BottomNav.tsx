@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Home, BookOpen, Sparkles, MoreHorizontal } from "lucide-react";
+import { Home, BookOpen, Sparkles, Clock, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readJSON, type DailyProgress } from "@/lib/storage";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
@@ -17,7 +17,8 @@ function computeProgress(list: { id: string; repetitions: number }[], counts: Re
 type Sheet = "adhkar" | "plus" | null;
 
 /**
- * Accueil | Coran | Adhkār | Plus (§5 mission) — toujours cet ordre.
+ * Accueil | Coran | Adhkār | Horaires | Plus — même style flottant que la barre
+ * du Coran (petite icône + petit nom). Présente aussi sur l’accueil.
  *
  * Lit `adhkar:progress` / `quran-last-page` via `readJSON` (lecture ponctuelle,
  * pas d'abonnement réactif) au moment précis où une feuille s'ouvre, plutôt
@@ -63,6 +64,7 @@ export function BottomNav() {
     { key: "accueil", to: "/" as const, label: "Accueil", icon: Home },
     { key: "coran", label: "Coran", icon: BookOpen, onOpen: openCoran },
     { key: "adhkar", label: "Adhkār", icon: Sparkles, onOpen: openAdhkar },
+    { key: "horaires", to: "/horaires" as const, label: "Horaires", icon: Clock },
     { key: "plus", label: "Plus", icon: MoreHorizontal, onOpen: () => setSheet("plus") },
   ] as const;
 
@@ -70,36 +72,32 @@ export function BottomNav() {
     <>
       <nav
         aria-label="Navigation principale"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/85 backdrop-blur-lg supports-[backdrop-filter]:bg-background/70"
+        style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
+        className="fixed inset-x-3 z-40 mx-auto max-w-md rounded-[1.35rem] border border-border/60 bg-card/85 px-1.5 py-1 shadow-[0_8px_24px_-8px_rgba(0,0,0,.35)] backdrop-blur-xl"
       >
-        <ul className="mx-auto flex max-w-3xl items-stretch justify-around px-1 py-1.5">
+        <ul className="flex items-center justify-around">
           {items.map((item) => {
-            const active = "to" in item ? pathname === item.to : false;
+            const active = "to" in item ? (item.to === "/" ? pathname === "/" : pathname.startsWith(item.to)) : false;
+            const className = cn(
+              "flex w-full flex-col items-center gap-0.5 rounded-xl py-1.5 transition active:scale-95 active:bg-muted",
+              active ? "text-primary" : "text-muted-foreground",
+            );
             const content = (
               <>
-                <span
-                  className={cn(
-                    "grid size-9 place-items-center rounded-full transition-all",
-                    active && "bg-primary/12",
-                  )}
-                >
-                  <item.icon className="size-5" />
+                <span className={active ? "text-primary" : "text-foreground/80"}>
+                  <item.icon className="size-[19px]" strokeWidth={1.75} />
                 </span>
-                <span>{item.label}</span>
+                <span className="text-[10px] font-medium leading-none">{item.label}</span>
               </>
-            );
-            const className = cn(
-              "flex flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-[11px] font-medium transition-colors",
-              active ? "text-primary" : "text-muted-foreground hover:text-foreground",
             );
             return (
               <li key={item.key} className="flex-1">
                 {"to" in item ? (
-                  <Link to={item.to} className={className}>
+                  <Link to={item.to} aria-label={item.label} className={className}>
                     {content}
                   </Link>
                 ) : (
-                  <button onClick={item.onOpen} className={cn(className, "w-full")}>
+                  <button type="button" onClick={item.onOpen} aria-label={item.label} className={className}>
                     {content}
                   </button>
                 )}

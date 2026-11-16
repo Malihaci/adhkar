@@ -1,22 +1,28 @@
+import { useEffect, useState } from "react";
+import { gregorianFr, hijriFr } from "@/lib/dateFr";
+
 /**
- * Bandeau d'accueil : la basmala seule, centrée, sur un simple dégradé doux
- * vert → or (aucun dessin). Clair en thème clair, vert profond voilé d'or en
- * thème sombre.
+ * En-tête d'accueil : le salām, puis la date du jour en français (grégorienne),
+ * et la date hijri écrite en français. Les dates ne sont lues qu'après le
+ * montage (même rendu serveur/client, pas de décalage d'hydratation).
  */
 export function HomeHero() {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const hijri = now ? hijriFr(now) : "";
   return (
-    <div
-      className="flex h-14 items-center justify-center overflow-hidden [container-type:size] rounded-2xl border border-[#c9b87a]/30 bg-[linear-gradient(110deg,#dcece2,#f4ecd2)] dark:border-[#d9c27a]/15 dark:bg-[linear-gradient(110deg,#17352a,#2f2a16)]"
-    >
-      {/* Les voyelles arabes allongent la ligne : interligne généreux + léger
-          décalage vers le bas pour centrer le texte, pas la boîte. */}
-      <p
-        lang="ar"
-        dir="rtl"
-        className="text-center font-arabic text-[44cqh] leading-[1.7] text-[#2c4a38] dark:text-[#f1e6bd]"
-      >
-        بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+    <header className="px-1 pb-1 pt-2">
+      <h1 className="font-display text-[1.6rem] font-bold leading-tight text-foreground">
+        Assalāmu ʿalaykum
+      </h1>
+      <p className="mt-1 min-h-[1.25rem] text-sm font-semibold text-foreground/80">
+        {now ? gregorianFr(now) : ""}
       </p>
-    </div>
+      {hijri && <p className="text-[13.5px] font-semibold text-primary">{hijri}</p>}
+    </header>
   );
 }
