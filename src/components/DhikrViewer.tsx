@@ -1,4 +1,5 @@
-import { PlusButton } from "@/components/PlusButton";
+import { FloatingNav } from "@/components/FloatingNav";
+import { PlusSheet } from "@/components/PlusSheet";
 import { useImmersive } from "@/lib/useImmersive";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -14,6 +15,8 @@ import {
   Pause,
   Play,
   Share2,
+  SkipBack,
+  SkipForward,
   X, BookOpen, ArrowLeft } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { BookText } from "@/components/BookText";
@@ -75,6 +78,7 @@ export function DhikrViewer({
   persist = true,
 }: Props) {
   useImmersive();
+  const [plusOpen, setPlusOpen] = useState(false);
   const goBack = useSmartBack(backTo === "/favoris" || backTo === "/duas-coran" || backTo === "/adhkar-adab" ? backTo : "/");
   const { progress, increment, reset, setLastRead } = useDailyProgress();
   const { isFavorite, toggle } = useFavorites();
@@ -409,54 +413,21 @@ export function DhikrViewer({
           )
         )}
 
-        {/* Footer fixe (§12 mission) : Accueil · ▶/⏸ (audio du
-            dhikr affiché) · Réciter X/Y (compteur, zone tactile principale)
-            · la navigation se fait par tape sur les bords (gauche = précédent, droite = suivant) et par balayage. */}
-        <div className="border-t border-border bg-secondary/50 px-2 py-2 sm:px-3">
-          <div className="flex items-stretch gap-2">
-            <Link
-              to={backTo}
-              aria-label={backTo === "/favoris" ? "Retour aux favoris" : backTo === "/duas-coran" || backTo === "/adhkar-adab" ? "Retour à la liste" : "Accueil"}
-              className={cn(
-                "grid h-12 place-items-center rounded-2xl bg-destructive/15 text-destructive transition active:scale-95",
-                plain && !dhikrAudio.available ? "flex-1" : "w-12 shrink-0",
-              )}
-            >
-              {backTo === "/favoris" ? <Heart className="size-5" /> : backTo === "/duas-coran" || backTo === "/adhkar-adab" ? <List className="size-5" /> : <Home className="size-5" />}
-            </Link>
-            {dhikrAudio.available && !plain && (
-            <button
-              onClick={() => {
-                if (dhikrAudio.available) {
-                  dhikrAudio.toggle();
-                  return;
-                }
-                setAudioUnavailable(true);
-                window.setTimeout(() => setAudioUnavailable(false), 2500);
-              }}
-              aria-label={dhikrAudio.playing ? "Mettre en pause" : "Écouter ce dhikr"}
-              className="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary/12 text-primary transition active:scale-95"
-            >
-              {dhikrAudio.playing ? <Pause className="size-5" /> : <Play className="size-5" />}
-            </button>
-            )}
-
-            {!plain && (
+        {/* Compteur « Réciter » (zone tactile principale) puis réserve pour la barre flottante fixe. */}
+        {!plain && (
+          <div className="px-2 pb-2 pt-2">
             <button
               onClick={onCount}
               disabled={done}
               aria-label={done ? "Terminé" : "Réciter"}
               className={cn(
-                "relative flex h-12 flex-1 items-center justify-center overflow-hidden rounded-2xl text-white shadow-[var(--shadow-elevated)] transition-all active:scale-[0.98]",
+                "relative flex h-12 w-full items-center justify-center overflow-hidden rounded-2xl text-white shadow-[var(--shadow-elevated)] transition-all active:scale-[0.98]",
                 done ? "bg-emerald-700" : "bg-emerald-600",
               )}
             >
               <span
                 className="absolute inset-0 bg-white/20 transition-all duration-300"
-                style={{
-                  transform: `scaleX(${Math.min(1, count / dhikr.repetitions)})`,
-                  transformOrigin: "left",
-                }}
+                style={{ transform: `scaleX(${Math.min(1, count / dhikr.repetitions)})`, transformOrigin: "left" }}
                 aria-hidden
               />
               <span className="relative flex items-center gap-1.5 text-base font-bold tabular-nums sm:text-lg">
@@ -469,10 +440,30 @@ export function DhikrViewer({
                 )}
               </span>
             </button>
-            )}
-            <PlusButton />
           </div>
-        </div>
+        )}
+        <div aria-hidden className="h-[calc(4.5rem+env(safe-area-inset-bottom))] shrink-0" />
+        <FloatingNav
+          items={[
+            { key: "accueil", to: "/", label: "Accueil", icon: Home },
+            { key: "prec", label: "Précédent", icon: SkipBack, onClick: () => go(-1), disabled: idx === 0 },
+            ...(dhikrAudio.available && !plain
+              ? [
+                  {
+                    key: "play",
+                    label: dhikrAudio.playing ? "Pause" : "Écouter",
+                    icon: dhikrAudio.playing ? Pause : Play,
+                    onClick: () => dhikrAudio.toggle(),
+                    active: dhikrAudio.playing,
+                  },
+                ]
+              : []),
+            { key: "suiv", label: "Suivant", icon: SkipForward, onClick: () => tryGo(1), disabled: idx === list.length - 1 },
+            { key: "share", label: "Partager", icon: Share2, onClick: () => void shareDhikr(dhikr, idx) },
+            { key: "plus", label: "Plus", icon: MoreHorizontal, onClick: () => setPlusOpen(true) },
+          ]}
+        />
+        {plusOpen && <PlusSheet onClose={() => setPlusOpen(false)} />}
 
         {/* Petite feuille "Vivre ce dhikr" (§10 mission) — même langage
             visuel que "Vivre cette page" côté Coran : une vraie icône

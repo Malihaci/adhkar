@@ -1,4 +1,5 @@
-import { PlusButton } from "@/components/PlusButton";
+import { FloatingNav } from "@/components/FloatingNav";
+import { PlusSheet } from "@/components/PlusSheet";
 import { useImmersive } from "@/lib/useImmersive";
 import { resolveAudioSrc } from "@/lib/offline";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -6,6 +7,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Home,
+  MoreHorizontal,
+  Share2,
   Play,
   Pause,
   Sunrise,
@@ -63,6 +66,7 @@ const voiceKey = (mode: Mode) => `adhkar.audio.voice.${mode}`;
 
 function EcoutePage() {
   useImmersive();
+  const [plusOpen, setPlusOpen] = useState(false);
   const search = Route.useSearch();
   const [mode, setMode] = useState<Mode>(search.m ?? "morning");
   const fullList: Dhikr[] = mode === "morning" ? morningAdhkar : eveningAdhkar;
@@ -259,6 +263,18 @@ function EcoutePage() {
   const accentBg = accent === "gold" ? "bg-gold" : "bg-primary";
   const accentText = accent === "gold" ? "text-gold" : "text-primary";
 
+  /** Partage l'enregistrement récité (lien du fichier audio). */
+  const shareAudio = async () => {
+    const url = new URL(audio.src, window.location.origin).href;
+    const title = mode === "morning" ? "Adhkār du matin (récitation)" : "Adhkār du soir (récitation)";
+    try {
+      if (navigator.share) await navigator.share({ title, url });
+      else await navigator.clipboard.writeText(url);
+    } catch {
+      /* partage annulé */
+    }
+  };
+
   const fmt = (s: number) => {
     const m = Math.floor(Math.max(0, s) / 60);
     const r = Math.floor(Math.max(0, s) % 60);
@@ -415,13 +431,6 @@ function EcoutePage() {
           </div>
 
           <div className="flex items-center justify-between gap-2">
-            <Link
-              to="/"
-              aria-label="Accueil"
-              className="grid size-11 shrink-0 place-items-center rounded-full bg-destructive/15 text-destructive transition active:scale-95"
-            >
-              <Home className="size-5" />
-            </Link>
             {/* Vitesse */}
             <div className="relative">
               <button
@@ -454,41 +463,6 @@ function EcoutePage() {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => seekTo(idx - 1)}
-                disabled={idx === 0}
-                aria-label="Dhikr précédent"
-                className="grid size-11 place-items-center rounded-full border border-border text-foreground transition disabled:opacity-30 hover:border-primary/40"
-              >
-                <SkipBack className="size-5" />
-              </button>
-              <button
-                onClick={toggle}
-                aria-label={playing ? "Pause" : "Lecture"}
-                className={cn(
-                  "grid size-14 place-items-center rounded-full text-primary-foreground shadow-[var(--shadow-elevated)] transition active:scale-95",
-                  accentBg,
-                )}
-              >
-                {loading && playing ? (
-                  <Loader2 className="size-6 animate-spin" />
-                ) : playing ? (
-                  <Pause className="size-6" />
-                ) : (
-                  <Play className="size-6 translate-x-0.5" />
-                )}
-              </button>
-              <button
-                onClick={() => seekTo(idx + 1)}
-                disabled={idx === list.length - 1}
-                aria-label="Dhikr suivant"
-                className="grid size-11 place-items-center rounded-full border border-border text-foreground transition disabled:opacity-30 hover:border-primary/40"
-              >
-                <SkipForward className="size-5" />
-              </button>
-            </div>
-
             {cues.length ? (
               <span className="size-11" aria-hidden />
             ) : (
@@ -501,9 +475,26 @@ function EcoutePage() {
               <Crosshair className="size-4" />
             </button>
             )}
-            <PlusButton className="size-11 rounded-full" />
           </div>
         </div>
+        <div aria-hidden className="h-[calc(4.5rem+env(safe-area-inset-bottom))] shrink-0" />
+        <FloatingNav
+          items={[
+            { key: "accueil", to: "/", label: "Accueil", icon: Home },
+            { key: "prec", label: "Précédent", icon: SkipBack, onClick: () => seekTo(idx - 1), disabled: idx === 0 },
+            {
+              key: "play",
+              label: playing ? "Pause" : "Lecture",
+              icon: loading && playing ? Loader2 : playing ? Pause : Play,
+              onClick: toggle,
+              active: playing,
+            },
+            { key: "suiv", label: "Suivant", icon: SkipForward, onClick: () => seekTo(idx + 1), disabled: idx === list.length - 1 },
+            { key: "share", label: "Partager", icon: Share2, onClick: () => void shareAudio() },
+            { key: "plus", label: "Plus", icon: MoreHorizontal, onClick: () => setPlusOpen(true) },
+          ]}
+        />
+        {plusOpen && <PlusSheet onClose={() => setPlusOpen(false)} />}
       </article>
     </div>
   );

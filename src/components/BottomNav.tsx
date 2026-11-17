@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Home, BookOpen, Sparkles, Clock, MoreHorizontal } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { FloatingNav, type NavItem } from "@/components/FloatingNav";
 import { readJSON, type DailyProgress } from "@/lib/storage";
 import { morningAdhkar, eveningAdhkar } from "@/data/adhkar";
 import { AdhkarSheet } from "@/components/AdhkarSheet";
@@ -60,53 +60,17 @@ export function BottomNav() {
     }
   };
 
-  const items = [
-    { key: "accueil", to: "/" as const, label: "Accueil", icon: Home },
-    { key: "coran", label: "Coran", icon: BookOpen, onOpen: openCoran },
-    { key: "adhkar", label: "Adhkār", icon: Sparkles, onOpen: openAdhkar },
-    { key: "horaires", to: "/horaires" as const, label: "Horaires", icon: Clock },
-    { key: "plus", label: "Plus", icon: MoreHorizontal, onOpen: () => setSheet("plus") },
-  ] as const;
+  const items: NavItem[] = [
+    { key: "accueil", to: "/", label: "Accueil", icon: Home, active: pathname === "/" },
+    { key: "coran", label: "Coran", icon: BookOpen, onClick: openCoran },
+    { key: "adhkar", label: "Adhkār", icon: Sparkles, onClick: openAdhkar },
+    { key: "horaires", to: "/horaires", label: "Horaires", icon: Clock, active: pathname.startsWith("/horaires") },
+    { key: "plus", label: "Plus", icon: MoreHorizontal, onClick: () => setSheet("plus") },
+  ];
 
   return (
     <>
-      <nav
-        data-global-nav
-        aria-label="Navigation principale"
-        style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
-        className="fixed inset-x-3 z-40 mx-auto max-w-md rounded-[1.35rem] border border-border/60 bg-card/85 px-1.5 py-1 shadow-[0_8px_24px_-8px_rgba(0,0,0,.35)] backdrop-blur-xl"
-      >
-        <ul className="flex items-center justify-around">
-          {items.map((item) => {
-            const active = "to" in item ? (item.to === "/" ? pathname === "/" : pathname.startsWith(item.to)) : false;
-            const className = cn(
-              "flex w-full flex-col items-center gap-0.5 rounded-xl py-1.5 transition active:scale-95 active:bg-muted",
-              active ? "text-primary" : "text-muted-foreground",
-            );
-            const content = (
-              <>
-                <span className={active ? "text-primary" : "text-foreground/80"}>
-                  <item.icon className="size-[19px]" strokeWidth={1.75} />
-                </span>
-                <span className="text-[10px] font-medium leading-none">{item.label}</span>
-              </>
-            );
-            return (
-              <li key={item.key} className="flex-1">
-                {"to" in item ? (
-                  <Link to={item.to} aria-label={item.label} className={className}>
-                    {content}
-                  </Link>
-                ) : (
-                  <button type="button" onClick={item.onOpen} aria-label={item.label} className={className}>
-                    {content}
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <FloatingNav global items={items} />
 
       {sheet === "adhkar" && (
         <AdhkarSheet
