@@ -5,7 +5,7 @@
  *  - « liste naturelle » d'un dhikr, pour enchaîner sur le suivant sans sortir.
  */
 import type { Dhikr } from "@/data/adhkar";
-import { ALL_ADHKAR, apresPriereAdhkar, sortieAdhkar } from "@/data/adhkar-occasions";
+import { ALL_ADHKAR, apresPriereAdhkar, coucherAdhkar, sortieAdhkar, voyageAdhkar } from "@/data/adhkar-occasions";
 import { LIVRE_THEMES } from "@/data/adhkar-livre-2";
 import { livreAll } from "@/data/livre-book";
 import { ruqyaAdhkar } from "@/data/adhkar-ruqya";
@@ -44,31 +44,50 @@ function dedupe(list: Dhikr[]): Dhikr[] {
 
 const livreTheme = (t: string) => livreAll.filter((d) => d.theme === t);
 
+const themes = (...ts: string[]) => ts.flatMap(livreTheme);
+
+/**
+ * Tuiles du menu Adhkār : les chapitres du livre « Adhkār et ādāb » sont répartis
+ * ici (plus de tuile séparée). Un tap ouvre directement la lecture, sans liste.
+ */
 export const ADHKAR_GROUPS: AdhkarGroup[] = [
-  {
-    id: "ruqya",
-    label: "Ruqya šarʿiyya",
-    ar: "الرقية الشرعية",
-    list: ruqyaAdhkar,
-  },
+  { id: "ruqya", label: "Ruqya", ar: "الرقية الشرعية", list: ruqyaAdhkar },
   {
     id: "maison",
     label: "Maison",
     ar: "البيت",
-    // Sortir de la maison + entrer chez soi + vêtement (chapitres du livre).
-    list: dedupe([...sortieAdhkar, ...livreTheme("maison")]),
+    list: dedupe([...sortieAdhkar, ...themes("maison", "libas", "nadafa")]),
   },
   {
     id: "priere",
     label: "Prière",
     ar: "الصلاة",
-    // Ablutions → appel, mosquée, dans la prière → après la prière.
-    list: dedupe([...livreTheme("purification"), ...livreTheme("priere"), ...apresPriereAdhkar]),
+    list: dedupe([...themes("purification", "priere", "ibadat"), ...apresPriereAdhkar]),
   },
-];
+  { id: "voyage", label: "Voyage", ar: "السفر", list: dedupe([...voyageAdhkar, ...themes("voyage", "hajj")]) },
+  { id: "dormir", label: "Avant de dormir", ar: "النوم", list: dedupe([...coucherAdhkar, ...themes("sommeil", "reves")]) },
+  { id: "repas", label: "Repas", ar: "الطعام", list: dedupe(themes("repas", "tamam")) },
+  { id: "sante", label: "Santé, épreuves", ar: "المرض والمصيبة", list: dedupe(themes("maladie", "epreuve", "janaza")) },
+  {
+    id: "social",
+    label: "Vie sociale",
+    ar: "آداب المعاشرة",
+    list: dedupe(
+      themes("relations", "societe", "mara", "mariage", "haqqkhalq", "assemblee", "kalam", "akhlaq", "sifat", "interdits"),
+    ),
+  },
+  {
+    id: "tasbih",
+    label: "Tasbīḥ, istighfār",
+    ar: "التسبيح والاستغفار",
+    list: dedupe(themes("dhikr", "generaux", "haqqallah", "merites", "liqa", "nature", "matinsoir")),
+  },
+].filter((g) => g.list.length > 0);
 
-/** Thèmes du livre déjà absorbés dans un regroupement (pas répétés dans la grille). */
-export const GROUPED_THEMES = new Set(["maison", "priere", "purification"]);
+/** Thèmes du livre déjà absorbés dans une tuile (pas répétés dans la grille). */
+export const GROUPED_THEMES = new Set(
+  ["maison","libas","nadafa","purification","priere","ibadat","voyage","hajj","sommeil","reves","repas","tamam","maladie","epreuve","janaza","relations","societe","mara","mariage","haqqkhalq","assemblee","kalam","akhlaq","sifat","interdits","dhikr","generaux","haqqallah","merites","liqa","nature","matinsoir"],
+);
 
 export const groupById = (id: string | undefined) => ADHKAR_GROUPS.find((g) => g.id === id);
 

@@ -1,8 +1,11 @@
+import { PlusButton } from "@/components/PlusButton";
+import { useImmersive } from "@/lib/useImmersive";
 import { resolveAudioSrc } from "@/lib/offline";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
+  Home,
   Play,
   Pause,
   Sunrise,
@@ -59,6 +62,7 @@ const calibKey = (mode: Mode, voice = "afasy") =>
 const voiceKey = (mode: Mode) => `adhkar.audio.voice.${mode}`;
 
 function EcoutePage() {
+  useImmersive();
   const search = Route.useSearch();
   const [mode, setMode] = useState<Mode>(search.m ?? "morning");
   const fullList: Dhikr[] = mode === "morning" ? morningAdhkar : eveningAdhkar;
@@ -262,7 +266,7 @@ function EcoutePage() {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom))] flex-col bg-background p-2 sm:p-3">
+    <div className="flex h-[100dvh] flex-col bg-background p-2 sm:p-3">
       {/* Top bar */}
       <div className="mb-2 flex items-center gap-2">
         <Link
@@ -411,6 +415,13 @@ function EcoutePage() {
           </div>
 
           <div className="flex items-center justify-between gap-2">
+            <Link
+              to="/"
+              aria-label="Accueil"
+              className="grid size-11 shrink-0 place-items-center rounded-full bg-destructive/15 text-destructive transition active:scale-95"
+            >
+              <Home className="size-5" />
+            </Link>
             {/* Vitesse */}
             <div className="relative">
               <button
@@ -490,6 +501,7 @@ function EcoutePage() {
               <Crosshair className="size-4" />
             </button>
             )}
+            <PlusButton className="size-11 rounded-full" />
           </div>
         </div>
       </article>

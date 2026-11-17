@@ -71,6 +71,7 @@ export function BottomNav() {
   return (
     <>
       <nav
+        data-global-nav
         aria-label="Navigation principale"
         style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
         className="fixed inset-x-3 z-40 mx-auto max-w-md rounded-[1.35rem] border border-border/60 bg-card/85 px-1.5 py-1 shadow-[0_8px_24px_-8px_rgba(0,0,0,.35)] backdrop-blur-xl"

@@ -147,3 +147,5 @@ html[data-reduce-motion="true"] *::after {
     radial-gradient(1200px 400px at 10% -10%, color-mix(in oklab, var(--primary) 20%, transparent), transparent 60%),
     radial-gradient(900px 400px at 110% 10%, color-mix(in oklab, var(--gold) 22%, transparent), transparent 60%);
 }
+
+body[data-immersive] [data-global-nav] { display: none; }

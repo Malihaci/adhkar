@@ -1,3 +1,5 @@
+import { PlusButton } from "@/components/PlusButton";
+import { useImmersive } from "@/lib/useImmersive";
 import { useEffect, useRef, useState } from "react";
 import {
   Heart,
@@ -72,6 +74,7 @@ export function DhikrViewer({
   backTo = "/",
   persist = true,
 }: Props) {
+  useImmersive();
   const goBack = useSmartBack(backTo === "/favoris" || backTo === "/duas-coran" || backTo === "/adhkar-adab" ? backTo : "/");
   const { progress, increment, reset, setLastRead } = useDailyProgress();
   const { isFavorite, toggle } = useFavorites();
@@ -261,7 +264,7 @@ export function DhikrViewer({
   };
 
   return (
-    <div className="fixed inset-x-0 top-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 flex flex-col bg-background p-2 sm:p-3">
+    <div className="fixed inset-x-0 top-0 bottom-0 z-30 flex flex-col bg-background p-2 sm:p-3">
       {/* Plein écran fixe (et non h-[100dvh]) : la barre du haut et celle du bas restent
           en place quelle que soit la hauteur réelle de l'écran ; seul le texte défile. */}
       <article
@@ -467,6 +470,7 @@ export function DhikrViewer({
               </span>
             </button>
             )}
+            <PlusButton />
           </div>
         </div>
 
