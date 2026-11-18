@@ -76,7 +76,7 @@ function DuasCoranPage() {
     );
 
   return (
-    <div className="mx-auto min-h-[100dvh] max-w-2xl bg-background px-4 pb-10 pt-4">
+    <div className="mx-auto min-h-[100dvh] max-w-2xl bg-background px-4 pb-28 pt-4">
       <header className="mb-4 flex items-center gap-3">
         <Link
           to={t !== undefined ? "/duas-coran" : "/"}
@@ -105,13 +105,13 @@ function DuasCoranPage() {
 
       {t === undefined && !q && (
         <HubGrid>
-          <Link to="/duas-coran" search={{ t: "all", i: undefined }} className={hubCardClass}>
+          <Link to="/duas-coran" search={{ t: "all", i: 0 }} className={hubCardClass}>
             <HubCardBody label="Toutes" arabic="الكل" color={HUB_COLORS[0]} icon={<BookOpen />} note={duasCoran.length} />
           </Link>
           {DUA_THEMES.map((th, n) => {
             const Icon = THEME_ICONS[th.key] ?? BookOpen;
             return (
-              <Link key={th.key} to="/duas-coran" search={{ t: th.key }} className={hubCardClass}>
+              <Link key={th.key} to="/duas-coran" search={{ t: th.key, i: 0 }} className={hubCardClass}>
                 <HubCardBody
                   label={th.label}
                   arabic={th.ar}

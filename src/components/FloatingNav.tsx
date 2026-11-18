@@ -10,6 +10,10 @@ export interface NavItem {
   onClick?: () => void;
   active?: boolean;
   disabled?: boolean;
+  /** Gros bouton central (compteur) : pastille verte avec avancement. */
+  primary?: boolean;
+  countLabel?: string;
+  progress?: number;
 }
 
 /** Barre flottante unique de l'app (style de l'accueil) : seules les icônes changent selon la page. */
@@ -23,6 +27,30 @@ export function FloatingNav({ items, global }: { items: NavItem[]; global?: bool
     >
       <ul className="flex items-center justify-around">
         {items.map((item) => {
+          if (item.primary) {
+            return (
+              <li key={item.key} className="flex-[2.2] px-1">
+                <button
+                  type="button"
+                  onClick={item.onClick}
+                  disabled={item.disabled}
+                  aria-label={item.label}
+                  className={cn(
+                    "relative flex h-14 w-full flex-col items-center justify-center overflow-hidden rounded-2xl text-white shadow-md transition active:scale-[0.97]",
+                    item.disabled ? "bg-emerald-700" : "bg-emerald-600",
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 bg-white/20 transition-all duration-300"
+                    style={{ transform: `scaleX(${item.progress ?? 0})`, transformOrigin: "left" }}
+                  />
+                  <span className="relative text-lg font-bold leading-none tabular-nums">{item.countLabel}</span>
+                  <span className="relative mt-0.5 text-[10px] font-medium leading-none opacity-90">{item.label}</span>
+                </button>
+              </li>
+            );
+          }
           const className = cn(
             "flex w-full flex-col items-center gap-0.5 rounded-xl py-1.5 transition active:scale-95 active:bg-muted disabled:opacity-30",
             item.active ? "text-primary" : "text-muted-foreground",

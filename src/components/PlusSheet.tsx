@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Bell, BookMarked, Clock, Download, Heart, Search, Settings, Sparkles, X } from "lucide-react";
+import { Bell, BookMarked, Clock, Download, Heart, Search, Settings, Sparkles, X, type LucideIcon } from "lucide-react";
 import { useInstallPrompt } from "@/lib/pwaInstall";
 
 /**
@@ -10,7 +11,17 @@ import { useInstallPrompt } from "@/lib/pwaInstall";
  * désormais au niveau de l'āyah (bouton "Étudier" dans le lecteur), mais
  * rien de ce contenu n'a été retiré ni rendu injoignable.
  */
-export function PlusSheet({ onClose }: { onClose: () => void }) {
+export function PlusSheet({
+  onClose,
+  actions = [],
+  header,
+}: {
+  onClose: () => void;
+  /** Actions propres à la page (ex. Partager), affichées en tête. */
+  /** Contenu propre à la page, affiché en tête. */
+  header?: ReactNode;
+  actions?: { label: string; icon: LucideIcon; onClick: () => void }[];
+}) {
   const { canInstall, isStandalone } = useInstallPrompt();
   const items = [
     // Entrée discrète (§3 mission "Installation") — seulement quand le
@@ -34,7 +45,7 @@ export function PlusSheet({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="w-full rounded-t-3xl border-t border-border bg-card p-5"
+        className="max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl border-t border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -47,7 +58,24 @@ export function PlusSheet({ onClose }: { onClose: () => void }) {
             <X className="size-4" />
           </button>
         </div>
+        {header && <div className="mb-2 border-b border-border pb-2">{header}</div>}
         <div className="space-y-1.5">
+          {actions.map(({ label, icon: Icon, onClick }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => {
+                onClick();
+                onClose();
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted"
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                <Icon className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{label}</span>
+            </button>
+          ))}
           {items.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}

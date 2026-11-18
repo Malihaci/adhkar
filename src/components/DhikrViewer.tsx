@@ -15,8 +15,6 @@ import {
   Pause,
   Play,
   Share2,
-  SkipBack,
-  SkipForward,
   X, BookOpen, ArrowLeft } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { BookText } from "@/components/BookText";
@@ -106,7 +104,6 @@ export function DhikrViewer({
    * reconfigure plus lui-même, voir §11 mission ("le menu ⋯ contient
    * uniquement les actions propres au dhikr"). */
   const [liveOpen, setLiveOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   /** Dhikr sauté avant la fin : bandeau discret « Revenir », jamais une modale. */
   const [skipped, setSkipped] = useState<{ idx: number; count: number; total: number } | null>(null);
   const skipTimer = useRef<number | undefined>(undefined);
@@ -321,13 +318,6 @@ export function DhikrViewer({
             >
               <Leaf className="size-[18px]" />
             </button>
-            <button
-              onClick={() => setMenuOpen(true)}
-              aria-label="Plus d'actions"
-              className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-            >
-              <MoreHorizontal className="size-[18px]" />
-            </button>
           </div>
         </header>
 
@@ -413,40 +403,10 @@ export function DhikrViewer({
           )
         )}
 
-        {/* Compteur « Réciter » (zone tactile principale) puis réserve pour la barre flottante fixe. */}
-        {!plain && (
-          <div className="px-2 pb-2 pt-2">
-            <button
-              onClick={onCount}
-              disabled={done}
-              aria-label={done ? "Terminé" : "Réciter"}
-              className={cn(
-                "relative flex h-12 w-full items-center justify-center overflow-hidden rounded-2xl text-white shadow-[var(--shadow-elevated)] transition-all active:scale-[0.98]",
-                done ? "bg-emerald-700" : "bg-emerald-600",
-              )}
-            >
-              <span
-                className="absolute inset-0 bg-white/20 transition-all duration-300"
-                style={{ transform: `scaleX(${Math.min(1, count / dhikr.repetitions)})`, transformOrigin: "left" }}
-                aria-hidden
-              />
-              <span className="relative flex items-center gap-1.5 text-base font-bold tabular-nums sm:text-lg">
-                {done ? (
-                  <>
-                    <Check className="size-5" /> Terminé
-                  </>
-                ) : (
-                  `Réciter ${count} / ${dhikr.repetitions}`
-                )}
-              </span>
-            </button>
-          </div>
-        )}
-        <div aria-hidden className="h-[calc(4.5rem+env(safe-area-inset-bottom))] shrink-0" />
+        <div aria-hidden className="h-[calc(5rem+env(safe-area-inset-bottom))] shrink-0" />
         <FloatingNav
           items={[
             { key: "accueil", to: "/", label: "Accueil", icon: Home },
-            { key: "prec", label: "Précédent", icon: SkipBack, onClick: () => go(-1), disabled: idx === 0 },
             ...(dhikrAudio.available && !plain
               ? [
                   {
@@ -458,12 +418,101 @@ export function DhikrViewer({
                   },
                 ]
               : []),
-            { key: "suiv", label: "Suivant", icon: SkipForward, onClick: () => tryGo(1), disabled: idx === list.length - 1 },
-            { key: "share", label: "Partager", icon: Share2, onClick: () => void shareDhikr(dhikr, idx) },
+            ...(!plain
+              ? [
+                  {
+                    key: "count",
+                    label: done ? "Terminé" : "Réciter",
+                    primary: true,
+                    countLabel: done ? "✓" : `${count} / ${dhikr.repetitions}`,
+                    progress: Math.min(1, count / dhikr.repetitions),
+                    onClick: onCount,
+                    disabled: done,
+                    icon: Check,
+                  },
+                ]
+              : []),
             { key: "plus", label: "Plus", icon: MoreHorizontal, onClick: () => setPlusOpen(true) },
           ]}
         />
-        {plusOpen && <PlusSheet onClose={() => setPlusOpen(false)} />}
+        {plusOpen && (
+          <PlusSheet
+            onClose={() => setPlusOpen(false)}
+            header={
+              <>
+              {(COUNTER_DHIKR_IDS as readonly string[]).includes(dhikr.id) && (
+                <Link
+                  to="/compteur/$dhikrId"
+                  params={{ dhikrId: dhikr.id }}
+                  onClick={() => setPlusOpen(false)}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted"
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
+                    <Hash className="size-4" />
+                  </span>
+                  <span className="text-sm font-medium text-foreground">Compter ce dhikr</span>
+                </Link>
+              )}
+              <button
+                onClick={() => {
+                  toggle("dhikr", dhikr.id);
+                  setPlusOpen(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted"
+              >
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                  <Heart className={cn("size-4", fav && "fill-gold text-gold")} />
+                </span>
+                <span className="text-sm font-medium text-foreground">
+                  {fav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  shareDhikr(dhikr, idx);
+                  setPlusOpen(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted"
+              >
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                  <Share2 className="size-4" />
+                </span>
+                <span className="text-sm font-medium text-foreground">Partager</span>
+              </button>
+              {dhikr.collection ? (
+                <div className="flex items-center gap-3 rounded-xl px-3 py-3">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                    <Leaf className="size-4 opacity-0" aria-hidden />
+                  </span>
+                  <SourceInfo
+                    sourceTitle={dhikr.collection}
+                    sourceReference={dhikr.hadithNumber}
+                    sourceAuthor={dhikr.narrator}
+                    authenticity={
+                      dhikr.authenticityGrade
+                        ? `${dhikr.authenticityGrade}${dhikr.authenticityGrader ? " — " + dhikr.authenticityGrader : ""}`
+                        : undefined
+                    }
+                    nature={dhikr.evidenceSummaryFr}
+                  />
+                  <span className="text-xs text-muted-foreground">{dhikr.reference}</span>
+                </div>
+              ) : (
+                <p className="px-3 py-3 text-xs text-muted-foreground">{dhikr.reference}</p>
+              )}
+              <Link
+                to="/parametres"
+                search={{ section: "adhkar" }}
+                onClick={() => setPlusOpen(false)}
+                className="mt-1 flex w-full items-center justify-between rounded-xl border-t border-border px-3 py-3 text-sm text-foreground transition hover:bg-muted"
+              >
+                <span>Affichage et audio…</span>
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </Link>
+              </>
+            }
+          />
+        )}
 
         {/* Petite feuille "Vivre ce dhikr" (§10 mission) — même langage
             visuel que "Vivre cette page" côté Coran : une vraie icône
@@ -534,87 +583,6 @@ export function DhikrViewer({
         {/* ⋯ — uniquement les actions propres au dhikr (§11 mission) :
             Favori, Partager, Source. Taille/Français/Phonétique/Audio ne
             sont plus jamais répétés ici, voir ⚙️ Paramètres > Adhkār. */}
-        {menuOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm"
-            onClick={() => setMenuOpen(false)}
-          >
-            <div
-              className="max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl border-t border-border bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {(COUNTER_DHIKR_IDS as readonly string[]).includes(dhikr.id) && (
-                <Link
-                  to="/compteur/$dhikrId"
-                  params={{ dhikrId: dhikr.id }}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted"
-                >
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">
-                    <Hash className="size-4" />
-                  </span>
-                  <span className="text-sm font-medium text-foreground">Compter ce dhikr</span>
-                </Link>
-              )}
-              <button
-                onClick={() => {
-                  toggle("dhikr", dhikr.id);
-                  setMenuOpen(false);
-                }}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted"
-              >
-                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-                  <Heart className={cn("size-4", fav && "fill-gold text-gold")} />
-                </span>
-                <span className="text-sm font-medium text-foreground">
-                  {fav ? "Retirer des favoris" : "Ajouter aux favoris"}
-                </span>
-              </button>
-              <button
-                onClick={() => {
-                  shareDhikr(dhikr, idx);
-                  setMenuOpen(false);
-                }}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted"
-              >
-                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-                  <Share2 className="size-4" />
-                </span>
-                <span className="text-sm font-medium text-foreground">Partager</span>
-              </button>
-              {dhikr.collection ? (
-                <div className="flex items-center gap-3 rounded-xl px-3 py-3">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-                    <Leaf className="size-4 opacity-0" aria-hidden />
-                  </span>
-                  <SourceInfo
-                    sourceTitle={dhikr.collection}
-                    sourceReference={dhikr.hadithNumber}
-                    sourceAuthor={dhikr.narrator}
-                    authenticity={
-                      dhikr.authenticityGrade
-                        ? `${dhikr.authenticityGrade}${dhikr.authenticityGrader ? " — " + dhikr.authenticityGrader : ""}`
-                        : undefined
-                    }
-                    nature={dhikr.evidenceSummaryFr}
-                  />
-                  <span className="text-xs text-muted-foreground">{dhikr.reference}</span>
-                </div>
-              ) : (
-                <p className="px-3 py-3 text-xs text-muted-foreground">{dhikr.reference}</p>
-              )}
-              <Link
-                to="/parametres"
-                search={{ section: "adhkar" }}
-                onClick={() => setMenuOpen(false)}
-                className="mt-1 flex w-full items-center justify-between rounded-xl border-t border-border px-3 py-3 text-sm text-foreground transition hover:bg-muted"
-              >
-                <span>Affichage et audio…</span>
-                <ChevronRight className="size-4 text-muted-foreground" />
-              </Link>
-            </div>
-          </div>
-        )}
       </article>
     </div>
   );

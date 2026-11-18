@@ -430,58 +430,29 @@ function EcoutePage() {
             <span>{fmt(audio.duration - audio.startOffset)}</span>
           </div>
 
-          <div className="flex items-center justify-between gap-2">
-            {/* Vitesse */}
-            <div className="relative">
+          {!cues.length && (
+            <div className="flex justify-end">
               <button
-                onClick={() => setRateOpen((v) => !v)}
-                aria-label="Vitesse de lecture"
-                aria-expanded={rateOpen}
-                className="flex h-11 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-semibold text-foreground transition hover:border-primary/40"
+                onClick={syncHere}
+                aria-label="Le dhikr affiché commence maintenant"
+                title="Recaler : ce dhikr commence maintenant"
+                className="grid size-11 place-items-center rounded-full border border-border text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
               >
-                <Gauge className="size-4" />
-                {rate}×
+                <Crosshair className="size-4" />
               </button>
-              {rateOpen && (
-                <div className="absolute bottom-13 left-0 z-20 mb-2 w-24 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-elevated)]">
-                  {PLAYBACK_RATES.map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => {
-                        setRate(r);
-                        setRateOpen(false);
-                      }}
-                      className={cn(
-                        "block w-full px-3 py-2 text-left text-xs font-semibold transition hover:bg-muted",
-                        r === rate ? accentText : "text-foreground",
-                      )}
-                    >
-                      {r}×
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
-
-            {cues.length ? (
-              <span className="size-11" aria-hidden />
-            ) : (
-            <button
-              onClick={syncHere}
-              aria-label="Le dhikr affiché commence maintenant"
-              title="Recaler : ce dhikr commence maintenant"
-              className="grid size-11 place-items-center rounded-full border border-border text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
-            >
-              <Crosshair className="size-4" />
-            </button>
-            )}
-          </div>
+          )}
         </div>
         <div aria-hidden className="h-[calc(4.5rem+env(safe-area-inset-bottom))] shrink-0" />
         <FloatingNav
           items={[
             { key: "accueil", to: "/", label: "Accueil", icon: Home },
-            { key: "prec", label: "Précédent", icon: SkipBack, onClick: () => seekTo(idx - 1), disabled: idx === 0 },
+            {
+              key: "vitesse",
+              label: `${rate}×`,
+              icon: Gauge,
+              onClick: () => setRate(PLAYBACK_RATES[(PLAYBACK_RATES.findIndex((r) => r === rate) + 1) % PLAYBACK_RATES.length]),
+            },
             {
               key: "play",
               label: playing ? "Pause" : "Lecture",
@@ -489,12 +460,15 @@ function EcoutePage() {
               onClick: toggle,
               active: playing,
             },
-            { key: "suiv", label: "Suivant", icon: SkipForward, onClick: () => seekTo(idx + 1), disabled: idx === list.length - 1 },
-            { key: "share", label: "Partager", icon: Share2, onClick: () => void shareAudio() },
             { key: "plus", label: "Plus", icon: MoreHorizontal, onClick: () => setPlusOpen(true) },
           ]}
         />
-        {plusOpen && <PlusSheet onClose={() => setPlusOpen(false)} />}
+        {plusOpen && (
+          <PlusSheet
+            onClose={() => setPlusOpen(false)}
+            actions={[{ label: "Partager la récitation", icon: Share2, onClick: () => void shareAudio() }]}
+          />
+        )}
       </article>
     </div>
   );
