@@ -45,3 +45,22 @@ export function hijriFr(d: Date): string {
     return "";
   }
 }
+
+/** Jour, mois (1-12) et année hijri (Umm al-Qurā du système) ; null si indisponible. */
+export function hijriParts(d: Date): { day: number; month: number; year: number } | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+    }).formatToParts(d);
+    const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+    const day = get("day");
+    const month = get("month");
+    const year = get("year") || get("relatedYear");
+    if (!day || !month || !year || month < 1 || month > 12) return null;
+    return { day, month, year };
+  } catch {
+    return null;
+  }
+}
