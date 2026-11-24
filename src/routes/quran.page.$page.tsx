@@ -2080,7 +2080,7 @@ function MushafPage() {
             type="button"
             onClick={() => setBarFolded(true)}
             aria-label="Replier la barre"
-            className="absolute -top-3.5 left-1/2 grid h-5 w-12 -translate-x-1/2 place-items-center rounded-full border border-border/60 bg-card/90 text-muted-foreground shadow-sm"
+            className="absolute -top-3.5 right-3 grid h-5 w-10 place-items-center rounded-full border border-border/60 bg-card/90 text-muted-foreground shadow-sm"
           >
             <ChevronDown className="size-4" />
           </button>
@@ -2405,34 +2405,73 @@ function MushafPage() {
               <PillRow label="Répéter chaque āyah" value={ayahRepeat} onChange={setAyahRepeat} />
               <PillRow label="Répéter l'intervalle" value={selRepeat} onChange={setSelRepeat} />
 
-              <Link
-                to="/parametres"
-                search={{ section: "audio" }}
-                onClick={() => setOptionsOpen(false)}
-                className="mt-5 flex items-center justify-between rounded-2xl border border-border px-4 py-3 text-sm"
-              >
-                <span className="min-w-0">
-                  <span className="block font-semibold text-foreground">Récitant et vitesse</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {getReciter(reciterId).name} · {speed}×
-                  </span>
-                </span>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-              </Link>
-              <Link
-                to="/parametres"
-                search={{ section: "coran" }}
-                onClick={() => setOptionsOpen(false)}
-                className="mb-3 mt-2 flex items-center justify-between rounded-2xl border border-border px-4 py-3 text-sm"
-              >
-                <span className="min-w-0">
-                  <span className="block font-semibold text-foreground">Paramètres du Coran</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    Affichage, taille, tajwīd, fond…
-                  </span>
-                </span>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-              </Link>
+              <div className="mb-3 mt-5 border-t border-border/60 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Réglages
+                </p>
+                <p className="mb-1 text-[11px] text-muted-foreground">
+                  Appliqués tout de suite, sans quitter le Mushaf.
+                </p>
+                <div className="mt-3 block">
+                  <span className="mb-1 block text-xs text-muted-foreground">Récitant</span>
+                  <ChoiceSelect
+                    title="Récitant"
+                    value={prefs.quran.reciterId}
+                    onChange={(v) => updateQuran({ reciterId: v })}
+                  >
+                    {RECITERS.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </ChoiceSelect>
+                </div>
+                <div className="mt-3 block">
+                  <span className="mb-1 block text-xs text-muted-foreground">Vitesse</span>
+                  <ChoiceSelect title="Vitesse" value={speed} onChange={(v) => setSpeed(Number(v))}>
+                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((sp) => (
+                      <option key={sp} value={sp}>
+                        {sp}×
+                      </option>
+                    ))}
+                  </ChoiceSelect>
+                </div>
+                <div className="mt-3">
+                  <QuranDisplayModes quran={prefs.quran} onChange={(patch) => updateQuran(patch)} />
+                </div>
+                <div className="mt-3 block">
+                  <span className="mb-1 block text-xs text-muted-foreground">Taille du texte</span>
+                  <ChoiceSelect
+                    title="Taille du texte"
+                    value={prefs.quran.textSize}
+                    onChange={(v) => updateQuran({ textSize: v as "normal" | "large" | "xlarge" })}
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="large">Grand</option>
+                    <option value="xlarge">Très grand</option>
+                  </ChoiceSelect>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-foreground">Tajwīd (couleurs)</span>
+                  <button
+                    onClick={() => updateQuran({ tajweed: !prefs.quran.tajweed })}
+                    role="switch"
+                    aria-checked={prefs.quran.tajweed}
+                    aria-label="Tajwīd"
+                    className={cn(
+                      "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                      prefs.quran.tajweed ? "bg-primary" : "bg-muted",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-1 size-5 rounded-full bg-background shadow transition-all",
+                        prefs.quran.tajweed ? "left-6" : "left-1",
+                      )}
+                    />
+                  </button>
+                </div>
+              </div>
 
             </div>
 

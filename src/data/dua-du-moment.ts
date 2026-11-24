@@ -7,6 +7,8 @@
  * (quand la dire / ce qu'elle signifie). Aucune formule n'est reconstruite.
  */
 
+import { ALL_ADHKAR } from "@/data/adhkar-occasions";
+
 export interface DuaMoment {
   id: string;
   kind: "dua" | "hadith";
@@ -14,6 +16,8 @@ export interface DuaMoment {
   french: string;
   /** Références (collection + numéro, degré si hors Sahīh). */
   source: string;
+  /** Pour un hadith : le Compagnon qui l'a rapporté. */
+  narrator?: string;
   /** Quand la dire, ou ce que cela signifie. */
   note: string;
   /** Pour un hadith : une invocation authentique en lien avec son thème. */
@@ -80,6 +84,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french:
       "Les actes ne valent que par les intentions, et chacun n'obtient que ce qu'il a eu l'intention de faire.",
     source: "Al-Bukhārī 1 · Muslim 1907",
+    narrator: "ʿUmar ibn al-Khaṭṭāb",
     note: "Hadith fondamental. Bon réflexe au début de la journée : renouveler son intention pour Allah avant ses actes, y compris ses lectures et ses adhkār.",
     dua: {
       arabic: "رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنتَ السَّمِيعُ الْعَلِيمُ",
@@ -95,6 +100,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french:
       "Deux paroles légères sur la langue, lourdes dans la balance, aimées du Miséricordieux : « Gloire et louange à Allah, gloire à Allah le Magnifique ».",
     source: "Al-Bukhārī 6406 · Muslim 2694",
+    narrator: "Abū Hurayra",
     note: "Un dhikr très simple à répéter dans la journée, en marchant ou en attendant : très léger à dire, très lourd en récompense.",
     dua: {
       arabic: "اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ",
@@ -108,6 +114,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     arabic: "أَحَبُّ الْأَعْمَالِ إِلَى اللَّهِ أَدْوَمُهَا وَإِنْ قَلَّ",
     french: "Les actes les plus aimés d'Allah sont les plus réguliers, même s'ils sont peu nombreux.",
     source: "Al-Bukhārī 6464 · Muslim 783",
+    narrator: "ʿĀʾisha",
     note: "Encouragement à la régularité : mieux vaut peu, chaque jour, que beaucoup rarement (Wird, adhkār, prières).",
     dua: {
       arabic: "رَبَّنَا لَا تُزِغْ قُلُوبَنَا بَعْدَ إِذْ هَدَيْتَنَا وَهَبْ لَنَا مِن لَّدُنكَ رَحْمَةً إِنَّكَ أَنتَ الْوَهَّابُ",
@@ -121,6 +128,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     arabic: "خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ",
     french: "Les meilleurs d'entre vous sont ceux qui apprennent le Coran et l'enseignent.",
     source: "Al-Bukhārī 5027",
+    narrator: "ʿUthmān ibn ʿAffān",
     note: "Un rappel du mérite d'apprendre le Coran et de le transmettre, même un seul verset.",
     dua: {
       arabic: "رَبِّ زِدْنِي عِلْمًا",
@@ -135,6 +143,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french:
       "Aucun de vous ne croit vraiment tant qu'il n'aime pas pour son frère ce qu'il aime pour lui-même.",
     source: "Al-Bukhārī 13 · Muslim 45",
+    narrator: "Anas ibn Mālik",
     note: "La foi complète passe par le bon comportement envers les autres : vouloir pour eux le bien qu'on veut pour soi.",
     dua: {
       arabic: "رَبَّنَا اغْفِرْ لَنَا وَلِإِخْوَانِنَا الَّذِينَ سَبَقُونَا بِالْإِيمَانِ وَلَا تَجْعَلْ فِي قُلُوبِنَا غِلًّا لِلَّذِينَ آمَنُوا رَبَّنَا إِنَّكَ رَءُوفٌ رَّحِيمٌ",
@@ -150,6 +159,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french:
       "Quiconque emprunte un chemin pour y chercher une science, Allah lui facilite grâce à cela un chemin vers le Paradis.",
     source: "Muslim 2699",
+    narrator: "Abū Hurayra",
     note: "Mérite de la quête du savoir : y compris le tadabbur (méditation du Coran) et l'étude de sa religion.",
     dua: {
       arabic: "رَبِّ اشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي",
@@ -163,6 +173,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     arabic: "مَنْ صَلَّى عَلَيَّ وَاحِدَةً صَلَّى اللَّهُ عَلَيْهِ عَشْرًا",
     french: "Quiconque prie une fois sur moi, Allah priera dix fois sur lui.",
     source: "Muslim 408",
+    narrator: "Abū Hurayra",
     note: "Mérite de la prière sur le Prophète ﷺ, que l'on multiplie surtout le vendredi.",
     dua: {
       arabic: "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ كَمَا صَلَّيْتَ عَلَى آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ",
@@ -212,6 +223,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     arabic: "مَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الْآخِرِ فَلْيَقُلْ خَيْرًا أَوْ لِيَصْمُتْ",
     french: "Que celui qui croit en Allah et au Jour dernier dise du bien ou qu'il se taise.",
     source: "Al-Bukhārī 6018 · Muslim 47",
+    narrator: "Abū Hurayra",
     note: "Règle d'or de la parole : avant de parler, se demander si cela est un bien, sinon garder le silence.",
     dua: {
       arabic: "رَبِّ اشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي وَاحْلُلْ عُقْدَةً مِّن لِّسَانِي يَفْقَهُوا قَوْلِي",
@@ -225,6 +237,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     arabic: "لَيْسَ الشَّدِيدُ بِالصُّرَعَةِ، إِنَّمَا الشَّدِيدُ الَّذِي يَمْلِكُ نَفْسَهُ عِنْدَ الْغَضَبِ",
     french: "Le fort n'est pas celui qui terrasse les autres, le fort est celui qui se maîtrise lorsqu'il est en colère.",
     source: "Al-Bukhārī 6114 · Muslim 2609",
+    narrator: "Abū Hurayra",
     note: "La vraie force est la maîtrise de soi. À se rappeler au moment où la colère monte.",
     dua: {
       arabic: "أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ",
@@ -238,6 +251,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     arabic: "الدِّينُ النَّصِيحَةُ",
     french: "La religion, c'est la sincérité (le bon conseil).",
     source: "Muslim 55",
+    narrator: "Tamīm ad-Dārī",
     note: "Être sincère envers Allah, Son Livre, Son Messager ﷺ, les dirigeants des musulmans et les gens en général.",
     dua: {
       arabic: "رَبَّنَا آتِنَا مِن لَّدُنكَ رَحْمَةً وَهَيِّئْ لَنَا مِنْ أَمْرِنَا رَشَدًا",
@@ -251,6 +265,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     arabic: "إِنَّ اللَّهَ لَا يَنْظُرُ إِلَى صُوَرِكُمْ وَأَمْوَالِكُمْ، وَلَكِنْ يَنْظُرُ إِلَى قُلُوبِكُمْ وَأَعْمَالِكُمْ",
     french: "Allah ne regarde ni vos apparences ni vos biens, mais Il regarde vos cœurs et vos actes.",
     source: "Muslim 2564",
+    narrator: "Abū Hurayra",
     note: "Ce qui compte devant Allah, c'est la sincérité du cœur et la qualité des actes, pas l'apparence ni la richesse.",
     dua: {
       arabic: "اللَّهُمَّ مُصَرِّفَ الْقُلُوبِ صَرِّفْ قُلُوبَنَا عَلَى طَاعَتِكَ",
@@ -266,6 +281,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     french:
       "Comme l'affaire du croyant est étonnante : tout est un bien pour lui, et cela n'appartient qu'au croyant. S'il lui arrive une joie, il remercie, et c'est un bien pour lui ; s'il lui arrive un malheur, il patiente, et c'est un bien pour lui.",
     source: "Muslim 2999",
+    narrator: "Ṣuhayb ar-Rūmī",
     note: "Dans la joie comme dans l'épreuve, le croyant gagne : par la gratitude ou par la patience.",
     dua: {
       arabic: "رَبِّ أَوْزِعْنِي أَنْ أَشْكُرَ نِعْمَتَكَ الَّتِي أَنْعَمْتَ عَلَيَّ وَعَلَىٰ وَالِدَيَّ وَأَنْ أَعْمَلَ صَالِحًا تَرْضَاهُ",
@@ -303,6 +319,7 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
     arabic: "الدُّعَاءُ هُوَ الْعِبَادَةُ",
     french: "L'invocation, c'est l'adoration.",
     source: "Abū Dāwūd 1479 · At-Tirmidhī 2969 (sahīh)",
+    narrator: "An-Nuʿmān ibn Bashīr",
     note: "Invoquer Allah est en soi un acte d'adoration : ne pas hésiter à Lui demander, grand ou petit.",
     dua: {
       arabic: "رَبِّ اجْعَلْنِي مُقِيمَ الصَّلَاةِ وَمِن ذُرِّيَّتِي رَبَّنَا وَتَقَبَّلْ دُعَاءِ",
@@ -310,12 +327,109 @@ export const DUAS_DU_MOMENT: DuaMoment[] = [
       source: "Coran 14:40",
     },
   },
+  {
+    id: "tahur",
+    kind: "hadith",
+    arabic: "الطُّهُورُ شَطْرُ الْإِيمَانِ",
+    french: "La purification est la moitié de la foi.",
+    source: "Muslim 223",
+    narrator: "Abū Mālik al-Ashʿarī",
+    note: "Rappel de l'importance de la pureté (ablutions, propreté) pour la prière et la vie du croyant.",
+  },
+  {
+    id: "kalima-tayyiba",
+    kind: "hadith",
+    arabic: "الْكَلِمَةُ الطَّيِّبَةُ صَدَقَةٌ",
+    french: "La bonne parole est une aumône.",
+    source: "Al-Bukhārī 2989 · Muslim 1009",
+    narrator: "Abū Hurayra",
+    note: "Un mot gentil, un conseil, un salut : tout bien fait aux autres est une aumône, même sans argent.",
+  },
+  {
+    id: "dalla-ala-khayr",
+    kind: "hadith",
+    arabic: "مَنْ دَلَّ عَلَى خَيْرٍ فَلَهُ مِثْلُ أَجْرِ فَاعِلِهِ",
+    french: "Celui qui guide vers un bien aura une récompense semblable à celle de celui qui l'accomplit.",
+    source: "Muslim 1893",
+    narrator: "Abū Masʿūd al-Anṣārī",
+    note: "Encourage à indiquer, partager et transmettre le bien : l'application peut en faire partie.",
+  },
+  {
+    id: "muslim-salima",
+    kind: "hadith",
+    arabic: "الْمُسْلِمُ مَنْ سَلِمَ الْمُسْلِمُونَ مِنْ لِسَانِهِ وَيَدِهِ",
+    french: "Le musulman est celui dont les musulmans sont à l'abri de la langue et de la main.",
+    source: "Al-Bukhārī 10 · Muslim 40",
+    narrator: "ʿAbdullāh ibn ʿAmr",
+    note: "Définition du bon musulman par son comportement : ne pas blesser par la parole ni par les actes.",
+  },
+  {
+    id: "la-taghdab",
+    kind: "hadith",
+    arabic: "لَا تَغْضَبْ",
+    french: "Ne te mets pas en colère.",
+    source: "Al-Bukhārī 6116",
+    narrator: "Abū Hurayra",
+    note: "Un homme demanda au Prophète ﷺ de lui donner un conseil : il répéta plusieurs fois « Ne te mets pas en colère ».",
+  },
+  {
+    id: "baradayn",
+    kind: "hadith",
+    arabic: "مَنْ صَلَّى الْبَرْدَيْنِ دَخَلَ الْجَنَّةَ",
+    french: "Celui qui accomplit les deux prières fraîches (Fajr et ʿAsr) entrera au Paradis.",
+    source: "Al-Bukhārī 574 · Muslim 635",
+    narrator: "Abū Mūsā al-Ashʿarī",
+    note: "Mérite de préserver la prière de l'aube et celle de l'après-midi, deux moments où l'on se relâche facilement.",
+  },
+  {
+    id: "mu-min-qawi",
+    kind: "hadith",
+    arabic: "الْمُؤْمِنُ الْقَوِيُّ خَيْرٌ وَأَحَبُّ إِلَى اللَّهِ مِنَ الْمُؤْمِنِ الضَّعِيفِ وَفِي كُلٍّ خَيْرٌ",
+    french: "Le croyant fort est meilleur et plus aimé d'Allah que le croyant faible, et il y a du bien en chacun.",
+    source: "Muslim 2664",
+    narrator: "Abū Hurayra",
+    note: "Encourage à être fort dans sa foi et ses actes, à rechercher ce qui est utile, à demander l'aide d'Allah et à ne pas se décourager.",
+  },
+  {
+    id: "jamil",
+    kind: "hadith",
+    arabic: "إِنَّ اللَّهَ جَمِيلٌ يُحِبُّ الْجَمَالَ",
+    french: "Allah est Beau et Il aime la beauté.",
+    source: "Muslim 91",
+    narrator: "ʿAbdullāh ibn Masʿūd",
+    note: "Prononcé en réponse à un homme qui craignait que le soin de sa tenue soit de l'orgueil : l'orgueil est de refuser la vérité et de mépriser les gens.",
+  },
 ];
 
-/** Une entrée par jour et par moment (jour / nuit), stable toute la journée. */
-export function pickDuaOfTheMoment(now: Date, isDay: boolean): DuaMoment {
+/**
+ * Réserve complète : les entrées ci-dessus + les adhkār courts de l'application
+ * dont la source est le Coran, Al-Bukhārī ou Muslim (jamais d'autre degré).
+ */
+const FROM_APP: DuaMoment[] = ALL_ADHKAR.filter(
+  (d) => d.arabic.length <= 220 && /Coran|Bukh|Muslim/i.test(d.reference),
+).map((d) => ({
+  id: "app-" + d.id,
+  kind: "dua" as const,
+  arabic: d.arabic,
+  french: d.translation,
+  source: d.reference,
+  narrator: d.narrator || undefined,
+  note: [d.context || d.explanation, d.merits].filter(Boolean).join(" "),
+}));
+
+export const DUA_POOL: DuaMoment[] = [
+  ...DUAS_DU_MOMENT,
+  ...FROM_APP.filter((a) => !DUAS_DU_MOMENT.some((m) => m.arabic === a.arabic)),
+];
+
+/** Position de départ : une nouvelle toutes les 4 heures (6 créneaux par jour). */
+export function duaStartIndex(now: Date): number {
   const startOfYear = new Date(now.getFullYear(), 0, 0);
   const dayOfYear = Math.floor((now.getTime() - startOfYear.getTime()) / 86400000);
-  const i = (dayOfYear * 2 + (isDay ? 0 : 1)) % DUAS_DU_MOMENT.length;
-  return DUAS_DU_MOMENT[i];
+  const slot = Math.floor(now.getHours() / 4);
+  return (dayOfYear * 6 + slot) % DUA_POOL.length;
+}
+
+export function pickDuaOfTheMoment(now: Date, _isDay?: boolean, offset = 0): DuaMoment {
+  return DUA_POOL[(duaStartIndex(now) + offset) % DUA_POOL.length];
 }

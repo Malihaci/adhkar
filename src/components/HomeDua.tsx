@@ -8,7 +8,8 @@ import { pickDuaOfTheMoment } from "@/data/dua-du-moment";
  * traduction et l'explication (quand la dire / ce que cela signifie). */
 export function HomeDua({ now, isDay }: { now: Date; isDay: boolean }) {
   const [open, setOpen] = useState(false);
-  const item = pickDuaOfTheMoment(now, isDay);
+  const [offset, setOffset] = useState(0);
+  const item = pickDuaOfTheMoment(now, isDay, offset);
   return (
     <section
       aria-label={item.kind === "dua" ? "Doua du moment" : "Hadith du moment"}
@@ -39,14 +40,36 @@ export function HomeDua({ now, isDay }: { now: Date; isDay: boolean }) {
         <p className={cn("text-[13px] leading-snug text-foreground", !open && "line-clamp-2")}>
           {item.french}
         </p>
-        {open && <p className="mt-2 text-xs leading-snug text-muted-foreground">{item.note}</p>}
-        <span className="mt-2 inline-flex h-8 items-center rounded-full border border-border bg-background/60 px-3 text-[13px] font-semibold text-primary transition active:scale-[0.97]">
-          {open ? "Réduire" : item.kind === "dua" ? "Voir l'explication" : "Comprendre ce hadith"}
-        </span>
+        {open && (
+          <div className="mt-3 space-y-2 rounded-xl bg-background/70 px-3 py-2.5 text-xs leading-snug">
+            {item.narrator && (
+              <p>
+                <span className="font-semibold text-foreground">Rapporté par : </span>
+                <span className="text-muted-foreground">{item.narrator}</span>
+              </p>
+            )}
+            <p>
+              <span className="font-semibold text-foreground">
+                {item.kind === "dua" ? "Quand la dire et contexte : " : "Contexte et moment : "}
+              </span>
+              <span className="text-muted-foreground">{item.note}</span>
+            </p>
+          </div>
+        )}
       </button>
-      <p className="mt-2 border-t border-border/60 pt-1.5 text-[11px] text-muted-foreground">
-        {item.source}
-      </p>
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/60 pt-1.5">
+        <p className="min-w-0 text-[11px] text-muted-foreground">{item.source}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setOffset((o) => o + 1);
+            setOpen(false);
+          }}
+          className="shrink-0 rounded-full border border-border bg-background/60 px-3 py-1 text-[12px] font-semibold text-primary active:scale-95"
+        >
+          Une autre
+        </button>
+      </div>
       {item.dua && (
         <button
           type="button"
