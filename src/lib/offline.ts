@@ -330,6 +330,7 @@ export async function clearOfflineData(): Promise<void> {
 
 /* ----------------------------------------------- téléchargement automatique */
 const AUTO_KEY = "adhkar:offline:auto";
+const AUDIO_DONE_KEY = "adhkar:offline:adhkar-audio-done";
 const DONE_KEY = "adhkar:offline:core-done-v4";
 
 export function isAutoOfflineEnabled(): boolean {
@@ -364,6 +365,13 @@ export function maybeAutoDownloadCorePack(): void {
   void downloadCorePack(() => undefined)
     .then(({ failed }) => {
       if (failed === 0) localStorage.setItem(DONE_KEY, "done");
+      // Une seule récitation hors ligne par défaut : l'audio des Adhkār (matin et soir).
+      // Les récitations du Coran (Ghamdi par défaut) se téléchargent à la demande.
+      if (localStorage.getItem(AUDIO_DONE_KEY) !== "done") {
+        return downloadAdhkarAudio(() => undefined).then(({ failed: f }) => {
+          if (f === 0) localStorage.setItem(AUDIO_DONE_KEY, "done");
+        });
+      }
     })
     .catch(() => undefined);
 }

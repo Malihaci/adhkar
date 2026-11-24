@@ -5,6 +5,7 @@ import { useDailyProgress } from "@/lib/storage";
 import { HomeHero } from "@/components/HomeHero";
 import { HomeDua } from "@/components/HomeDua";
 import { HomeFasting } from "@/components/HomeFasting";
+import { InstallBanner } from "@/components/InstallBanner";
 import { HomeToday } from "@/components/HomeToday";
 import { HomeCalm } from "@/components/HomeCalm";
 import { ResumeReadingCard } from "@/components/ResumeReadingCard";
@@ -56,6 +57,7 @@ function Index() {
       {hydrated && !prefs.onboarded && <OnboardingModal />}
       <div className="space-y-3">
         <HomeHero />
+        <InstallBanner />
         <NextPrayerWidget />
         <HomeFasting now={period.now} />
         {/* À faire aujourd'hui : défis, dhikr du moment, Lecture du jour, reprise

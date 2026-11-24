@@ -113,6 +113,7 @@ export function BelowPanel({
   onSelect,
   onHeight,
   onSourceChange,
+  bottomOffset = "0px",
 }: {
   /** Toutes les āyāt de la page (dans l'ordre). */
   verseKeys: string[];
@@ -125,6 +126,8 @@ export function BelowPanel({
   onHeight: (px: number) => void;
   /** Change la source (tafsir, traduction…) directement depuis le volet. */
   onSourceChange?: (s: BelowSource) => void;
+  /** Espace réservé sous le volet (barre du bas fixe). */
+  bottomOffset?: string;
 }) {
   const info = belowSourceInfo(source);
   const [height, setHeight] = useState(180);
@@ -161,7 +164,7 @@ export function BelowPanel({
   return (
     <section
       aria-label="Contenu de l'āyah"
-      style={{ bottom: 0, height: `calc(${shown}px + env(safe-area-inset-bottom))`, paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{ bottom: bottomOffset, height: `${shown}px` }}
       className="fixed inset-x-0 z-[25] flex flex-col rounded-t-2xl border-t border-border/50 bg-card/95 shadow-[0_-6px_20px_-12px_rgba(0,0,0,.35)] backdrop-blur-xl transition-[bottom] duration-300"
     >
       <div

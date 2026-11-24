@@ -19,7 +19,7 @@
  * Les anciennes clés ne sont pas supprimées (au cas où, mais plus lues par
  * l'application une fois ce chantier terminé).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { readJSON, writeJSON } from "@/lib/storage";
 
 export type ReadingSize = "normal" | "large" | "xlarge";
@@ -95,7 +95,7 @@ export const DEFAULT_QURAN: QuranPreferences = {
   phonetique: false,
   tajweed: false,
   textSize: "large",
-  reciterId: "minshawi",
+  reciterId: "ghamdi",
   speed: 1,
   keepAwake: true,
 };
@@ -218,8 +218,22 @@ export function loadPreferences(): AppPreferences {
  * pour rester SSR-safe, lecture réelle après montage) — réactif entre
  * composants via le même événement `adhkar-storage`.
  */
+/** Affichage du Coran venu d'un lien partagé : appliqué en mémoire seulement
+ * (jamais écrit dans les réglages enregistrés), retiré en quittant le lecteur. */
+let quranOverride: Partial<QuranPreferences> | null = null;
+const OVERRIDE_EVENT = "adhkar-quran-override";
+export function setQuranOverride(patch: Partial<QuranPreferences> | null) {
+  quranOverride = patch && Object.keys(patch).length ? patch : null;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(OVERRIDE_EVENT));
+}
+
 export function usePreferences() {
-  const [prefs, setPrefsState] = useState<AppPreferences>(DEFAULT_PREFERENCES);
+  const [stored, setPrefsState] = useState<AppPreferences>(DEFAULT_PREFERENCES);
+  const [override, setOverrideState] = useState<Partial<QuranPreferences> | null>(quranOverride);
+  const prefs = useMemo<AppPreferences>(
+    () => (override ? { ...stored, quran: { ...stored.quran, ...override } } : stored),
+    [stored, override],
+  );
   /** `false` le temps très court avant l'hydratation (SSR-safe) — permet à
    * l'appelant (ex. l'assistant de premier lancement) de ne jamais se fier à
    * `onboarded === false` avant d'avoir réellement lu le stockage, sous
@@ -234,8 +248,14 @@ export function usePreferences() {
       const detail = (e as CustomEvent).detail as { key?: string } | undefined;
       if (!detail || detail.key === PREFS_KEY) setPrefsState(loadPreferences());
     };
+    const onOverride = () => setOverrideState(quranOverride);
     window.addEventListener("adhkar-storage", onChange);
-    return () => window.removeEventListener("adhkar-storage", onChange);
+    window.addEventListener(OVERRIDE_EVENT, onOverride);
+    onOverride();
+    return () => {
+      window.removeEventListener("adhkar-storage", onChange);
+      window.removeEventListener(OVERRIDE_EVENT, onOverride);
+    };
   }, []);
 
   const update = useCallback((updater: (prev: AppPreferences) => AppPreferences) => {
@@ -247,8 +267,15 @@ export function usePreferences() {
   }, []);
 
   const updateQuran = useCallback(
-    (patch: Partial<QuranPreferences>) =>
-      update((prev) => ({ ...prev, quran: { ...prev.quran, ...patch } })),
+    (patch: Partial<QuranPreferences>) => {
+      // Un réglage modifié à la main reprend la main sur la vue du lien.
+      if (quranOverride) {
+        const rest = { ...quranOverride } as Record<string, unknown>;
+        for (const k of Object.keys(patch)) delete rest[k];
+        setQuranOverride(rest as Partial<QuranPreferences>);
+      }
+      update((prev) => ({ ...prev, quran: { ...prev.quran, ...patch } }));
+    },
     [update],
   );
   const updateAdhkar = useCallback(

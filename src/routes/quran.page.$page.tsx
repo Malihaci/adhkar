@@ -4,6 +4,7 @@ import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   ChevronDown,
+  ChevronUp,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -64,7 +65,7 @@ import {
   type PageVerse,
 } from "@/lib/mushaf";
 import { useLocalState, useFavorites } from "@/lib/storage";
-import { usePreferences } from "@/lib/preferences";
+import { usePreferences, setQuranOverride, type BelowMode, type BelowSource, type QuranPreferences } from "@/lib/preferences";
 import { fetchMokhtasarLessons, type MokhtasarPassage } from "@/lib/quran";
 import { QuranDisplayModes } from "@/components/QuranDisplayModes";
 import { BelowPanel } from "@/components/BelowPanel";
@@ -83,7 +84,16 @@ interface Search {
    * elle-même étant déjà `startPage`. */
   end?: number;
   shared?: string;
+  /** Affichage de l'expéditeur : contenu sous le Mushaf, mode, taille, tajwīd. */
+  bs?: string;
+  bm?: string;
+  ts?: string;
+  tj?: string;
 }
+
+const SHARED_SOURCES = ["none", "fr", "phonetic", "mukhtasar-fr", "muyassar", "mukhtasar-ar", "saadi"];
+const SHARED_SIZES = ["normal", "large", "xlarge"];
+const oneOf = (v: unknown, list: string[]) => (typeof v === "string" && list.includes(v) ? v : undefined);
 
 /** Recherche en cours : liste ordonnée des résultats, position, page d'origine. */
 interface SearchSession {
@@ -101,6 +111,10 @@ export const Route = createFileRoute("/quran/page/$page")({
     mark: typeof s.mark === "string" ? s.mark : undefined,
     end: typeof s.end === "string" || typeof s.end === "number" ? Number(s.end) : undefined,
     shared: typeof s.shared === "string" ? s.shared : undefined,
+    bs: oneOf(s.bs, SHARED_SOURCES),
+    bm: oneOf(s.bm, ["panel", "ayah"]),
+    ts: oneOf(s.ts, SHARED_SIZES),
+    tj: oneOf(s.tj, ["0", "1"]),
   }),
   head: ({ params }) => {
     const title = `Coran — page ${params.page} / 604 (Mushaf de Médine)`;
@@ -159,7 +173,7 @@ function MushafPage() {
     sharedStartPageRef.current = page;
   }
   const sharedStartPage = sharedStartPageRef.current;
-  const { prefs, updateQuran } = usePreferences();
+  const { prefs, updateQuran, hydrated } = usePreferences();
   // `search.r` (lien partagé) prévaut sur la préférence centrale, elle-même
   // le repli par défaut — jamais un retour silencieux au 1er récitateur.
   const reciterId = getReciter(search.r ?? prefs.quran.reciterId).id;
@@ -208,6 +222,32 @@ function MushafPage() {
   useEffect(() => {
     setFullscreenSupported(!!document.fullscreenEnabled);
   }, []);
+
+  // Affichage venant d'un lien partagé : vue temporaire (jamais enregistrée) ;
+  // un nouvel utilisateur (assistant de premier lancement pas encore passé) l'adopte.
+  const [sharedView, setSharedView] = useState<Partial<QuranPreferences> | null>(null);
+  const appliedViewRef = useRef(false);
+  useEffect(() => {
+    if (appliedViewRef.current || !hydrated) return;
+    if (!search.bs && !search.bm && !search.ts && !search.tj) return;
+    appliedViewRef.current = true;
+    const patch: Partial<QuranPreferences> = {
+      ...(search.bs ? { belowSource: search.bs as BelowSource } : {}),
+      ...(search.bm ? { belowMode: search.bm as BelowMode } : {}),
+      ...(search.ts ? { textSize: search.ts as QuranPreferences["textSize"] } : {}),
+      ...(search.tj ? { tajweed: search.tj === "1" } : {}),
+    };
+    if (!prefs.onboarded) {
+      updateQuran(patch);
+      return;
+    }
+    const q = prefs.quran as unknown as Record<string, unknown>;
+    const changed = Object.entries(patch).some(([k, v]) => q[k] !== v);
+    if (!changed) return;
+    setQuranOverride(patch);
+    setSharedView(patch);
+  }, [hydrated, search.bs, search.bm, search.ts, search.tj]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => setQuranOverride(null), []);
 
   // Sélection venant du lien partagé
   useEffect(() => {
@@ -331,6 +371,20 @@ function MushafPage() {
   const atEndRef = useRef(false);
   const panelModeEarly =
     (prefs.quran.belowSource ?? "none") !== "none" && (prefs.quran.belowMode ?? "panel") === "panel";
+  /** Barre du bas : fixe par défaut ; pliable (flèche ou balayage), choix mémorisé par mode. */
+  const [barFoldPref, setBarFoldPref] = useLocalState<{ plain?: boolean; panel?: boolean }>("quran:bar-folded", {});
+  const [landscape, setLandscape] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(orientation: landscape)");
+    const on = () => setLandscape(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  const barMode = panelModeEarly ? "panel" : "plain";
+  const barFolded = barFoldPref[barMode] ?? landscape;
+  const setBarFolded = (v: boolean) => setBarFoldPref({ ...barFoldPref, [barMode]: v });
+  const barTouchY = useRef<number | null>(null);
   const immersiveBlocked =
     (selected.length > 0 && !panelModeEarly) || optionsOpen || searchOpen || showNav || meditateOpen;
   const immersiveBlockedRef = useRef(immersiveBlocked);
@@ -376,6 +430,12 @@ function MushafPage() {
   }, [immersiveBlocked]);
 
   useEffect(() => clearHideTimer, []);
+
+  // La barre se rouvre toute seule quand on en a besoin : récitation lancée, āyah choisie, recherche.
+  useEffect(() => {
+    if (barFolded && (playing || selected.length > 0 || searchOpen)) setBarFolded(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, selected.length, searchOpen]);
 
   const [autoTurn, setAutoTurn] = useState(false);
   const [readMode, setReadMode] = useState<ReadMode>("toEnd");
@@ -838,7 +898,7 @@ function MushafPage() {
   };
 
   /* ------------------------------------------------------------ partage */
-  const buildLink = (sel?: string) => {
+  const buildLink = (sel?: string, withView = false) => {
     const url = new URL(
       `/quran/page/${page}`,
       typeof window !== "undefined"
@@ -847,11 +907,20 @@ function MushafPage() {
     );
     url.searchParams.set("r", reciterId);
     if (sel) url.searchParams.set("sel", sel);
+    // Mon affichage (contenu sous le Mushaf, mode, taille, tajwīd) : seulement si choisi à l'envoi.
+    if (withView) {
+      const q = prefs.quran;
+      if ((q.belowSource ?? "none") !== "none") url.searchParams.set("bs", q.belowSource as string);
+      url.searchParams.set("bm", q.belowMode ?? "panel");
+      url.searchParams.set("ts", q.textSize);
+      url.searchParams.set("tj", q.tajweed ? "1" : "0");
+    }
     return url.toString();
   };
 
-  const share = async (sel?: string) => {
-    const link = buildLink(sel);
+  const [shareAsk, setShareAsk] = useState<{ sel?: string; verse: boolean } | null>(null);
+  const share = async (sel?: string, withView = false) => {
+    const link = buildLink(sel, withView);
     try {
       if (navigator.share) await navigator.share({ url: link, title: `Coran — page ${page}` });
       else {
@@ -895,13 +964,13 @@ function MushafPage() {
     });
   };
 
-  const shareSelectedVerse = async (key: string) => {
+  const shareSelectedVerse = async (key: string, withView = false) => {
     const v = verses?.find((vv) => vv.key === key);
     if (!v) return;
     const [s, a] = key.split(":").map(Number);
     const meta = chapters?.find((c) => c.id === s);
     const hamidullah = await fetchHamidullahAyah(s, a).catch(() => null);
-    const link = buildLink(key);
+    const link = buildLink(key, withView);
     const label = meta ? `${meta.nameFrench} — ${key}` : key;
     const text = [v.arabic, hamidullah?.translation, label, link].filter(Boolean).join("\n\n");
     try {
@@ -953,7 +1022,7 @@ function MushafPage() {
     const el = box?.querySelector<HTMLElement>(`[data-word-key="${focusKey}"]`);
     if (!box || !el) return;
     const r = el.getBoundingClientRect();
-    const visibleBottom = window.innerHeight - belowH - 8;
+    const visibleBottom = window.innerHeight - belowH - (barFolded ? 56 : 84);
     if (r.bottom > visibleBottom || r.top < 56) {
       box.scrollBy({ top: r.top - Math.max(80, visibleBottom / 3), behavior: "smooth" });
     }
@@ -1677,7 +1746,7 @@ function MushafPage() {
           déborder en largeur (voir le fit ci-dessus, seule contrainte dure). */}
       <div
         ref={boxRef}
-        style={belowVisible ? { paddingBottom: belowH + 12 } : undefined}
+        style={{ paddingBottom: `calc(${belowVisible ? belowH + 12 : 8}px + ${barFolded ? "2.75rem" : "4.75rem"} + env(safe-area-inset-bottom))` }}
         className="absolute inset-0 overflow-x-hidden overflow-y-auto px-0.5 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-[max(0.25rem,env(safe-area-inset-top))]"
         onTouchStart={onSheetTouchStart}
         onTouchMove={onSheetTouchMove}
@@ -1921,7 +1990,6 @@ function MushafPage() {
           aria-label="Actions de l'āyah"
           className={cn(
             "fixed inset-x-0 bottom-0 z-20 border-t border-border/40 bg-card/95 px-2 pt-1 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-xl transition-transform duration-300",
-            controlsHidden && "translate-y-full",
           )}
         >
           <div className="mx-auto max-w-2xl">
@@ -1961,7 +2029,7 @@ function MushafPage() {
                     key: "share",
                     label: "Partager",
                     icon: Share2,
-                    onClick: () => shareSelectedVerse(selKey),
+                    onClick: () => setShareAsk({ sel: selKey, verse: true }),
                   },
                   {
                     key: "study",
@@ -1996,12 +2064,26 @@ function MushafPage() {
       ) : (
         <nav
           aria-label="Commandes du Mushaf"
+          onTouchStart={(e) => (barTouchY.current = e.touches[0].clientY)}
+          onTouchEnd={(e) => {
+            if (barTouchY.current !== null && e.changedTouches[0].clientY - barTouchY.current > 28) setBarFolded(true);
+            barTouchY.current = null;
+          }}
           className={cn(
             "fixed inset-x-3 z-[27] mx-auto max-w-md rounded-[1.35rem] border border-border/60 bg-card/85 px-1.5 pb-1 pt-1 shadow-[0_8px_24px_-8px_rgba(0,0,0,.35)] backdrop-blur-xl transition-all duration-300",
-            (controlsHidden || pageEditing) && "pointer-events-none translate-y-[160%] opacity-0",
+            pageEditing && "pointer-events-none translate-y-[160%] opacity-0",
+            barFolded && "pointer-events-none translate-y-[160%] opacity-0",
           )}
           style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
         >
+          <button
+            type="button"
+            onClick={() => setBarFolded(true)}
+            aria-label="Replier la barre"
+            className="absolute -top-3.5 left-1/2 grid h-5 w-12 -translate-x-1/2 place-items-center rounded-full border border-border/60 bg-card/90 text-muted-foreground shadow-sm"
+          >
+            <ChevronDown className="size-4" />
+          </button>
           <div className="flex items-end justify-around">
             <BarBtn to="/" label="Accueil" icon={<Home className="size-[19px]" strokeWidth={1.75} />} />
             <BarBtn label="Chercher" icon={<Search className="size-[19px]" strokeWidth={1.75} />} onClick={() => setSearchOpen(true)} />
@@ -2027,12 +2109,42 @@ function MushafPage() {
         </nav>
       )}
 
+      <div
+          onTouchStart={(e) => (barTouchY.current = e.touches[0].clientY)}
+          onTouchEnd={(e) => {
+            if (barTouchY.current !== null && barTouchY.current - e.changedTouches[0].clientY > 24) setBarFolded(false);
+            barTouchY.current = null;
+          }}
+          style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
+          className={cn(
+            "fixed left-1/2 z-[27] flex -translate-x-1/2 items-center gap-1 rounded-full border border-border/60 bg-card/90 p-1 shadow-[0_6px_18px_-8px_rgba(0,0,0,.35)] backdrop-blur-xl transition-all duration-300",
+            !barFolded || pageEditing ? "pointer-events-none translate-y-[160%] opacity-0" : "opacity-100",
+          )}
+        >
+          <button
+            type="button"
+            onClick={() => setBarFolded(false)}
+            aria-label="Déplier la barre"
+            className="grid h-9 w-14 place-items-center rounded-full text-muted-foreground"
+          >
+            <ChevronUp className="size-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => (isCurrentSession ? toggle() : resumeVerse ? void playSurahEndFromAnchor() : playFromAnchor())}
+            aria-label={playing ? "Pause" : "Lecture"}
+            className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground active:scale-95"
+          >
+            {playing ? <Pause className="size-4" strokeWidth={1.75} /> : <Play className="size-4" strokeWidth={1.75} />}
+          </button>
+        </div>
+
       {searchNav && !searchOpen && (
         <div
           style={{
             bottom: belowVisible
-              ? `calc(${belowH}px + 3.75rem)`
-              : "calc(0.75rem + env(safe-area-inset-bottom))",
+              ? `calc(${belowH}px + ${barFolded ? "6.25rem" : "8.25rem"} + env(safe-area-inset-bottom))`
+              : `calc(${barFolded ? "3.25rem" : "5.25rem"} + env(safe-area-inset-bottom))`,
           }}
           className="pointer-events-none fixed inset-x-0 z-[26] flex items-center justify-between gap-2 px-3 transition-[bottom] duration-300"
         >
@@ -2119,8 +2231,75 @@ function MushafPage() {
             onSelect={(k) => setSelected([k])}
             onHeight={setBelowH}
             onSourceChange={(src) => updateQuran({ belowSource: src })}
+            bottomOffset={`calc(${barFolded ? "2.75rem" : "4.5rem"} + env(safe-area-inset-bottom))`}
           />
         </>
+      )}
+
+      {sharedView && (
+        <div className="fixed inset-x-3 top-14 z-[45] mx-auto flex max-w-md items-center justify-between gap-2 rounded-2xl border border-border bg-card/95 px-3 py-2 text-xs shadow-[var(--shadow-soft)] backdrop-blur">
+          <span className="min-w-0 text-muted-foreground">Affichage de l'expéditeur</span>
+          <span className="flex shrink-0 gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setQuranOverride(null);
+                setSharedView(null);
+              }}
+              className="rounded-full border border-border px-3 py-1 font-semibold text-foreground"
+            >
+              Utiliser le mien
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                updateQuran(sharedView);
+                setQuranOverride(null);
+                setSharedView(null);
+              }}
+              className="rounded-full px-2 py-1 font-semibold text-primary"
+            >
+              Garder celui-ci
+            </button>
+          </span>
+        </div>
+      )}
+
+      {shareAsk && (
+        <div className="fixed inset-0 z-[60] flex items-end bg-black/50 backdrop-blur-sm" onClick={() => setShareAsk(null)}>
+          <div
+            className="w-full rounded-t-3xl border-t border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="mb-3 font-display text-lg font-semibold">Partager</h2>
+            <button
+              type="button"
+              onClick={() => {
+                const ask = shareAsk;
+                setShareAsk(null);
+                void (ask.verse ? shareSelectedVerse(ask.sel as string, false) : share(ask.sel, false));
+              }}
+              className="mb-2 flex w-full flex-col rounded-2xl border border-border px-4 py-3 text-left active:scale-[0.99]"
+            >
+              <span className="text-sm font-semibold text-foreground">La page seule</span>
+              <span className="text-xs text-muted-foreground">Le destinataire la lit avec ses propres réglages.</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const ask = shareAsk;
+                setShareAsk(null);
+                void (ask.verse ? shareSelectedVerse(ask.sel as string, true) : share(ask.sel, true));
+              }}
+              className="flex w-full flex-col rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3 text-left active:scale-[0.99]"
+            >
+              <span className="text-sm font-semibold text-foreground">Avec mon affichage</span>
+              <span className="text-xs text-muted-foreground">
+                Même contenu sous le Mushaf, même taille. Chez lui, c'est temporaire : il peut revenir au sien.
+              </span>
+            </button>
+          </div>
+        </div>
       )}
 
       {optionsOpen && (
@@ -2130,6 +2309,13 @@ function MushafPage() {
           <div className="flex max-h-[85dvh] w-full flex-col rounded-t-3xl border-t border-border bg-card lg:max-h-none lg:w-[420px] lg:rounded-none lg:rounded-l-3xl lg:border-l lg:border-t-0">
             <div className="flex items-center justify-between px-4 pb-3 pt-4">
               <h2 className="font-display text-lg font-semibold">Récitation</h2>
+              <button
+                onClick={() => setShareAsk({ sel: selKey, verse: false })}
+                aria-label="Partager cette page avec mon affichage"
+                className="ml-auto mr-2 flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-semibold"
+              >
+                <Share2 className="size-4" /> {copied ? "Lien copié" : "Partager"}
+              </button>
               <button
                 onClick={() => setOptionsOpen(false)}
                 aria-label="Fermer"
