@@ -126,7 +126,7 @@ export function BelowPanel({
   onHeight: (px: number) => void;
   /** Change la source (tafsir, traduction…) directement depuis le volet. */
   onSourceChange?: (s: BelowSource) => void;
-  /** Espace réservé sous le volet (barre du bas fixe). */
+  /** Hauteur de la barre du bas fixe : le volet descend jusqu'au bord de l'écran derrière elle (fond opaque), le texte garde ce padding interne. */
   bottomOffset?: string;
 }) {
   const info = belowSourceInfo(source);
@@ -164,8 +164,8 @@ export function BelowPanel({
   return (
     <section
       aria-label="Contenu de l'āyah"
-      style={{ bottom: bottomOffset, height: `${shown}px` }}
-      className="fixed inset-x-0 z-[25] flex flex-col rounded-t-2xl border-t border-border/50 bg-card/95 shadow-[0_-6px_20px_-12px_rgba(0,0,0,.35)] backdrop-blur-xl transition-[bottom] duration-300"
+      style={{ bottom: 0, height: `calc(${shown}px + ${bottomOffset})` }}
+      className="fixed inset-x-0 z-[25] flex flex-col rounded-t-2xl border-t border-border/50 bg-card shadow-[0_-6px_20px_-12px_rgba(0,0,0,.35)] transition-[height] duration-300"
     >
       <div
         onPointerDown={(e) => {
@@ -238,7 +238,7 @@ export function BelowPanel({
         </button>
       </div>
       {!collapsed && (
-        <div ref={listRef} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
+        <div ref={listRef} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" style={{ paddingBottom: `calc(${bottomOffset} + 0.75rem)` }}>
           <div className="mx-auto max-w-2xl">
             {verseKeys.map((k) => {
               const on = k === verseKey;

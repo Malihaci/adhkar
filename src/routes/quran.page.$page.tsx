@@ -14,6 +14,7 @@ import {
   Loader2,
   Maximize2,
   Minimize2,
+  Mic,
   MoreHorizontal,
   Pause,
   Play,
@@ -24,6 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
+import { spokenToQuery, useVoiceInput, type VoiceLang } from "@/lib/voiceSearch";
 import { useKahfChallenge } from "@/lib/kahfChallenge";
 import { useWakeLock } from "@/lib/wakeLock";
 import { readJSON, writeJSON } from "@/lib/storage";
@@ -2669,6 +2671,8 @@ function SearchPanel({
   const [shownCount, setShownCount] = useState(SEARCH_PAGE);
   const [history, setHistory] = useState<string[]>([]);
   useEffect(() => setHistory(loadSearchHistory()), []);
+  const [voiceLang, setVoiceLang] = useState<VoiceLang>("ar-SA");
+  const voice = useVoiceInput((text) => setRaw(spokenToQuery(text)));
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -2819,6 +2823,45 @@ function SearchPanel({
               </button>
             )}
           </div>
+          {voice.supported && (
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => (voice.listening ? voice.stop() : voice.start(voiceLang))}
+                aria-label={voice.listening ? "Arrêter la dictée" : "Rechercher en parlant"}
+                className={cn(
+                  "flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full border text-sm font-semibold transition active:scale-[0.98]",
+                  voice.listening
+                    ? "animate-pulse border-red-500 bg-red-500 text-white"
+                    : "border-border bg-background text-foreground",
+                )}
+              >
+                <Mic className="size-4 shrink-0" />
+                <span className="truncate">{voice.listening ? "Je vous écoute…" : "Parler pour chercher"}</span>
+              </button>
+              <div className="flex shrink-0 rounded-full bg-muted p-1 text-xs font-bold">
+                {(["ar-SA", "fr-FR"] as const).map((l) => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => setVoiceLang(l)}
+                    disabled={voice.listening}
+                    className={cn(
+                      "rounded-full px-3 py-2 transition",
+                      voiceLang === l ? "bg-background shadow-sm" : "text-muted-foreground",
+                    )}
+                  >
+                    {l === "ar-SA" ? "عربي" : "FR"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {voice.error && (
+            <p role="alert" className="mt-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {voice.error}
+            </p>
+          )}
           <p className="mt-1.5 px-1 text-[11px] text-muted-foreground/70">
             Mot ou phrase exacte, ayah ou page — ex. كتب عليكم القتال · 2:255 · Page 42
           </p>
