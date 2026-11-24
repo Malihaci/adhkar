@@ -99,6 +99,7 @@ function EcoutePage() {
   useEffect(() => setRateLocal(prefs.adhkar.speed), [prefs.adhkar.speed]);
   const setRate = (r: number) => updateAdhkar({ speed: r });
   const [rateOpen, setRateOpen] = useState(false);
+  const [playError, setPlayError] = useState(false);
   const [shift, setShift] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const userNavRef = useRef(false);
@@ -135,8 +136,7 @@ function EcoutePage() {
         if (audioRef.current === el) el.src = s;
       });
     }
-    el.preload = "metadata";
-    el.crossOrigin = "anonymous";
+    el.preload = "auto";
     audioRef.current = el;
     setIdx(0);
     setCurrentTime(audio.startOffset);
@@ -218,12 +218,24 @@ function EcoutePage() {
     if (!el) return;
     try {
       if (el.paused) {
-        if (el.currentTime < audio.startOffset) el.currentTime = audio.startOffset;
+        setPlayError(false);
+        // Source absente ou en erreur : on la recharge avant de lancer.
+        if (el.error || !el.src) {
+          const keep = el.currentTime;
+          el.src = navigator.onLine ? audio.src : await resolveAudioSrc(audio.src);
+          el.load();
+          try {
+            el.currentTime = Math.max(keep, audio.startOffset);
+          } catch {
+            /* ignore */
+          }
+        } else if (el.currentTime < audio.startOffset) el.currentTime = audio.startOffset;
         el.playbackRate = rate;
         await el.play();
       } else el.pause();
     } catch {
-      /* ignore */
+      setPlaying(false);
+      setPlayError(true);
     }
   };
 
@@ -430,6 +442,11 @@ function EcoutePage() {
             <span>{fmt(audio.duration - audio.startOffset)}</span>
           </div>
 
+          {playError && (
+            <p role="alert" className="mb-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              La lecture n'a pas pu démarrer (connexion ou fichier indisponible). Réessayez dans un instant.
+            </p>
+          )}
           {!cues.length && (
             <div className="flex justify-end">
               <button

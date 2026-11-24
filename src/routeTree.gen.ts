@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdhkarAdabRouteImport } from './routes/adhkar-adab'
 import { Route as ApresPriereRouteImport } from './routes/apres-priere'
 import { Route as CoucherRouteImport } from './routes/coucher'
+import { Route as CycleRouteImport } from './routes/cycle'
 import { Route as DuasCoranRouteImport } from './routes/duas-coran'
 import { Route as EcouteRouteImport } from './routes/ecoute'
 import { Route as FavorisRouteImport } from './routes/favoris'
@@ -22,6 +23,7 @@ import { Route as InstallRouteImport } from './routes/install'
 import { Route as KhatmaRouteImport } from './routes/khatma'
 import { Route as MatinRouteImport } from './routes/matin'
 import { Route as ParametresRouteImport } from './routes/parametres'
+import { Route as QiblaRouteImport } from './routes/qibla'
 import { Route as RappelsRouteImport } from './routes/rappels'
 import { Route as RechercheRouteImport } from './routes/recherche'
 import { Route as ReveilRouteImport } from './routes/reveil'
@@ -64,6 +66,11 @@ const ApresPriereRoute = ApresPriereRouteImport.update({
 const CoucherRoute = CoucherRouteImport.update({
   id: '/coucher',
   path: '/coucher',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CycleRoute = CycleRouteImport.update({
+  id: '/cycle',
+  path: '/cycle',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DuasCoranRoute = DuasCoranRouteImport.update({
@@ -109,6 +116,11 @@ const MatinRoute = MatinRouteImport.update({
 const ParametresRoute = ParametresRouteImport.update({
   id: '/parametres',
   path: '/parametres',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QiblaRoute = QiblaRouteImport.update({
+  id: '/qibla',
+  path: '/qibla',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RappelsRoute = RappelsRouteImport.update({
@@ -232,6 +244,7 @@ export interface FileRoutesByFullPath {
   '/adhkar-adab': typeof AdhkarAdabRoute
   '/apres-priere': typeof ApresPriereRoute
   '/coucher': typeof CoucherRoute
+  '/cycle': typeof CycleRoute
   '/duas-coran': typeof DuasCoranRoute
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
@@ -241,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/parametres': typeof ParametresRouteWithChildren
+  '/qibla': typeof QiblaRoute
   '/rappels': typeof RappelsRoute
   '/recherche': typeof RechercheRoute
   '/reveil': typeof ReveilRoute
@@ -270,6 +284,7 @@ export interface FileRoutesByTo {
   '/adhkar-adab': typeof AdhkarAdabRoute
   '/apres-priere': typeof ApresPriereRoute
   '/coucher': typeof CoucherRoute
+  '/cycle': typeof CycleRoute
   '/duas-coran': typeof DuasCoranRoute
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
@@ -279,6 +294,7 @@ export interface FileRoutesByTo {
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/parametres': typeof ParametresRouteWithChildren
+  '/qibla': typeof QiblaRoute
   '/rappels': typeof RappelsRoute
   '/recherche': typeof RechercheRoute
   '/reveil': typeof ReveilRoute
@@ -309,6 +325,7 @@ export interface FileRoutesById {
   '/adhkar-adab': typeof AdhkarAdabRoute
   '/apres-priere': typeof ApresPriereRoute
   '/coucher': typeof CoucherRoute
+  '/cycle': typeof CycleRoute
   '/duas-coran': typeof DuasCoranRoute
   '/ecoute': typeof EcouteRoute
   '/favoris': typeof FavorisRoute
@@ -318,6 +335,7 @@ export interface FileRoutesById {
   '/khatma': typeof KhatmaRoute
   '/matin': typeof MatinRoute
   '/parametres': typeof ParametresRouteWithChildren
+  '/qibla': typeof QiblaRoute
   '/rappels': typeof RappelsRoute
   '/recherche': typeof RechercheRoute
   '/reveil': typeof ReveilRoute
@@ -349,6 +367,7 @@ export interface FileRouteTypes {
     | '/adhkar-adab'
     | '/apres-priere'
     | '/coucher'
+    | '/cycle'
     | '/duas-coran'
     | '/ecoute'
     | '/favoris'
@@ -358,6 +377,7 @@ export interface FileRouteTypes {
     | '/khatma'
     | '/matin'
     | '/parametres'
+    | '/qibla'
     | '/rappels'
     | '/recherche'
     | '/reveil'
@@ -387,6 +407,7 @@ export interface FileRouteTypes {
     | '/adhkar-adab'
     | '/apres-priere'
     | '/coucher'
+    | '/cycle'
     | '/duas-coran'
     | '/ecoute'
     | '/favoris'
@@ -396,6 +417,7 @@ export interface FileRouteTypes {
     | '/khatma'
     | '/matin'
     | '/parametres'
+    | '/qibla'
     | '/rappels'
     | '/recherche'
     | '/reveil'
@@ -425,6 +447,7 @@ export interface FileRouteTypes {
     | '/adhkar-adab'
     | '/apres-priere'
     | '/coucher'
+    | '/cycle'
     | '/duas-coran'
     | '/ecoute'
     | '/favoris'
@@ -434,6 +457,7 @@ export interface FileRouteTypes {
     | '/khatma'
     | '/matin'
     | '/parametres'
+    | '/qibla'
     | '/rappels'
     | '/recherche'
     | '/reveil'
@@ -464,6 +488,7 @@ export interface RootRouteChildren {
   AdhkarAdabRoute: typeof AdhkarAdabRoute
   ApresPriereRoute: typeof ApresPriereRoute
   CoucherRoute: typeof CoucherRoute
+  CycleRoute: typeof CycleRoute
   DuasCoranRoute: typeof DuasCoranRoute
   EcouteRoute: typeof EcouteRoute
   FavorisRoute: typeof FavorisRoute
@@ -473,6 +498,7 @@ export interface RootRouteChildren {
   KhatmaRoute: typeof KhatmaRoute
   MatinRoute: typeof MatinRoute
   ParametresRoute: typeof ParametresRouteWithChildren
+  QiblaRoute: typeof QiblaRoute
   RappelsRoute: typeof RappelsRoute
   RechercheRoute: typeof RechercheRoute
   ReveilRoute: typeof ReveilRoute
@@ -522,6 +548,13 @@ declare module '@tanstack/react-router' {
       path: '/coucher'
       fullPath: '/coucher'
       preLoaderRoute: typeof CoucherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cycle': {
+      id: '/cycle'
+      path: '/cycle'
+      fullPath: '/cycle'
+      preLoaderRoute: typeof CycleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/duas-coran': {
@@ -585,6 +618,13 @@ declare module '@tanstack/react-router' {
       path: '/parametres'
       fullPath: '/parametres'
       preLoaderRoute: typeof ParametresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qibla': {
+      id: '/qibla'
+      path: '/qibla'
+      fullPath: '/qibla'
+      preLoaderRoute: typeof QiblaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/rappels': {
@@ -794,6 +834,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdhkarAdabRoute: AdhkarAdabRoute,
   ApresPriereRoute: ApresPriereRoute,
   CoucherRoute: CoucherRoute,
+  CycleRoute: CycleRoute,
   DuasCoranRoute: DuasCoranRoute,
   EcouteRoute: EcouteRoute,
   FavorisRoute: FavorisRoute,
@@ -803,6 +844,7 @@ const rootRouteChildren: RootRouteChildren = {
   KhatmaRoute: KhatmaRoute,
   MatinRoute: MatinRoute,
   ParametresRoute: ParametresRouteWithChildren,
+  QiblaRoute: QiblaRoute,
   RappelsRoute: RappelsRoute,
   RechercheRoute: RechercheRoute,
   ReveilRoute: ReveilRoute,

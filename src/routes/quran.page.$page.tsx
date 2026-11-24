@@ -2480,23 +2480,23 @@ function MushafPage() {
               className="shrink-0 border-t border-border/60 bg-card px-4 pt-3"
               style={{ paddingBottom: "calc(0.875rem + env(safe-area-inset-bottom))" }}
             >
-              {!canPlay && (
-                <p className="mb-2 text-center text-xs text-muted-foreground">
-                  {rangeInvalidReason ?? "Sélectionnez une ayah pour commencer"}
-                </p>
+              {readMode === "range" && !canPlay && (
+                <p className="mb-2 text-center text-xs text-muted-foreground">{rangeInvalidReason}</p>
               )}
+              {/* Les réglages sont déjà appliqués : « Appliquer » referme la feuille.
+                  On ne relance la récitation que si elle était en cours. */}
               <button
-                onClick={playFromAnchor}
-                disabled={!canPlay}
+                onClick={() => (playing ? playFromAnchor() : setOptionsOpen(false))}
+                disabled={playing && !canPlay}
                 className={cn(
                   "flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-bold transition active:scale-[0.98]",
-                  canPlay
+                  !playing || canPlay
                     ? "bg-primary text-primary-foreground shadow-[var(--shadow-elevated)]"
                     : "cursor-not-allowed bg-muted text-muted-foreground",
                 )}
               >
-                <Play className="size-4 fill-current" />
-                {isCurrentSession && !playing ? "Reprendre la lecture" : "Commencer la lecture"}
+                {playing ? <Play className="size-4 fill-current" /> : <Check className="size-4" />}
+                {playing ? "Appliquer et relancer" : "Appliquer"}
               </button>
             </div>
           </div>

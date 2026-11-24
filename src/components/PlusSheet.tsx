@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Bell, BookMarked, Clock, Download, Heart, Search, Settings, Sparkles, X, type LucideIcon } from "lucide-react";
+import { Bell, BookMarked, Clock, Compass, Download, Flower2, Heart, Search, Settings, Sparkles, X, type LucideIcon } from "lucide-react";
 import { useInstallPrompt } from "@/lib/pwaInstall";
 
 /**
@@ -33,6 +33,8 @@ export function PlusSheet({
     { to: "/favoris" as const, label: "Favoris", icon: Heart },
     { to: "/tadabbur" as const, label: "Comprendre — Tadabbur", icon: Sparkles },
     { to: "/horaires" as const, label: "Horaires de prière", icon: Clock },
+    { to: "/qibla" as const, label: "Qibla", icon: Compass },
+    { to: "/cycle" as const, label: "Mon cycle", icon: Flower2 },
     { to: "/rappels" as const, label: "Mes rappels", icon: Bell },
     { to: "/wird" as const, label: "Mon Wird / Khatma", icon: BookMarked },
     { to: "/recherche" as const, label: "Recherche", icon: Search },
