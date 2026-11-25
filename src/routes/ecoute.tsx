@@ -85,10 +85,7 @@ function EcoutePage() {
     return cues.map((c) => c.ids.map((id) => ALL_ADHKAR.find((d) => d.id === id)).filter((d): d is Dhikr => !!d));
   }, [cues, fullList]);
   const list: Dhikr[] = useMemo(() => entries.map((e) => e[0]), [entries]);
-  const usedIds = new Set(entries.flat().map((d) => d.id));
-  const absent = fullList.filter((d) => !usedIds.has(d.id)).length;
 
-  const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
@@ -102,7 +99,10 @@ function EcoutePage() {
   const [playError, setPlayError] = useState(false);
   const [shift, setShift] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const userNavRef = useRef(false);
+  /** Arrivée par l'icône « Écouter » : la récitation démarre d'elle-même (une seule fois). */
+  const autoStartRef = useRef(!!search.m);
+  const rateRef = useRef(1);
+  rateRef.current = rate;
 
   const baseMap = useMemo(
     () => (cues.length ? cues.map((c) => c.start) : buildTimeMap(list, audio.duration, audio.startOffset)),
@@ -111,8 +111,9 @@ function EcoutePage() {
 
   // Décalage manuel mémorisé par mode
   useEffect(() => {
-    setShift(readJSON<number>(calibKey(mode, audio.id), 0));
-  }, [mode, audio.id]);
+    // Repères mesurés : jamais de décalage (un ancien recalage enregistré fausserait le texte).
+    setShift(cues.length ? 0 : readJSON<number>(calibKey(mode, audio.id), 0));
+  }, [mode, audio.id, cues.length]);
 
   const timeMap = useMemo(
     () =>
@@ -124,8 +125,15 @@ function EcoutePage() {
       ),
     [baseMap, shift, audio.duration, audio.startOffset],
   );
-  const timeMapRef = useRef(timeMap);
-  timeMapRef.current = timeMap;
+  /** Le texte affiché est TOUJOURS déduit de la position de l'audio : c'est la voix qui rythme l'affichage. */
+  const idx = useMemo(() => {
+    let i = 0;
+    for (let k = 0; k < timeMap.length; k++) {
+      if (timeMap[k] <= currentTime + 0.05) i = k;
+      else break;
+    }
+    return i;
+  }, [timeMap, currentTime]);
 
   // (Re)create the audio element when mode changes
   useEffect(() => {
@@ -138,7 +146,6 @@ function EcoutePage() {
     }
     el.preload = "auto";
     audioRef.current = el;
-    setIdx(0);
     setCurrentTime(audio.startOffset);
     setPlaying(false);
     setLoading(true);
@@ -151,6 +158,11 @@ function EcoutePage() {
       } catch {
         /* ignore */
       }
+      if (autoStartRef.current) {
+        autoStartRef.current = false;
+        el.playbackRate = rateRef.current;
+        el.play().catch(() => undefined); // si le navigateur refuse, le bouton Lecture reste disponible
+      }
     };
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
@@ -160,14 +172,6 @@ function EcoutePage() {
     const onTime = () => {
       const t = el.currentTime;
       setCurrentTime(t);
-      if (userNavRef.current) return;
-      const map = timeMapRef.current;
-      let i = 0;
-      for (let k = 0; k < map.length; k++) {
-        if (map[k] <= t) i = k;
-        else break;
-      }
-      setIdx((prev) => (prev !== i ? i : prev));
     };
     el.addEventListener("loadedmetadata", onLoaded);
     el.addEventListener("play", onPlay);
@@ -236,18 +240,6 @@ function EcoutePage() {
     } catch {
       setPlaying(false);
       setPlayError(true);
-    }
-  };
-
-  const seekTo = (i: number) => {
-    const n = Math.min(list.length - 1, Math.max(0, i));
-    setIdx(n);
-    if (timeMap[n] !== undefined) {
-      userNavRef.current = true;
-      seekSeconds(timeMap[n]);
-      window.setTimeout(() => {
-        userNavRef.current = false;
-      }, 600);
     }
   };
 
@@ -348,28 +340,9 @@ function EcoutePage() {
       <article className="surface-card relative flex flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
           <div className="min-w-0">
-            {voices.length > 1 ? (
-              <ChoiceSelect
-                title="Voix"
-                ariaLabel="Changer de voix"
-                value={audio.id}
-                onChange={(v) => {
-                  setVoiceId(v);
-                  writeJSON(voiceKey(mode), v);
-                }}
-                className="h-6 w-auto max-w-full gap-1 rounded-full border-0 bg-muted/60 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
-              >
-                {voices.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.label}
-                  </option>
-                ))}
-              </ChoiceSelect>
-            ) : (
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                En cours · {audio.label}
-              </p>
-            )}
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              En cours · {audio.label}
+            </p>
             <h3 className="truncate font-display text-base font-semibold text-foreground">
               {dhikr.title}
               {occNow > 0 && (
@@ -393,11 +366,6 @@ function EcoutePage() {
         </header>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
-          {absent > 0 && idx === 0 && (
-            <p className="rounded-xl bg-muted/60 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-              {absent} dhikr de la liste « Lire » ne sont pas récités dans cet enregistrement.
-            </p>
-          )}
           <AyahText
             text={dhikr.arabic}
             className="text-[1.6rem] leading-[2] sm:text-[2.1rem] sm:leading-[2]"
@@ -483,6 +451,28 @@ function EcoutePage() {
         {plusOpen && (
           <PlusSheet
             onClose={() => setPlusOpen(false)}
+            header={
+              voices.length > 1 ? (
+                <div>
+                  <span className="mb-1 block text-xs text-muted-foreground">Récitateur</span>
+                  <ChoiceSelect
+                    title="Récitateur"
+                    ariaLabel="Changer de récitateur"
+                    value={audio.id}
+                    onChange={(v) => {
+                      setVoiceId(v);
+                      writeJSON(voiceKey(mode), v);
+                    }}
+                  >
+                    {voices.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </ChoiceSelect>
+                </div>
+              ) : undefined
+            }
             actions={[{ label: "Partager la récitation", icon: Share2, onClick: () => void shareAudio() }]}
           />
         )}

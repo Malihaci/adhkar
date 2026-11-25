@@ -99,6 +99,7 @@
     border-color: var(--color-border);
   }
   html, body {
+    overflow-x: clip;
     font-family: var(--font-sans);
     background-color: var(--color-background);
     color: var(--color-foreground);

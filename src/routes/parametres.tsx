@@ -884,7 +884,7 @@ function ParametresPage() {
                     Vous avez obtenu directement de votre mosquée un calendrier (horaires
                     réellement publiés) ? Collez-le ici — jamais récupéré automatiquement. Format
                     attendu, un tableau JSON :{" "}
-                    <code className="rounded bg-muted px-1 py-0.5 text-[10px]">
+                    <code className="break-all rounded bg-muted px-1 py-0.5 text-[10px] whitespace-normal">
                       [{"{"}"date":"2026-10-01","fajr":"06:17","sunrise":"07:50","dhuhr":"13:45","asr":"16:49","maghrib":"19:33","isha":"21:00"{"}"}
                       , …]
                     </code>

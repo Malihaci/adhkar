@@ -124,10 +124,29 @@ function RappelsPage() {
     setPersonalAudio(meta);
     e.target.value = "";
   };
+  /** Un seul essai à la fois : le bouton devient « Arrêter » pendant la lecture. */
+  const testAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [testPlaying, setTestPlaying] = useState(false);
+  const stopTest = () => {
+    const a = testAudioRef.current;
+    if (a) {
+      a.pause();
+      a.currentTime = 0;
+    }
+    testAudioRef.current = null;
+    setTestPlaying(false);
+  };
+  useEffect(() => stopTest, []);
   const testPersonalAudio = async () => {
+    if (testPlaying) return stopTest();
     const url = await getPersonalAudioURL();
     if (!url) return;
-    new Audio(url).play().catch(() => {});
+    stopTest();
+    const a = new Audio(url);
+    testAudioRef.current = a;
+    a.onended = () => setTestPlaying(false);
+    setTestPlaying(true);
+    a.play().catch(() => setTestPlaying(false));
   };
   const removePersonalAudio = async () => {
     await deletePersonalAudio();
@@ -404,7 +423,7 @@ function RappelsPage() {
                     onClick={testPersonalAudio}
                     className="flex-1 rounded-xl border border-border py-2.5 text-xs font-semibold text-foreground"
                   >
-                    Tester
+                    {testPlaying ? "Arrêter" : "Tester"}
                   </button>
                   <button
                     onClick={() => fileInputRef.current?.click()}
