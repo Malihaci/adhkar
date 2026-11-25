@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, ChevronLeft, ChevronRight, Droplet, Pencil, Repeat } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Droplet, Pencil, Repeat, Sprout, Upload } from "lucide-react";
 import { ChoiceSelect } from "@/components/ChoiceSelect";
 import { cn } from "@/lib/utils";
 import {
   computeCycle,
   currentPeriodDay,
   dayNum,
+  fertileWindows,
+  fertilityMap,
   isoFromNum,
   isoOf,
   markedDays,
@@ -38,7 +40,13 @@ function CyclePage() {
   const todayN = dayNum(today);
 
   const stats = useMemo(() => computeCycle(data, today), [data, today]);
-  const periodDay = currentPeriodDay(data, today);
+  // Jour des règles = depuis le premier jour de la série de jours marqués qui contient aujourd'hui
+  // (et non depuis le seul bouton « commencées »), pour ne pas repartir à « Jour 1 ».
+  const lastPeriod = stats.periods[stats.periods.length - 1];
+  const periodDay =
+    lastPeriod && lastPeriod.start <= todayN && todayN <= lastPeriod.end
+      ? todayN - lastPeriod.start + 1
+      : currentPeriodDay(data, today);
   const inPeriod = periodDay >= 1 && periodDay <= 14;
   const nextN = stats.next[0];
   const left = nextN != null ? nextN - todayN : null;
@@ -138,7 +146,7 @@ function CyclePage() {
           <section className="surface-card mt-3 px-5 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Les 3 prochaines</p>
             <ul className="mt-2 space-y-1.5">
-              {stats.next.map((n, i) => (
+              {stats.next.slice(0, 3).map((n, i) => (
                 <li
                   key={n}
                   className={cn(
@@ -152,9 +160,130 @@ function CyclePage() {
               ))}
             </ul>
           </section>
+
+          <FertilityCard next={stats.next} todayN={todayN} />
         </>
       )}
+
+      <Backup data={data} setData={setData} />
     </div>
+  );
+}
+
+const fmtRange = (a: number, b: number) => (a === b ? fmtLong(a) : `${fmtLong(a)} → ${fmtLong(b)}`);
+
+function FertilityCard({ next, todayN }: { next: number[]; todayN: number }) {
+  const windows = useMemo(() => fertileWindows(next), [next]);
+  const level = useMemo(() => fertilityMap(windows).get(todayN), [windows, todayN]);
+  const w = windows.find((x) => x.end >= todayN);
+  if (!w) return null;
+  const label = level === "peak" ? "très élevée" : level === "high" ? "élevée" : "faible";
+  return (
+    <section className="surface-card mt-3 px-5 py-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Fertilité (estimation)</p>
+      <div className="mt-2 flex items-center gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400">
+          <Sprout className="size-5" />
+        </span>
+        <div>
+          <p className="text-sm font-semibold">Aujourd'hui : probabilité {label}</p>
+          <p className="text-xs text-muted-foreground">
+            {w.start <= todayN && todayN <= w.end
+              ? "Vous êtes dans la période fertile."
+              : `Prochaine période fertile dans ${w.start - todayN} jours.`}
+          </p>
+        </div>
+      </div>
+      <dl className="mt-3 space-y-1.5 text-sm">
+        <div className="flex justify-between gap-3">
+          <dt className="text-muted-foreground">Période fertile</dt>
+          <dd className="font-medium">{fmtRange(w.start, w.end)}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-muted-foreground">Jours les plus fertiles</dt>
+          <dd className="font-medium">{fmtRange(w.peakStart, w.peakEnd)}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-muted-foreground">Ovulation estimée</dt>
+          <dd className="font-medium">{fmtLong(w.ovulation)}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+/** Export / import du calendrier (fichier JSON). L'import ajoute les jours, il n'efface rien. */
+function Backup({
+  data,
+  setData,
+}: {
+  data: CycleData;
+  setData: (v: CycleData | ((p: CycleData) => CycleData)) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [msg, setMsg] = useState("");
+
+  const exportData = () => {
+    const today = isoOf(new Date());
+    const days = [...new Set([...data.days, ...[...markedDays(data, today)].map(isoFromNum)])].sort();
+    const blob = new Blob([JSON.stringify({ app: "nurmaliha-cycle", version: 1, days, manual: data.manual }, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mon-cycle-${today}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+    setMsg("Calendrier exporté.");
+  };
+
+  const importData = async (file: File) => {
+    try {
+      const json = JSON.parse(await file.text());
+      const list: unknown = Array.isArray(json) ? json : json?.days;
+      if (!Array.isArray(list)) throw new Error("format");
+      const valid = list.filter((x): x is string => typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x));
+      if (!valid.length) throw new Error("vide");
+      setData((d) => {
+        const set = new Set(d.days);
+        valid.forEach((x) => set.add(x));
+        const manual = d.manual ?? (typeof json?.manual === "number" ? json.manual : null);
+        return { ...d, days: [...set].sort(), manual };
+      });
+      setMsg(`Calendrier importé : ${valid.length} jours lus.`);
+    } catch {
+      setMsg("Fichier non reconnu. Choisissez un calendrier exporté depuis l'application.");
+    }
+  };
+
+  return (
+    <section className="surface-card mt-3 px-5 py-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Sauvegarde</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <button type="button" onClick={exportData} className="flex h-11 items-center justify-center gap-2 rounded-full border border-border text-sm font-semibold">
+          <Download className="size-4" /> Exporter
+        </button>
+        <button type="button" onClick={() => fileRef.current?.click()} className="flex h-11 items-center justify-center gap-2 rounded-full border border-border text-sm font-semibold">
+          <Upload className="size-4" /> Importer
+        </button>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void importData(f);
+          e.target.value = "";
+        }}
+      />
+      {msg && <p className="mt-2 text-xs text-muted-foreground">{msg}</p>}
+      <p className="mt-2 text-[11px] text-muted-foreground">L'import ajoute les jours du fichier à ceux déjà enregistrés, sans rien effacer.</p>
+    </section>
   );
 }
 
@@ -189,18 +318,30 @@ function EditView({
   stats.next.forEach((s) => {
     for (let i = 0; i < stats.periodLength; i++) predicted.add(s + i);
   });
+  const fert = useMemo(() => fertilityMap(fertileWindows(stats.next)), [stats.next]);
+  const ovulations = useMemo(() => new Set(fertileWindows(stats.next).map((w) => w.ovulation)), [stats.next]);
+  /** Premier jour touché : le jour touché ensuite remplit tout l'intervalle. */
+  const [anchor, setAnchor] = useState<number | null>(null);
 
   const toggle = (n: number) => {
     if (n > todayN) return;
+    const range = anchor != null && anchor !== n && Math.abs(n - anchor) <= 20;
+    const lo = range ? Math.min(anchor!, n) : n;
+    const hi = range ? Math.max(anchor!, n) : n;
     setData((d) => {
       const set = new Set(d.days);
       // Les règles « en cours » deviennent des jours saisis avant toute modification.
       if (d.open) for (let k = dayNum(d.open); k <= todayN; k++) set.add(isoFromNum(k));
-      const iso = isoFromNum(n);
-      if (set.has(iso)) set.delete(iso);
-      else set.add(iso);
+      if (range) {
+        for (let k = lo; k <= hi; k++) set.add(isoFromNum(k));
+      } else {
+        const iso = isoFromNum(n);
+        if (set.has(iso)) set.delete(iso);
+        else set.add(iso);
+      }
       return { ...d, days: [...set].sort(), open: null };
     });
+    setAnchor(range ? null : marked.has(n) ? null : n);
   };
 
   const first = new Date(month.y, month.m, 1);
@@ -251,11 +392,12 @@ function EditView({
             const n = dayNum(`${month.y}-${String(month.m + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`);
             const on = marked.has(n);
             const future = n > todayN;
+            const f = !on && !predicted.has(n) ? fert.get(n) : undefined;
             return (
               <button
                 key={n}
                 type="button"
-                disabled={future && !predicted.has(n)}
+                disabled={future && !predicted.has(n) && !f}
                 onClick={() => toggle(n)}
                 aria-pressed={on}
                 aria-label={`${i + 1} ${MONTHS[month.m]}`}
@@ -269,23 +411,37 @@ function EditView({
                       ? "border-rose-500 bg-rose-500"
                       : predicted.has(n)
                         ? "border-dashed border-rose-400 bg-rose-500/10"
-                        : "border-border",
+                        : f === "peak"
+                          ? "border-sky-500 bg-sky-500/80"
+                          : f === "high"
+                            ? "border-sky-400/60 bg-sky-500/15"
+                            : "border-border",
+                    n === anchor && "ring-2 ring-rose-400 ring-offset-2 ring-offset-card",
                   )}
                 >
-                  {on ? "✓" : ""}
+                  {on ? "✓" : ovulations.has(n) && !predicted.has(n) ? "●" : ""}
                 </span>
               </button>
             );
           })}
         </div>
-        <div className="mt-3 flex justify-center gap-4 text-[11px] text-muted-foreground">
+        <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <i className="size-2.5 rounded-full bg-rose-500" /> Règles
           </span>
           <span className="flex items-center gap-1.5">
             <i className="size-2.5 rounded-full border border-dashed border-rose-400 bg-rose-500/10" /> Prévu
           </span>
+          <span className="flex items-center gap-1.5">
+            <i className="size-2.5 rounded-full bg-sky-500/20" /> Fertile
+          </span>
+          <span className="flex items-center gap-1.5">
+            <i className="size-2.5 rounded-full bg-sky-500" /> Très fertile (● ovulation)
+          </span>
         </div>
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          Astuce : touchez le premier jour puis le dernier, les jours entre les deux sont cochés.
+        </p>
       </section>
 
       <section className="surface-card mt-3 px-4 py-4">

@@ -11,6 +11,7 @@ import {
   Heart,
   Home,
   Leaf,
+  Lightbulb,
   Loader2,
   Maximize2,
   Minimize2,
@@ -25,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { fetchHamidullahAyah } from "@/lib/hamidullah";
+import { isStandaloneDisplay } from "@/lib/pwaInstall";
 import { spokenToQuery, useVoiceInput, type VoiceLang } from "@/lib/voiceSearch";
 import { useKahfChallenge } from "@/lib/kahfChallenge";
 import { useWakeLock } from "@/lib/wakeLock";
@@ -1528,14 +1530,51 @@ function MushafPage() {
 
   /* --------------------------------------------------- plein écran (desktop) */
   useEffect(() => {
-    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const onChange = () => {
+      const on = !!document.fullscreenElement;
+      setIsFullscreen(on);
+      // Sortie volontaire : on ne le relance pas tout seul pendant cette visite.
+      if (!on) {
+        try {
+          window.sessionStorage.setItem("nm-fs-off", "1");
+        } catch {
+          /* ignoré */
+        }
+      }
+    };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
+  // Navigateur (pas l'application installée) : plein écran au premier appui sur
+  // la page, pour gagner la barre d'adresse et la barre d'état. Le navigateur
+  // exige un geste de l'utilisateur ; l'application installée (PWA) reste la
+  // référence pour un affichage sans aucune barre.
+  useEffect(() => {
+    if (!fullscreenSupported || isStandaloneDisplay()) return;
+    try {
+      if (window.sessionStorage.getItem("nm-fs-off") === "1") return;
+    } catch {
+      /* ignoré */
+    }
+    const enter = () => {
+      if (document.fullscreenElement) return;
+      void document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
+    };
+    window.addEventListener("pointerup", enter, { once: true, capture: true });
+    return () => window.removeEventListener("pointerup", enter, true);
+  }, [fullscreenSupported]);
+
   const toggleFullscreen = () => {
     if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen?.().catch(() => {});
+    else {
+      try {
+        window.sessionStorage.removeItem("nm-fs-off");
+      } catch {
+        /* ignoré */
+      }
+      void document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
+    }
   };
 
   /* ------------------------------------------- raccourcis clavier (desktop)
@@ -1807,6 +1846,9 @@ function MushafPage() {
                 </span>
                 <ChevronDown className="size-3 text-gold" />
               </button>
+              <div lang="fr" dir="ltr" className="font-sans leading-none tabular-nums">
+                <PageNumberInput page={page} onGo={goToPageDirect} onEditing={setPageEditing} />
+              </div>
               <button
                 type="button"
                 lang="ar"
@@ -1953,31 +1995,6 @@ function MushafPage() {
             })}
           </div>
           </div>
-          {verses?.[0] && (
-            <div
-              lang="fr"
-              dir="ltr"
-              className="relative flex min-h-10 shrink-0 items-center justify-center px-2 pt-1.5 font-sans leading-none tabular-nums"
-            >
-              {/* Pied de page comme un Mushaf imprimé : juz à gauche, page au
-                  centre (saisie directe + Entrée), hizb à droite. */}
-              <PageNumberInput page={page} onGo={goToPageDirect} onEditing={setPageEditing} />
-              {verses[0].hizb ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                  e.stopPropagation();
-                  openNav("hizb");
-                }}
-                  aria-label={`Hizb ${verses[0].hizb} — aller à un autre hizb`}
-                  className="absolute right-2 rounded-md px-1.5 py-1 text-[11px] text-foreground/60 transition hover:bg-muted hover:text-foreground"
-                >
-                  Hizb {verses[0].hizb}
-                  {verses[0].rub ? ` · ${((verses[0].rub - 1) % 4) + 1}/4` : ""}
-                </button>
-              ) : null}
-            </div>
-          )}
           {tajweedMode && <TajweedLegend className="mt-1" />}
           {tajweedMode && <div className="h-20" aria-hidden />}
         </div>
@@ -2036,7 +2053,7 @@ function MushafPage() {
                   {
                     key: "study",
                     label: "Étudier",
-                    icon: Leaf,
+                    icon: Lightbulb,
                     primary: true,
                     onClick: () => studySelectedVerse(selKey),
                   },
@@ -2102,7 +2119,7 @@ function MushafPage() {
               <span className="text-[9px] font-medium leading-none text-muted-foreground">{playing ? "Pause" : "Lire"}</span>
             </button>
             {pagePassages.length > 0 ? (
-              <BarBtn label="Méditer" icon={<Leaf className="size-[19px]" strokeWidth={1.75} />} onClick={() => setMeditateOpen(true)} />
+              <BarBtn label="Méditer" icon={<Lightbulb className="size-[19px]" strokeWidth={1.75} />} onClick={() => setMeditateOpen(true)} />
             ) : (
               <BarBtn label="Étudier" icon={<Sparkles className="size-[19px]" strokeWidth={1.75} />} onClick={() => setSearchOpen(true)} hidden />
             )}
@@ -2119,7 +2136,7 @@ function MushafPage() {
           }}
           style={{ bottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
           className={cn(
-            "fixed left-1/2 z-[27] flex -translate-x-1/2 items-center gap-1 rounded-full border border-border/60 bg-card/90 p-1 shadow-[0_6px_18px_-8px_rgba(0,0,0,.35)] backdrop-blur-xl transition-all duration-300",
+            "fixed right-3 z-[27] flex items-center rounded-full border border-border/60 bg-card/90 p-1 shadow-[0_6px_18px_-8px_rgba(0,0,0,.35)] backdrop-blur-xl transition-all duration-300",
             !barFolded || pageEditing ? "pointer-events-none translate-y-[160%] opacity-0" : "opacity-100",
           )}
         >
@@ -2131,15 +2148,7 @@ function MushafPage() {
           >
             <ChevronUp className="size-5" />
           </button>
-          <button
-            type="button"
-            onClick={() => (isCurrentSession ? toggle() : resumeVerse ? void playSurahEndFromAnchor() : playFromAnchor())}
-            aria-label={playing ? "Pause" : "Lecture"}
-            className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground active:scale-95"
-          >
-            {playing ? <Pause className="size-4" strokeWidth={1.75} /> : <Play className="size-4" strokeWidth={1.75} />}
-          </button>
-        </div>
+          </div>
 
       {searchNav && !searchOpen && (
         <div
@@ -2473,6 +2482,20 @@ function MushafPage() {
                     />
                   </button>
                 </div>
+                {fullscreenSupported && !isStandaloneDisplay() && (
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-foreground">Plein écran</span>
+                    <button
+                      onClick={toggleFullscreen}
+                      role="switch"
+                      aria-checked={isFullscreen}
+                      aria-label="Plein écran"
+                      className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", isFullscreen ? "bg-primary" : "bg-muted")}
+                    >
+                      <span className={cn("absolute top-1 size-5 rounded-full bg-background shadow transition-all", isFullscreen ? "left-6" : "left-1")} />
+                    </button>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -2596,9 +2619,14 @@ function SurahBanner({ nameArabic, surah, versesCount }: { nameArabic: string; s
         to="/sourate/$surah"
         params={{ surah: String(surah) }}
         aria-label="Découvrir la sourate"
-        className="absolute left-[12.5%] top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-background/80 px-[3%] py-[1.5%] text-[34cqh] leading-none"
+        // La zone gauche de l'écran sert à tourner la page : ce lien doit garder
+        // son clic (sinon le tap était avalé par « page suivante »).
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        className="absolute left-[12.5%] top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-background/80 px-[4%] py-[2.5%] text-[34cqh] leading-none"
       >
-        🌿
+        <Lightbulb className="size-[1em]" strokeWidth={1.75} />
       </Link>
       <span
         aria-hidden
@@ -3189,7 +3217,7 @@ function PageNumberInput({
         setVal(String(page));
         onEditing(false);
       }}
-      className="w-14 rounded-md border-2 border-gold/70 bg-gold/10 px-1 py-1 text-center text-[15px] font-bold tabular-nums text-[#140d05] outline-none focus:border-gold focus:ring-2 focus:ring-gold/30 dark:text-[#fbf5e6]"
+      className="w-14 rounded-md border-2 border-gold/70 bg-gold/10 px-1 py-0 text-center text-[14px] leading-[1.6] font-bold tabular-nums text-[#140d05] outline-none focus:border-gold focus:ring-2 focus:ring-gold/30 dark:text-[#fbf5e6]"
     />
   );
 }

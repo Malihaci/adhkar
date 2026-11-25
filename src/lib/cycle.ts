@@ -75,7 +75,7 @@ export interface CycleStats {
   periods: Period[];
   cycleLength: number;
   periodLength: number;
-  /** Débuts prévus des 3 prochaines règles (numéros de jour). */
+  /** Débuts prévus des 12 prochaines règles (numéros de jour) ; l'affichage « 3 prochaines » en garde 3. */
   next: number[];
   hasHistory: boolean;
 }
@@ -94,7 +94,7 @@ export function computeCycle(data: CycleData, todayIso: string): CycleStats {
     ? Math.round(done.reduce((a, p) => a + (p.end - p.start + 1), 0) / done.length)
     : 6;
   const last = periods[periods.length - 1];
-  const next = last ? [1, 2, 3].map((i) => last.start + i * cycleLength) : [];
+  const next = last ? Array.from({ length: 12 }, (_, k) => last.start + (k + 1) * cycleLength) : [];
   return { periods, cycleLength, periodLength, next, hasHistory: periods.length > 0 };
 }
 
@@ -102,4 +102,34 @@ export function computeCycle(data: CycleData, todayIso: string): CycleStats {
 export function currentPeriodDay(data: CycleData, todayIso: string): number {
   if (!data.open) return 0;
   return dayNum(todayIso) - dayNum(data.open) + 1;
+}
+
+/* ------------------------------------------------------------ Fertilité */
+export type FertLevel = "peak" | "high";
+
+export interface FertWindow {
+  /** Ovulation estimée : 14 jours avant les règles suivantes. */
+  ovulation: number;
+  /** Fenêtre fertile : 5 jours avant l'ovulation jusqu'au lendemain. */
+  start: number;
+  end: number;
+  /** Jours les plus fertiles : les 2 jours avant l'ovulation et le jour même. */
+  peakStart: number;
+  peakEnd: number;
+}
+
+/** Fenêtres fertiles estimées (à partir du calendrier : estimation, pas une mesure). */
+export function fertileWindows(next: number[]): FertWindow[] {
+  return next.map((s) => {
+    const ov = s - 14;
+    return { ovulation: ov, start: ov - 5, end: ov + 1, peakStart: ov - 2, peakEnd: ov };
+  });
+}
+
+export function fertilityMap(windows: FertWindow[]): Map<number, FertLevel> {
+  const m = new Map<number, FertLevel>();
+  for (const w of windows) {
+    for (let n = w.start; n <= w.end; n++) m.set(n, n >= w.peakStart && n <= w.peakEnd ? "peak" : "high");
+  }
+  return m;
 }
