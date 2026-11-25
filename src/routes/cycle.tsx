@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, Droplet, Pencil, Repeat, Sprout, Upload } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Droplet, Pencil, Upload } from "lucide-react";
 import { ChoiceSelect } from "@/components/ChoiceSelect";
 import { cn } from "@/lib/utils";
 import {
@@ -14,6 +14,7 @@ import {
   markedDays,
   useCycle,
   type CycleData,
+  type FertLevel,
 } from "@/lib/cycle";
 
 export const Route = createFileRoute("/cycle")({
@@ -50,6 +51,18 @@ function CyclePage() {
   const inPeriod = periodDay >= 1 && periodDay <= 14;
   const nextN = stats.next[0];
   const left = nextN != null ? nextN - todayN : null;
+  const marked = useMemo(() => markedDays(data, today), [data, today]);
+  const predicted = useMemo(() => {
+    const s = new Set<number>();
+    stats.next.forEach((n) => {
+      for (let i = 0; i < stats.periodLength; i++) s.add(n + i);
+    });
+    return s;
+  }, [stats]);
+  const windows = useMemo(() => fertileWindows(stats.next), [stats.next]);
+  const fert = useMemo(() => fertilityMap(windows), [windows]);
+  const ovulations = useMemo(() => new Set(windows.map((w) => w.ovulation)), [windows]);
+  const ovul = windows.find((w) => w.ovulation >= todayN)?.ovulation ?? null;
 
   const startPeriod = () => setData((d) => ({ ...d, open: today }));
   const endPeriod = () =>
@@ -130,38 +143,19 @@ function CyclePage() {
             </button>
           </section>
 
-          {inPeriod && nextN != null && (
-            <section className="surface-card mt-3 px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Prochaines règles prévues</p>
-              <p className="mt-1 font-display text-xl font-semibold">{fmtLong(nextN)}</p>
-              <p className="text-sm text-muted-foreground">dans {left} jours</p>
-            </section>
-          )}
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <Tile value={`${stats.cycleLength} j`} label="Cycle" />
+            <Tile value={`${stats.periodLength} j`} label="Règles" />
+            <Tile value={ovul != null ? fmtShort(ovul) : "—"} label="Ovulation" />
+          </div>
 
-          <section className="surface-card mt-3 divide-y divide-border/60">
-            <Row icon={<Repeat className="size-4" />} value={`${stats.cycleLength} jours`} label="Durée du cycle" />
-            <Row icon={<Droplet className="size-4" />} value={`${stats.periodLength} jours`} label="Durée des règles" />
-          </section>
-
-          <section className="surface-card mt-3 px-5 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Les 3 prochaines</p>
-            <ul className="mt-2 space-y-1.5">
-              {stats.next.slice(0, 3).map((n, i) => (
-                <li
-                  key={n}
-                  className={cn(
-                    "flex items-center justify-between rounded-xl px-3 py-2 text-sm",
-                    i === 0 ? "bg-rose-500/10 font-semibold text-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  <span>{fmtLong(n)}</span>
-                  <span className="text-xs">≈ {stats.periodLength} jours</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <FertilityCard next={stats.next} todayN={todayN} />
+          <CycleCalendar
+            todayN={todayN}
+            marked={marked}
+            predicted={predicted}
+            fert={fert}
+            ovulations={ovulations}
+          />
         </>
       )}
 
@@ -170,44 +164,135 @@ function CyclePage() {
   );
 }
 
-const fmtRange = (a: number, b: number) => (a === b ? fmtLong(a) : `${fmtLong(a)} → ${fmtLong(b)}`);
+const fmtShort = (n: number) => {
+  const [, m, d] = isoFromNum(n).split("-").map(Number);
+  return `${d} ${MONTHS[m - 1].slice(0, 4)}${MONTHS[m - 1].length > 4 ? "." : ""}`;
+};
 
-function FertilityCard({ next, todayN }: { next: number[]; todayN: number }) {
-  const windows = useMemo(() => fertileWindows(next), [next]);
-  const level = useMemo(() => fertilityMap(windows).get(todayN), [windows, todayN]);
-  const w = windows.find((x) => x.end >= todayN);
-  if (!w) return null;
-  const label = level === "peak" ? "très élevée" : level === "high" ? "élevée" : "faible";
+function Tile({ value, label }: { value: string; label: string }) {
   return (
-    <section className="surface-card mt-3 px-5 py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Fertilité (estimation)</p>
-      <div className="mt-2 flex items-center gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400">
-          <Sprout className="size-5" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold">Aujourd'hui : probabilité {label}</p>
-          <p className="text-xs text-muted-foreground">
-            {w.start <= todayN && todayN <= w.end
-              ? "Vous êtes dans la période fertile."
-              : `Prochaine période fertile dans ${w.start - todayN} jours.`}
-          </p>
-        </div>
+    <div className="rounded-xl bg-muted/60 px-3 py-2">
+      <p className="text-base font-semibold">{value}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+/** Calendrier en lecture : le mois choisi et le suivant. Touchez un jour pour son détail. */
+function CycleCalendar({
+  todayN,
+  marked,
+  predicted,
+  fert,
+  ovulations,
+}: {
+  todayN: number;
+  marked: Set<number>;
+  predicted: Set<number>;
+  fert: Map<number, FertLevel>;
+  ovulations: Set<number>;
+}) {
+  const now = new Date();
+  const [base, setBase] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  const [sel, setSel] = useState<number | null>(null);
+  const shift = (d: number) =>
+    setBase(({ y, m }) => {
+      const t = new Date(y, m + d, 1);
+      return { y: t.getFullYear(), m: t.getMonth() };
+    });
+  const months = [0, 1].map((k) => {
+    const t = new Date(base.y, base.m + k, 1);
+    return { y: t.getFullYear(), m: t.getMonth() };
+  });
+
+  const describe = (n: number) => {
+    if (marked.has(n)) return "Règles";
+    if (predicted.has(n)) return "Règles prévues";
+    if (ovulations.has(n)) return "Ovulation estimée · fertilité très élevée";
+    const f = fert.get(n);
+    if (f === "peak") return "Fertilité très élevée";
+    if (f === "high") return "Fertilité élevée";
+    return "Fertilité faible";
+  };
+
+  return (
+    <section className="surface-card mt-3 px-3 py-3">
+      <div className="mb-2 flex items-center justify-between">
+        <button type="button" onClick={() => shift(-1)} aria-label="Mois précédent" className="grid size-9 place-items-center rounded-full border border-border">
+          <ChevronLeft className="size-4" />
+        </button>
+        <span className="text-xs text-muted-foreground">Touchez un jour pour le détail</span>
+        <button type="button" onClick={() => shift(1)} aria-label="Mois suivant" className="grid size-9 place-items-center rounded-full border border-border">
+          <ChevronRight className="size-4" />
+        </button>
       </div>
-      <dl className="mt-3 space-y-1.5 text-sm">
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted-foreground">Période fertile</dt>
-          <dd className="font-medium">{fmtRange(w.start, w.end)}</dd>
-        </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted-foreground">Jours les plus fertiles</dt>
-          <dd className="font-medium">{fmtRange(w.peakStart, w.peakEnd)}</dd>
-        </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted-foreground">Ovulation estimée</dt>
-          <dd className="font-medium">{fmtLong(w.ovulation)}</dd>
-        </div>
-      </dl>
+
+      {months.map(({ y, m }) => {
+        const count = new Date(y, m + 1, 0).getDate();
+        const offset = (new Date(y, m, 1).getDay() + 6) % 7;
+        return (
+          <div key={`${y}-${m}`} className="mb-3">
+            <p className="mb-1 px-1 font-display text-sm font-semibold capitalize">
+              {MONTHS[m]} {y}
+            </p>
+            <div className="grid grid-cols-7 gap-1 text-center">
+              {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
+                <span key={i} className="text-[11px] text-muted-foreground">
+                  {d}
+                </span>
+              ))}
+              {Array.from({ length: offset }).map((_, i) => (
+                <span key={`o${i}`} />
+              ))}
+              {Array.from({ length: count }).map((_, i) => {
+                const n = dayNum(`${y}-${String(m + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`);
+                const on = marked.has(n);
+                const pred = !on && predicted.has(n);
+                const f = !on && !pred ? fert.get(n) : undefined;
+                const solid = on || f === "peak";
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setSel(n)}
+                    aria-label={`${i + 1} ${MONTHS[m]} : ${describe(n)}`}
+                    className={cn(
+                      "relative grid aspect-square place-items-center rounded-full text-[13px]",
+                      on && "bg-rose-500 font-semibold text-white",
+                      pred && "border-[1.5px] border-dashed border-rose-400",
+                      f === "peak" && "bg-sky-500/80 font-semibold text-white",
+                      f === "high" && "bg-sky-500/20",
+                      n === todayN && "outline outline-2 outline-offset-1 outline-foreground",
+                      n === sel && "ring-2 ring-primary ring-offset-1 ring-offset-card",
+                    )}
+                  >
+                    {i + 1}
+                    {ovulations.has(n) && !on && (
+                      <span className={cn("absolute bottom-[3px] size-1 rounded-full", solid ? "bg-white" : "bg-sky-600")} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      <p className="min-h-5 text-center text-sm">
+        {sel != null ? (
+          <>
+            <span className="font-medium">{fmtLong(sel)}</span> · <span className="text-muted-foreground">{describe(sel)}</span>
+          </>
+        ) : (
+          <span className="text-xs text-muted-foreground">Estimation à partir de vos cycles, pas une mesure.</span>
+        )}
+      </p>
+      <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-full bg-rose-500" /> Règles</span>
+        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-full border border-dashed border-rose-400" /> Prévues</span>
+        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-full bg-sky-500/20" /> Fertile</span>
+        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-full bg-sky-500/80" /> Très fertile</span>
+      </div>
     </section>
   );
 }
@@ -260,9 +345,8 @@ function Backup({
   };
 
   return (
-    <section className="surface-card mt-3 px-5 py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Sauvegarde</p>
-      <div className="mt-2 grid grid-cols-2 gap-2">
+    <section className="mt-3">
+      <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={exportData} className="flex h-11 items-center justify-center gap-2 rounded-full border border-border text-sm font-semibold">
           <Download className="size-4" /> Exporter
         </button>
@@ -282,20 +366,7 @@ function Backup({
         }}
       />
       {msg && <p className="mt-2 text-xs text-muted-foreground">{msg}</p>}
-      <p className="mt-2 text-[11px] text-muted-foreground">L'import ajoute les jours du fichier à ceux déjà enregistrés, sans rien effacer.</p>
     </section>
-  );
-}
-
-function Row({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
-  return (
-    <div className="flex items-center gap-3 px-5 py-3">
-      <span className="grid size-9 place-items-center rounded-full bg-rose-500/10 text-rose-500">{icon}</span>
-      <div>
-        <p className="text-sm font-semibold">{value}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
-      </div>
-    </div>
   );
 }
 
