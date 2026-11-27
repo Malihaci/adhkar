@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Bell, BookMarked, Clock, Compass, Download, Flower2, Heart, Search, Settings, Sparkles, X, type LucideIcon } from "lucide-react";
+import { Bell, BookMarked, Share2, Clock, Compass, Download, Flower2, Heart, Search, Settings, Sparkles, X, type LucideIcon } from "lucide-react";
 import { useInstallPrompt } from "@/lib/pwaInstall";
+import { sharePage } from "@/lib/pageShare";
 
 /**
  * "Plus" — point d'accès unique aux contenus/réglages secondaires (§5/§I
@@ -13,7 +14,7 @@ import { useInstallPrompt } from "@/lib/pwaInstall";
  */
 export function PlusSheet({
   onClose,
-  actions = [],
+  actions: pageActions = [],
   header,
 }: {
   onClose: () => void;
@@ -23,6 +24,10 @@ export function PlusSheet({
   actions?: { label: string; icon: LucideIcon; onClick: () => void }[];
 }) {
   const { canInstall, isStandalone } = useInstallPrompt();
+  // Sans action de partage propre à la page, Plus propose de partager la page en cours.
+  const actions = pageActions.some((a) => /partag/i.test(a.label))
+    ? pageActions
+    : [{ label: "Partager cette page", icon: Share2, onClick: () => void sharePage() }, ...pageActions];
   const items = [
     // Entrée discrète (§3 mission "Installation") — seulement quand le
     // navigateur a réellement déclenché `beforeinstallprompt`, jamais un

@@ -48,7 +48,8 @@ function CyclePage() {
     lastPeriod && lastPeriod.start <= todayN && todayN <= lastPeriod.end
       ? todayN - lastPeriod.start + 1
       : currentPeriodDay(data, today);
-  const inPeriod = periodDay >= 1 && periodDay <= 14;
+  // « En cours » seulement tant que le bouton « Mes règles ont commencé » n'a pas été clôturé.
+  const inPeriod = !!data.open && periodDay >= 1 && periodDay <= 14;
   const nextN = stats.next[0];
   const left = nextN != null ? nextN - todayN : null;
   const marked = useMemo(() => markedDays(data, today), [data, today]);
@@ -78,8 +79,8 @@ function CyclePage() {
   if (editing) return <EditView data={data} setData={setData} onDone={() => setEditing(false)} />;
 
   return (
-    <div className="mx-auto min-h-[100dvh] max-w-2xl bg-background px-4 pb-32 pt-4">
-      <header className="mb-4 flex items-center gap-3">
+    <div className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col bg-background px-4 pb-24 pt-3">
+      <header className="mb-2 flex items-center gap-3">
         <Link to="/" aria-label="Accueil" className="grid size-10 shrink-0 place-items-center rounded-full border border-border">
           <ArrowLeft className="size-5" />
         </Link>
@@ -110,32 +111,38 @@ function CyclePage() {
         </section>
       ) : (
         <>
-          <section className="surface-card px-5 py-6 text-center">
+          <section className="surface-card shrink-0 px-4 py-3 text-center">
             {inPeriod ? (
               <>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Aujourd'hui</p>
-                <p className="mt-1 font-display text-4xl font-bold text-rose-500">Jour {periodDay}</p>
-                <p className="mt-1 text-sm text-muted-foreground">Règles en cours</p>
-                <p className="mt-3 text-sm text-foreground">Prière et jeûne : dispensés pendant cette période.</p>
+                <p className="font-display text-3xl font-bold leading-tight text-rose-500">Jour {periodDay}</p>
+                <p className="text-sm text-muted-foreground">Règles en cours</p>
+                <p className="mt-1 text-xs text-foreground">Prière et jeûne : dispensés pendant cette période.</p>
               </>
             ) : (
               <>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Prochaines règles</p>
                 {left != null && left >= 0 ? (
-                  <p className="mt-1 font-display text-4xl font-bold text-primary">
+                  <p className="font-display text-3xl font-bold leading-tight text-primary">
                     {left === 0 ? "Aujourd'hui" : `${left} jour${left > 1 ? "s" : ""}`}
                   </p>
                 ) : (
                   <p className="mt-1 font-display text-2xl font-bold text-primary">Attendues depuis {left != null ? -left : 0} j</p>
                 )}
-                {nextN != null && <p className="mt-1 text-sm text-muted-foreground">vers le {fmtLong(nextN)}</p>}
+                {nextN != null && <p className="text-sm text-muted-foreground">vers le {fmtLong(nextN)}</p>}
+                <p className="mt-1 text-xs">
+                  Probabilité de grossesse aujourd'hui :{" "}
+                  <span className="font-semibold text-sky-600 dark:text-sky-400">
+                    {fert.get(todayN) === "peak" ? "très élevée" : fert.get(todayN) === "high" ? "élevée" : "faible"}
+                  </span>
+                </p>
               </>
             )}
             <button
               type="button"
               onClick={inPeriod ? endPeriod : startPeriod}
               className={cn(
-                "mt-5 h-12 w-full rounded-full text-sm font-bold active:scale-[0.98]",
+                "mt-2 h-10 w-full rounded-full text-sm font-bold active:scale-[0.98]",
                 inPeriod ? "border border-border bg-card text-foreground" : "bg-rose-500 text-white",
               )}
             >
@@ -143,7 +150,7 @@ function CyclePage() {
             </button>
           </section>
 
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-2 grid shrink-0 grid-cols-3 gap-2">
             <Tile value={`${stats.cycleLength} j`} label="Cycle" />
             <Tile value={`${stats.periodLength} j`} label="Règles" />
             <Tile value={ovul != null ? fmtShort(ovul) : "—"} label="Ovulation" />
@@ -171,7 +178,7 @@ const fmtShort = (n: number) => {
 
 function Tile({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-xl bg-muted/60 px-3 py-2">
+    <div className="rounded-xl bg-muted/60 px-3 py-1.5">
       <p className="text-base font-semibold">{value}</p>
       <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
@@ -200,7 +207,7 @@ function CycleCalendar({
       const t = new Date(y, m + d, 1);
       return { y: t.getFullYear(), m: t.getMonth() };
     });
-  const months = [0, 1].map((k) => {
+  const months = [0].map((k) => {
     const t = new Date(base.y, base.m + k, 1);
     return { y: t.getFullYear(), m: t.getMonth() };
   });
@@ -216,8 +223,8 @@ function CycleCalendar({
   };
 
   return (
-    <section className="surface-card mt-3 px-3 py-3">
-      <div className="mb-2 flex items-center justify-between">
+    <section className="surface-card mt-2 flex min-h-[20rem] flex-1 flex-col px-3 py-3">
+      <div className="mb-2 flex shrink-0 items-center justify-between">
         <button type="button" onClick={() => shift(-1)} aria-label="Mois précédent" className="grid size-9 place-items-center rounded-full border border-border">
           <ChevronLeft className="size-4" />
         </button>
@@ -231,11 +238,11 @@ function CycleCalendar({
         const count = new Date(y, m + 1, 0).getDate();
         const offset = (new Date(y, m, 1).getDay() + 6) % 7;
         return (
-          <div key={`${y}-${m}`} className="mb-3">
+          <div key={`${y}-${m}`} className="mb-2 flex min-h-0 flex-1 flex-col">
             <p className="mb-1 px-1 font-display text-sm font-semibold capitalize">
               {MONTHS[m]} {y}
             </p>
-            <div className="grid grid-cols-7 gap-1 text-center">
+            <div className="grid min-h-0 flex-1 grid-cols-7 gap-1 text-center [grid-template-rows:auto]" style={{ gridAutoRows: "1fr", gridTemplateRows: "auto repeat(" + Math.ceil((count + offset) / 7) + ", 1fr)" }}>
               {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
                 <span key={i} className="text-[11px] text-muted-foreground">
                   {d}
@@ -257,7 +264,7 @@ function CycleCalendar({
                     onClick={() => setSel(n)}
                     aria-label={`${i + 1} ${MONTHS[m]} : ${describe(n)}`}
                     className={cn(
-                      "relative grid aspect-square place-items-center rounded-full text-[13px]",
+                      "relative m-auto grid aspect-square h-full max-h-12 place-items-center rounded-full text-sm",
                       on && "bg-rose-500 font-semibold text-white",
                       pred && "border-[1.5px] border-dashed border-rose-400",
                       f === "peak" && "bg-sky-500/80 font-semibold text-white",
@@ -278,7 +285,7 @@ function CycleCalendar({
         );
       })}
 
-      <p className="min-h-5 text-center text-sm">
+      <p className="min-h-5 shrink-0 text-center text-sm">
         {sel != null ? (
           <>
             <span className="font-medium">{fmtLong(sel)}</span> · <span className="text-muted-foreground">{describe(sel)}</span>

@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { CloudOff, Share2, Trophy } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { usePageShare } from "@/lib/pageShare";
 import { CounterPad } from "@/components/CounterPad";
 import {
   addToLog,
@@ -50,6 +51,7 @@ function ChallengePage() {
     retry: (n, e) => (e as { status?: number }).status == null && n < 2,
   });
   const challenge = data?.challenge;
+  usePageShare(challenge ? { title: challenge.title, text: shareTextForChallenge(challenge) } : null);
 
   // --- synchronisation optimiste -------------------------------------------
   const localRef = useRef(local);

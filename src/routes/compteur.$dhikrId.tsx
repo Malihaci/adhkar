@@ -18,6 +18,7 @@ import {
   usePersonalCounters,
 } from "@/lib/dhikrCounter";
 import { cn } from "@/lib/utils";
+import { usePageShare } from "@/lib/pageShare";
 
 export const Route = createFileRoute("/compteur/$dhikrId")({
   head: () => ({ meta: [{ title: "Compteur de dhikr" }] }),
@@ -44,6 +45,19 @@ function CounterPage() {
   const shownCount = fridayMode ? todayCount : entry.count;
   const goal = fridayMode ? friday.goal : entry.goal;
   const reported = reportedNumber(dhikrId);
+  const isSalat = dhikrId === SALAT_DHIKR_ID;
+  usePageShare({
+    title: dhikrShortTitle(dhikrId),
+    text: isSalat
+      ? [
+          "السلام عليكم ورحمة الله وبركاته 🌿",
+          ...(fridayMode ? ["Défi du vendredi : la prière sur le Prophète ﷺ"] : []),
+          SALAT_FORMULA.arabic,
+          SALAT_FORMULA.french,
+        ].join("\n\n")
+      : undefined,
+    url: typeof window !== "undefined" ? window.location.href : undefined,
+  });
 
   const bump = (delta: 1 | -1) => {
     setCounters((c) => {
@@ -66,22 +80,19 @@ function CounterPage() {
 
   return (
     <AppShell title="Compteur" subtitle={dhikrShortTitle(dhikrId)} hideSettings>
-      <div className="space-y-5">
+      <div className="-mt-3 space-y-3">
         {fridayMode && (
-          <p className="rounded-2xl bg-primary/8 px-4 py-3 text-center text-sm font-medium text-primary">
+          <p className="rounded-full bg-primary/8 px-4 py-1.5 text-center text-xs font-medium text-primary">
             Vendredi 🌿 · Objectif personnel : {friday.goal}
           </p>
         )}
 
         {dhikr && (
-          <div className="surface-card space-y-2 p-5 text-center">
-            <p lang="ar" dir="rtl" className="font-arabic text-2xl leading-loose text-foreground">
+          <div className="surface-card space-y-1 px-4 py-3 text-center">
+            <p lang="ar" dir="rtl" className="font-arabic text-xl leading-relaxed text-foreground">
               {dhikrId === SALAT_DHIKR_ID ? SALAT_FORMULA.arabic : dhikr.arabic}
             </p>
-            {dhikrId === SALAT_DHIKR_ID && (
-              <p className="text-sm italic text-muted-foreground">{SALAT_FORMULA.phonetic}</p>
-            )}
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs leading-snug text-muted-foreground">
               {dhikrId === SALAT_DHIKR_ID ? SALAT_FORMULA.french : dhikr.translation}
             </p>
           </div>
